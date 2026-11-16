@@ -50,6 +50,14 @@ native ports. The original blocking listener is deliberately skipped in
 Chromium, and dynamic rules handle the supported subset. Not all UI
 controls are currently guaranteed operational on Chromium.
 
+**New source-only Chromium adapter paths:** Persistent selective host/type
+blocks, remembered request allowances, and tab-restricted session DNR
+allowances for “Pause this tab” are wired to the original DK Live Block
+control flow. The tab-pause state uses Chromium session storage to survive
+MV3 worker suspension and clears after browser restart. Browser-owned
+network response replacement, Firefox DNS/proxy controls and some
+short-lived per-request approvals remain separate engineering tasks.
+
 **Validation still required:** Incremental native Linux Chromium build,
 component registration/startup inspection, update/list rules quotas,
 permission review, site allowlist correctness, DOM false positives,
