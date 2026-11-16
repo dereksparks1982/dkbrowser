@@ -19,6 +19,14 @@ are implemented.
 4. The interface opens at `http://127.0.0.1:8766` and shows available models.
    Chat messages are only submitted to the chosen local model.
 
+**Usability:** The chat remembers only the language choice (English or Russian)
+in browser local storage; it never stores messages there. Existing messages
+change their role labels when the interface language changes. Press
+**Ctrl+Enter** (or **Command+Enter**) to send while keeping Enter available
+for multiline messages. **Export chat / Сохранить переписку** creates a
+local text file only when clicked. **Clear chat / Очистить переписку**
+forgets the session's messages; closing the page also discards them.
+
 The service requires only Python's standard library. The browser UI sends
 same-origin JSON to DK AI, and the backend contacts only the fixed loopback
 Ollama address. Browser origin and Host headers are verified to mitigate
