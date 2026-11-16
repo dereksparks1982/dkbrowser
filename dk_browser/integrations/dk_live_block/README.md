@@ -86,3 +86,20 @@ timers, licensing obligations and user-controlled site exceptions.
 The built-in DK Live Block component is independent of DK Media Player:
 that player remains web-only. No desktop player or browser download is
 created by this integration.
+
+## Protection switch correction (November 16, 2026)
+
+The Chromium DNR adapter now toggles the bundled `dk_live_block_seed`
+static ruleset along with its dynamic rules. Previously, switching off
+protection removed only dynamic rules while ten static seed rules stayed
+enabled. The adapter also re-enables the seed when protection resumes and
+reports an error rather than claiming success if Chromium lacks the static
+ruleset control API. Regression cases cover off/on transitions and the
+missing-API case.
+
+**Not a parity claim:** the bundled upstream snapshot is v0.3.371, while
+DK Live Block development has progressed beyond that snapshot. Newer source
+changes are not automatically synced. A full source refresh, manifest and
+permission reconciliation, Chromium-compatible API adapters, a native build,
+and actual browser interaction tests are still required before integration
+can be called complete. Source tests are not a substitute for that work.
