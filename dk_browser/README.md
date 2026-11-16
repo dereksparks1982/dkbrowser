@@ -59,3 +59,12 @@ language, approved English/Russian image bytes, safe Linux package identity
 and local AI boundaries. Run `--no-tests` for the fast invariants alone.
 
 It neither requires nor starts GitHub Actions, and is **not** a Chromium build.
+
+
+## Native DK AI entry point
+
+The standard toolbar contains a localized **DK AI / ДК ИИ** button.
+It opens the fixed local URL `http://127.0.0.1:8766/` in a new foreground
+tab using Chromium's browser-initiated navigation API. The separate Python
+service must already be running. No page content is forwarded automatically.
+The native integration is source-only until a full Chromium build verifies it.

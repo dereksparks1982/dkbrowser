@@ -137,6 +137,7 @@
 #include "components/send_tab_to_self/features.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/strings/grit/components_strings.h"
+#include "content/public/browser/page_navigator.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -144,6 +145,8 @@
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/actions/actions.h"
 #include "ui/base/interaction/element_identifier.h"
+#include "ui/base/mojom/window_open_disposition.mojom.h"
+#include "ui/base/page_transition_types.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/theme_provider.h"
@@ -174,6 +177,7 @@
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/tooltip_manager.h"
 #include "ui/views/widget/widget.h"
+#include "url/gurl.h"
 
 #if defined(USE_AURA)
 #include <array>
@@ -495,6 +499,20 @@ void ToolbarView::Init() {
                  : u"Language: English. Switch to Russian");
   language_button_ = AddChildView(std::move(language_button));
 
+  // DK AI is optional, so this button merely opens the local development
+  // page. It does not launch a server or transmit the active webpage.
+  auto ai_button = std::make_unique<views::LabelButton>(
+      base::BindRepeating(&ToolbarView::OnDKAIButtonPressed,
+                          base::Unretained(this)),
+      is_russian ? u"ДК ИИ" : u"DK AI");
+  ai_button->SetTooltipText(
+      is_russian ? u"Открыть местного помощника ДК"
+                 : u"Open the local DK AI assistant");
+  ai_button->GetViewAccessibility().SetName(
+      is_russian ? u"Открыть помощника ДК в новой вкладке"
+                 : u"Open DK AI in a new tab");
+  ai_button_ = AddChildView(std::move(ai_button));
+
   bool is_glic_left_of_profile =
       features::kGlicToolbarButtonLocationParam.Get() ==
           features::GlicToolbarButtonLocation::kLeftOfProfileChip ||
@@ -728,6 +746,17 @@ void ToolbarView::OnDKLanguageButtonPressed(const ui::Event&) {
   g_browser_process->local_state()->SetString(
       language::prefs::kApplicationLocale, is_russian ? "en-US" : "ru");
   chrome::AttemptRestart();
+}
+
+void ToolbarView::OnDKAIButtonPressed(const ui::Event&) {
+  // Only a fixed loopback origin is allowed. The server is started manually
+  // by the user and no browsing context, page text or credentials are sent.
+  constexpr char kLocalAssistantURL[] = "http://127.0.0.1:8766/";
+  auto params = content::OpenURLParams::CreateBrowserInitiated(
+      GURL(kLocalAssistantURL),
+      ui::mojom::WindowOpenDisposition::kNewForegroundTab,
+      ui::PAGE_TRANSITION_AUTO_BOOKMARK);
+  browser_->OpenURL(params, /*navigation_handle_callback=*/{});
 }
 
 void ToolbarView::InitGlicContainer() {

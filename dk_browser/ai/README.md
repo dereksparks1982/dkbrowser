@@ -1,7 +1,13 @@
 # DK AI: local-only prototype
 
+The DK Browser source now includes a native toolbar entry **DK AI / ДК ИИ**
+which opens `http://127.0.0.1:8766/` in a foreground tab. It does not
+start the assistant process, install model weights, or send the current page's
+contents. If the local service is not running the tab will show a normal
+connection error. Start it manually using the command below.
+
 This is an optional, bilingual English/Russian **development component**,
-not yet the browser's native AI sidebar. No accounts, cloud providers,
+now linked from the native toolbar, but **not yet a native AI sidebar**. No accounts, cloud providers,
 telemetry, model downloads, browser tab reads, system commands or agent tools
 are implemented.
 

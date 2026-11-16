@@ -94,6 +94,18 @@ def validate():
         check('"@@package_orig" ' in text and '"dk-browser"' in text,
               f"Missing DK-specific upstream repository safety check: {path}")
 
+    toolbar = (ROOT / "chrome/browser/ui/views/toolbar/toolbar_view.cc").read_text()
+    toolbar_header = (ROOT / "chrome/browser/ui/views/toolbar/toolbar_view.h").read_text()
+    check('u"ДК ИИ"' in toolbar and 'u"DK AI"' in toolbar,
+          "DK AI native toolbar button has lost its bilingual labels.")
+    check('GURL(kLocalAssistantURL)' in toolbar and
+          'kLocalAssistantURL[] = "http://127.0.0.1:8766/"' in toolbar and
+          'kNewForegroundTab' in toolbar and
+          'browser_->OpenURL(params,' in toolbar,
+          "DK AI toolbar must open its fixed local service in a new tab.")
+    check('OnDKAIButtonPressed' in toolbar_header,
+          "DK AI native toolbar callback declaration is missing.")
+
     ui = (ROOT / "dk_browser/ai/app.js").read_text(encoding="utf-8")
     check("localStorage.setItem(\"dk-ai-language\"" in ui,
           "Local assistant lost persisted language selection.")

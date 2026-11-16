@@ -76,7 +76,8 @@ Models are candidates, not embedded distributions. Check upstream license files 
 - Server access is loopback-only. Requests check the exact local Host and POST Origin to prevent normal browser cross-origin and DNS-rebinding abuse; requests are bounded and no general network proxy, shell tools, page-scraping access or autonomous browser actions are available.
 - The server exposes only installed model names and text-chat answers, with output escaped by DOM `textContent`. The UI remembers only a language preference and displays the approved locale-specific icon, offers keyboard submission and explicit local transcript export; there is no background transcript persistence, cloud provider feature or built-in browser/sidebar registration yet.
 - Local HTTP unit tests with a simulated Ollama model are included in `dk_browser/tests/test_dk_ai_server.py`. Actual Ollama/GigaChat compatibility and runtime security still require Linux testing.
-- Future: integrate a secure native sidebar/toolbar launch flow, local-model lifecycle management, page permissions, rich translation and Russian performance benchmarks. Do not claim feature parity with Alice AI.
+- Native **DK AI / ДК ИИ** toolbar button now navigates to a fixed loopback URL in a foreground tab. The local Python server must already be running, and no active-tab context, site content, credentials or automatic model download is passed to it. This is a native launch *entry point*, **not** a Chromium-native sidebar, an integrated model engine, or a compiled/tested application.
+- Future: build a permissioned native sidebar, local-model lifecycle management, page permissions, rich translation and Russian performance benchmarks. Do not claim feature parity with Alice AI.
 
 ## Offline release preflight
 
