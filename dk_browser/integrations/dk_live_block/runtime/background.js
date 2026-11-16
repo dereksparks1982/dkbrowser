@@ -952,7 +952,7 @@ browser.tabs.onRemoved.addListener(id=>{
  DKThreatWarning.clear(data.threatWarnings,id);data.threatWarningPending.delete(id);DKNetworkMonitor.remove(data.networkMonitors,id);DKAllowedActivity.clear(data.allowedActivity,id);pendingAllowedDecisions.delete(id);DKPlaybackHealth.clear(data.playbackHealth,id);DKYouTubeResponse.clear(id);DKMetaGraphQL.clear(id);autoVideoTimes.delete(id);data.hosts.delete(id);data.counts.delete(id);data.logs.delete(id);data.networkIssues.delete(id);data.streamingIssues.delete(id);DKStreamingRepair.clear(data.streamingAllowances,id);data.popupCounts.delete(id);const wasPaused=data.tempPaused.delete(id);
  if(wasPaused&&globalThis.DKChromiumDNR){
   void globalThis.DKChromiumDNR.syncTabPauses([...data.tempPaused],data.settings);
-  void browser.storage.session?.set({dkChromiumPausedTabs:[...data.tempPaused]});
+  void browser.storage.session?.set({dkChromiumPausedTabs:[...data.tempPaused]}).catch(()=>{});
  }
  toolbarIcons?.reset(id);});
 browser.alarms.onAlarm.addListener(a=>{if(a.name==="refresh-rules"&&data.settings.autoUpdate){
@@ -1973,8 +1973,14 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
     await globalThis.DKChromiumDNR.syncTabPauses([...data.tempPaused],data.settings);
     return {error:result.error};
    }
-   try{await browser.storage.session?.set({dkChromiumPausedTabs:[...data.tempPaused]});}
-   catch(_){return {error:"Tab pause was applied, but its session state could not be saved."};}
+   try{
+    if(!browser.storage.session?.set)throw Error("Session storage unavailable");
+    await browser.storage.session.set({dkChromiumPausedTabs:[...data.tempPaused]});
+   }catch(_){
+    if(previouslyPaused)data.tempPaused.add(id);else data.tempPaused.delete(id);
+    await globalThis.DKChromiumDNR.syncTabPauses([...data.tempPaused],data.settings);
+    return {error:"Could not save the Chromium tab pause. Previous state restored."};
+   }
   }
   badge(id);refreshTabs();return status(id,url);
  }
