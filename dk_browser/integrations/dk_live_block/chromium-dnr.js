@@ -85,7 +85,7 @@ function translate(parsed,id){
 function explicitType(type){
  // Firefox distinguishes imageset and beacon from ordinary image/ping.
  // DNR cannot preserve those exact request kinds, so never broaden them.
- return Object.prototype.hasOwnProperty.call(DNR_TYPES,type)?DNR_TYPES[type]:null;
+ return Object.values(DNR_TYPES).includes(type)?type:null;
 }
 function explicitRule(row,id,allow){
  if(!row||!validHost(row.site)||!validHost(row.host))return null;
