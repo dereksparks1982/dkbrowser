@@ -86,7 +86,9 @@ Run `python3 dk_browser/tools/preflight.py` in a full checkout for local checks 
 
 ## Build groundwork
 
-Chromium uses `depot_tools`, `gclient`, `gn` and `autoninja`. Forking the source provides Chromium's main tree, but a local checkout must also synchronize dependencies from `DEPS` before compiling. Do not treat GitHub's ZIP download as a complete build environment.
+Chromium uses `depot_tools`, `gclient`, `gn` and `autoninja`. Forking the source provides Chromium's main tree, but a local checkout must also synchronize dependencies from `DEPS` before compiling.
+
+The Chromium source is synchronized through upstream commit `cfba7487b2e7e4a3a4fca808786a20780ea54c86` while preserving DK-specific files. This source-only update has not been compiled or tested; details of the merge and the outstanding checks are in [DK_BROWSER.md](DK_BROWSER.md). Do not treat GitHub's ZIP download as a complete build environment.
 
 DK Browser's Linux GN configuration lives at [dk_browser/args.linux.gn](dk_browser/args.linux.gn); import these arguments into your chosen GN output directory when a build environment is ready.
 
