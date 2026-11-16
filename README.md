@@ -32,6 +32,10 @@ This is a **source implementation**; there is no compiled DK Browser executable 
 
 [DK Media Player](https://github.com/dereksparks1982/DK-Media-Player) remains a **web application** and is opened by DK Browser. Browser features are implemented here; site-specific player functionality remains in its own repository. Its [live web player](https://dereksparks1982.github.io/DK-Media-Player/) supports opening media, resume positions, a saved last-file handle in compatible browsers, and volume adjustment by scrolling over the video.
 
+## Separate Linux user profile
+
+DK Browser uses its own **`~/.config/dk-browser`** profile directory instead of Chromium's `~/.config/chromium`. Bookmarks, history, settings and extensions are therefore kept separate by default. The matching snap configuration path is also DK-specific. Existing Chromium overrides such as `--user-data-dir` and the XDG configuration location still take precedence when explicitly chosen.
+
 ## Build groundwork
 
 Chromium uses `depot_tools`, `gclient`, `gn` and `autoninja`. Forking the source provides Chromium's main tree, but a local checkout must also synchronize dependencies from `DEPS` before compiling. Do not treat GitHub's ZIP download as a complete build environment.

@@ -53,6 +53,13 @@ Models are candidates, not embedded distributions. Check upstream license files 
 - Both GitHub README front pages feature their appropriate icon, with English/Russian navigation. Russian product translation strings are improved but still require native-language review.
 - **Not compiled or run yet**: check toolbar layout, restart behavior, Russian translations, Chromium app packaging and correct icons on a real Ubuntu machine.
 
+## Linux profile isolation
+
+- The non-Google Linux browser uses `~/.config/dk-browser` rather than Chromium's default `~/.config/chromium` profile. Existing explicit profile overrides are preserved.
+- The snap helper's profile-basename logic remains synchronized with `chrome_paths_linux.cc`, with a separate `dk-browser-config` personal-files plug rather than silently targeting the Chromium snap.
+- The Google-branded code paths and their profile directory names remain unchanged.
+- Static source checks are recorded in `dk_browser/tests/test_linux_profile_identity.py`. This has not been validated in a compiled browser, and snap packaging remains disabled by the normal GN configuration.
+
 ## Outstanding before a usable DK Browser release
 
 1. **Compile** on Linux using a synchronized upstream DEPS checkout and check build errors. Widevine is currently source-integrated, not proven working at runtime. A compatible CDM must already be present on the machine or supplied through a supported component flow. Some streaming services additionally enforce client authorization.

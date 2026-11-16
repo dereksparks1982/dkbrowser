@@ -76,7 +76,7 @@ def get_config_dir_name(config: installer.InstallerConfig) -> str:
     # The basename of the default user data directory.
     # LINT.IfChange(ConfigDirName)
     if config.branding == "chromium":
-        return "chromium"
+        return "dk-browser"
     assert config.branding == "google_chrome"
     suffix = {
         "stable": "",
@@ -93,10 +93,11 @@ def get_config_dir_name(config: installer.InstallerConfig) -> str:
 
 def get_config_plug_name(config: installer.InstallerConfig) -> str:
     # The name of the personal-files plug used for importing an existing
-    # profile. These match the plug names in Canonical's Chromium and Google
-    # Chrome snaps, since store auto-connection is granted per plug name.
+    # profile. DK Browser uses its own plug name; no auto-connection to the
+    # Chromium snap's personal-files permission is assumed.
     if config.branding == "chromium":
-        return "chromium-config"
+        # DK Browser must not import Chromium's existing profile by default.
+        return "dk-browser-config"
     assert config.branding == "google_chrome"
     return "chrome-config"
 
