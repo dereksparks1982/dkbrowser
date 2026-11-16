@@ -87,6 +87,15 @@ class DKAILocalTests(unittest.TestCase):
         status, _ = self.fetch("/../server.py")
         self.assertEqual(status,404)
 
+    def test_approved_localized_artwork(self):
+        for language in ("en", "ru"):
+            status, content = self.fetch(f"/assets/dk-icon-{language}.png")
+            self.assertEqual(status, 200)
+            self.assertTrue(content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+            self.assertGreater(len(content), 100000)
+        status, _ = self.fetch("/assets/../../server.py")
+        self.assertEqual(status, 404)
+
     def test_models_and_russian_response(self):
         status, raw = self.fetch("/api/models")
         self.assertEqual(status,200)

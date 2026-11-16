@@ -9,7 +9,7 @@ button:disabled { opacity:.48; cursor:wait; }
 .shell { max-width:980px; margin:0 auto; padding:22px; }
 .top { display:flex; align-items:center; justify-content:space-between; gap:20px; border-bottom:1px solid #92552f; padding-bottom:15px; }
 .brand { display:flex; align-items:center; gap:14px; font-size:24px; }
-.brand span { display:grid; place-items:center; width:56px; height:56px; border:2px solid #dbad63; border-radius:12px; background:#710d19; color:#efc683; font-weight:800; }
+.brand img { width:56px; height:56px; object-fit:cover; border:2px solid #dbad63; border-radius:12px; background:#710d19; }
 .settings { display:flex; align-items:center; gap:10px; }
 .panel { background:#1b1313e8; border:1px solid #92552f; border-radius:15px; margin-top:24px; padding:24px; }
 h1 { font-size:clamp(24px,4vw,35px); margin:0 0 4px; }

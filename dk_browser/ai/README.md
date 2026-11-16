@@ -19,6 +19,11 @@ are implemented.
 4. The interface opens at `http://127.0.0.1:8766` and shows available models.
    Chat messages are only submitted to the chosen local model.
 
+**Official artwork:** The assistant serves the approved Latin **DK** and Cyrillic
+**ДК** imperial icons directly from `assets/images`. Both its header and
+tab favicon switch with the English/Russian language setting. The master
+images stay in their original folder, without duplicate image files.
+
 **Usability:** The chat remembers only the language choice (English or Russian)
 in browser local storage; it never stores messages there. Existing messages
 change their role labels when the interface language changes. Press

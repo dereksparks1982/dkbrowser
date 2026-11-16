@@ -44,6 +44,10 @@
     language = $("locale").value === "ru" ? "ru" : "en";
     document.documentElement.lang = language;
     document.title = tr("title");
+    const localizedIcon = language === "ru"
+      ? "/assets/dk-icon-ru.png" : "/assets/dk-icon-en.png";
+    $("brandLogo").src = localizedIcon;
+    $("favicon").href = localizedIcon;
     for (const key of ["title","localeLabel","subtitle","intro","modelLabel","refresh",
                         "inputLabel","clear","export","send","privacy"]) $(key).textContent = tr(key);
     $("input").placeholder = tr("placeholder");

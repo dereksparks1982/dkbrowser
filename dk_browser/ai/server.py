@@ -15,10 +15,18 @@ import urllib.request
 import webbrowser
 
 STATIC = Path(__file__).resolve().parent
-FILES = {"/": ("index.html", "text/html; charset=utf-8"),
-         "/index.html": ("index.html", "text/html; charset=utf-8"),
-         "/app.js": ("app.js", "text/javascript; charset=utf-8"),
-         "/style.css": ("style.css", "text/css; charset=utf-8")}
+# Only allow explicitly listed static files; never accept a client file path.
+ASSETS = STATIC.parents[1] / "assets" / "images"
+FILES = {
+    "/": (STATIC / "index.html", "text/html; charset=utf-8"),
+    "/index.html": (STATIC / "index.html", "text/html; charset=utf-8"),
+    "/app.js": (STATIC / "app.js", "text/javascript; charset=utf-8"),
+    "/style.css": (STATIC / "style.css", "text/css; charset=utf-8"),
+    "/assets/dk-icon-en.png": (
+        ASSETS / "DK Browser Imperial Icon.png", "image/png"),
+    "/assets/dk-icon-ru.png": (
+        ASSETS / "DK Browser Russian Imperial Icon.png", "image/png"),
+}
 MAX_REQUEST = 64 * 1024
 MAX_REPLY = 2 * 1024 * 1024
 MAX_MESSAGES = 30
@@ -96,8 +104,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(503, {"error": str(exc)})
         if path not in FILES:
             return self._json(404, {"error": "Not found."})
-        name, kind = FILES[path]
-        return self._send(200, (STATIC / name).read_bytes(), kind)
+        file_path, kind = FILES[path]
+        try:
+            contents = file_path.read_bytes()
+        except OSError:
+            return self._json(404, {"error": "Asset is unavailable."})
+        return self._send(200, contents, kind)
 
     def do_POST(self):
         if not self._secure_host():

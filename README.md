@@ -46,7 +46,7 @@ The normal upstream `chrome` executable remains internal to the package, while `
 
 An experimental bilingual **DK AI** interface now lives in [dk_browser/ai](dk_browser/ai). It connects only to a local [Ollama](https://ollama.com) server, lists already installed models, and supports an English/Russian text chat without an account or automatic model download. The assistant runs as a **separate local development page**, not as a native Chromium sidebar yet.
 
-After starting Ollama and installing your own compatible model, run `python3 -m dk_browser.ai --open` from the repository root. This starts a local-only web page at `http://127.0.0.1:8766`. No third-party Python modules are required to serve it. The assistant remembers only the UI language, offers Ctrl+Enter to send, and exports a text transcript only on request. See [AI instructions](dk_browser/ai/README.md) for security limits, including the fact that a local service is accessible to other programs running as your user.
+After starting Ollama and installing your own compatible model, run `python3 -m dk_browser.ai --open` from the repository root. This starts a local-only web page at `http://127.0.0.1:8766`. No third-party Python modules are required to serve it. The assistant displays the approved English or Russian imperial icon for the selected language, remembers only the UI language, offers Ctrl+Enter to send, and exports a text transcript only on request. See [AI instructions](dk_browser/ai/README.md) for security limits, including the fact that a local service is accessible to other programs running as your user.
 
 ## Build groundwork
 
