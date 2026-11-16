@@ -66,3 +66,30 @@ test("atomic installed-rule refresh, disable and bad API failure handling",async
  const unavailable=create(null);
  assert.match((await unavailable.sync("||ads.example^",{enabled:true})).error,/unavailable/);
 });
+
+test("turning protection off also disables the bundled static seed",async()=>{
+ let dynamic=[],enabled=["dk_live_block_seed"];
+ const api={
+  getDynamicRules:async()=>dynamic,
+  updateDynamicRules:async ({addRules})=>{dynamic=addRules;},
+  getEnabledRulesets:async()=>[...enabled],
+  updateEnabledRulesets:async ({enableRulesetIds=[],disableRulesetIds=[]})=>{
+   enabled=enabled.filter(id=>!disableRulesetIds.includes(id));
+   for(const id of enableRulesetIds)if(!enabled.includes(id))enabled.push(id);
+  }
+ };
+ const adapter=create(api);
+ assert.equal((await adapter.sync("||ads.example^",{enabled:false})).error,"");
+ assert.deepEqual(dynamic,[]);
+ assert.deepEqual(enabled,[]);
+ assert.equal((await adapter.sync("||ads.example^",{enabled:true})).error,"");
+ assert.equal(dynamic.length,1);
+ assert.deepEqual(enabled,["dk_live_block_seed"]);
+});
+test("missing static ruleset API refuses a false successful disable",async()=>{
+ const adapter=create({
+  getDynamicRules:async()=>[],
+  updateDynamicRules:async()=>{}
+ });
+ assert.match((await adapter.sync("||ads.example^",{enabled:false})).error,/toggle unavailable/);
+});
