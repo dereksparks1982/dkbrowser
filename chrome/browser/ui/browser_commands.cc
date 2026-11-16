@@ -1198,6 +1198,11 @@ void Home(BrowserWindowInterface* browser,
 #endif  // BUILDFLAG(ENABLE_RLZ)
 
   GURL url = browser->GetProfile()->GetHomePage();
+  // DK Browser's default Home destination is DK Media Player. Keep any
+  // explicitly configured non-new-tab homepage, as well as app launch URLs.
+  if (url == chrome::ChromeUINewTabURLAsGURL()) {
+    url = GURL("https://dereksparks1982.github.io/DK-Media-Player/");
+  }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // With bookmark apps enabled, hosted apps should return to their launch page

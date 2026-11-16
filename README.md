@@ -6,13 +6,13 @@ This repository **contains Chromium's actual browser source code**, not a launch
 
 ## Development status
 
-The first DK Browser source changes introduce DK Softworks branding, updated browser product and window titles, and DK Media Player as the default page when launching a fresh browsing session (while retaining Chromium's session restore and user-selected startup URL behavior).
+DK Browser source changes introduce DK Softworks branding, updated browser product and window titles, and DK Media Player as the default page when launching a fresh browsing session (while retaining Chromium's session restore and user-selected startup URL behavior). The browser Home command also opens DK Media Player while preserving a custom homepage.
 
-A separate DK Browser Linux build configuration enables Chromium's available proprietary media/HEVC parser pathways for investigation. DK Browser also enables Widevine key-system registration and can use a previously installed CDM directory on Linux through `DK_BROWSER_WIDEVINE_DIR`. **Actual H.265 decoding depends on decoder support and has not been built or tested yet**. Native MKV/HEVC playback, persistent file access and mouse-wheel media controls remain engineering milestones, not completed features. See [DK_BROWSER.md](DK_BROWSER.md).
+A separate DK Browser Linux build configuration enables Chromium's available proprietary media/HEVC parser pathways for investigation. DK Browser also enables Widevine key-system registration and can use a previously installed CDM directory on Linux through `DK_BROWSER_WIDEVINE_DIR`. **Actual H.265 decoding depends on decoder support and has not been built or tested yet**. Native MKV/HEVC playback remains an engineering milestone. The DK Media Player web app now implements persistent last-file handles through IndexedDB and mouse-wheel volume control; those source features are not yet verified in a compiled DK Browser. See [DK_BROWSER.md](DK_BROWSER.md).
 
 ## Relationship to DK Media Player
 
-[DK Media Player](https://github.com/dereksparks1982/DK-Media-Player) remains a **web application** and is opened by DK Browser. Browser features will be implemented here; site-specific player functionality remains in its own repository.
+[DK Media Player](https://github.com/dereksparks1982/DK-Media-Player) remains a **web application** and is opened by DK Browser. Browser features are implemented here; site-specific player functionality remains in its own repository. Its [live web player](https://dereksparks1982.github.io/DK-Media-Player/) supports opening media, resume positions, a saved last-file handle in compatible browsers, and volume adjustment by scrolling over the video.
 
 ## Build groundwork
 
