@@ -188,7 +188,10 @@ function rebuild(){
  if(globalThis.DKChromiumDNR){
   // Firefox's blocking webRequest is replaced by Chrome's dynamic rules.
   // Keep original compiled engine for cosmetics and local diagnostics.
-  void globalThis.DKChromiumDNR.sync(next,data.settings).catch(error=>
+  const chromiumSettings={...data.settings,
+   manualBlocks:data.manualBlocks,
+   rememberedAllowances:data.requestControls.remember};
+  void globalThis.DKChromiumDNR.sync(next,chromiumSettings).catch(error=>
    console.warn("DK Live Block Chromium rules:",String(error).slice(0,180)));
  }
  // Settings such as ad recognition, logs, video skipping and site pauses do
@@ -217,7 +220,9 @@ function badge(id){
 function scheduleSave(){if(data.saveTimer)return;data.saveTimer=setTimeout(()=>{data.saveTimer=null;persistSettings().catch(console.warn);},60000);}
 function status(id,url){const h=data.hosts.get(id)||host(url);return {ready:data.ready,host:h,
  allowedRequests:data.settings.requestLog?DKAllowedActivity.snapshot(data.allowedActivity,id,h).total:0,
- selectiveBlocks:DKAllowedActivity.list(data.manualBlocks,h).length,enabled:data.settings.enabled,siteActive:activeTab(id,h),sitePaused:data.settings.paused.some(x=>DKRules.sub(h,x)),allowlistMatch:DKSiteAllowlist.match(data.settings.paused,h),temporarilyPaused:data.tempPaused.has(id),
+ selectiveBlocks:DKAllowedActivity.list(data.manualBlocks,h).length,
+ chromiumDNR:globalThis.DKChromiumDNR?.status?.()||null,
+ enabled:data.settings.enabled,siteActive:activeTab(id,h),sitePaused:data.settings.paused.some(x=>DKRules.sub(h,x)),allowlistMatch:DKSiteAllowlist.match(data.settings.paused,h),temporarilyPaused:data.tempPaused.has(id),
  popupProtectionAvailable:!!h&&(data.settings.antiAdblock||data.settings.paywallPopups),
  popupProtectionPaused:data.settings.popupProtectionPaused.some(x=>DKRules.sub(h,x)),
  cookieRejectPaused:data.settings.cookieRejectPaused.some(x=>DKRules.sub(h,x)),
@@ -1174,8 +1179,11 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   const outcome=DKAllowedActivity.toggle(data.manualBlocks,liveSite,msg.host,msg.type,msg.block);
   if(outcome.error)return outcome;
   if(outcome.changed){
+   const previous=data.manualBlocks;
    data.manualBlocks=outcome.rows;
-   await browser.storage.local.set({manualBlocks:data.manualBlocks});
+   try{await browser.storage.local.set({manualBlocks:data.manualBlocks});}
+   catch(_){data.manualBlocks=previous;return {error:"Could not save the selective block."};}
+   rebuild(); // User-selected DNR blocks must apply without a list update.
   }
   return {ok:true,blocked:outcome.blocked,changed:outcome.changed,
    count:DKAllowedActivity.list(data.manualBlocks,liveSite).length};
@@ -1254,6 +1262,7 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
    else data.requestControls.temporary.delete(id);
    return {error:"Saving failed; prior request allowances restored."};
   }
+  rebuild(); // Apply or revoke the saved Chromium DNR exception immediately.
   return {ok:true,allowed:msg.allow,changed:true,scope:"site+hostname+type"};
  }
  if(msg.action==="getAgentNestyCookieIntel"||msg.action==="clearAgentNestyCookieIntel"){
