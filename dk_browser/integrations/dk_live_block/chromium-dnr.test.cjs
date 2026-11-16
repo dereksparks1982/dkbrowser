@@ -93,3 +93,38 @@ test("missing static ruleset API refuses a false successful disable",async()=>{
  });
  assert.match((await adapter.sync("||ads.example^",{enabled:false})).error,/toggle unavailable/);
 });
+
+test("manual blocks and remembered approvals become DNR site-scoped rules",()=>{
+ const opts={enabled:true,paused:["news.example"],
+  manualBlocks:[{site:"news.example",host:"cdn.example",type:"script"}],
+  rememberedAllowances:[{site:"blog.example",host:"img.example",type:"image",scope:"remember"}]};
+ const {rules}=compile("||ads.example^",opts);
+ const manual=rules.find(r=>r.priority===30);
+ assert.deepEqual(manual.condition.initiatorDomains,["news.example"]);
+ assert.deepEqual(manual.condition.requestDomains,["cdn.example"]);
+ assert.deepEqual(manual.condition.resourceTypes,["script"]);
+ const allowed=rules.find(r=>r.priority===20);
+ assert.deepEqual(allowed.condition.initiatorDomains,["blog.example"]);
+ assert.equal(allowed.action.type,"allow");
+ assert.equal(compile("||ads.example^",{...opts,enabled:false}).rules.length,0);
+});
+test("unsafe semantic widening is rejected for specialized request types",()=>{
+ const x=compile("",{enabled:true,manualBlocks:[
+  {site:"news.example",host:"cdn.example",type:"imageset"},
+  {site:"news.example",host:"cdn.example",type:"beacon"},
+  {site:"news.example",host:"cdn.example",type:"sub_frame"}
+ ]});
+ assert.equal(x.rules.length,1);
+ assert.deepEqual(x.rules[0].condition.resourceTypes,["sub_frame"]);
+ assert.equal(x.rejected,2);
+});
+test("manual rules survive quota pressure and cannot be displaced by subscriptions",()=>{
+ const list=Array.from({length:20},(_,i)=>"||ads"+i+".example^").join("\n");
+ const x=compile(list,{enabled:true,
+  manualBlocks:[{site:"news.example",host:"cdn.example",type:"script"}],
+  paused:["news.example"]},10);
+ assert.equal(x.rules.length,10);
+ assert.ok(x.rules.some(r=>r.priority===30));
+ assert.ok(x.rules.some(r=>r.action.type==="allowAllRequests"));
+ assert.equal(new Set(x.rules.map(r=>r.id)).size,x.rules.length);
+});
