@@ -346,6 +346,8 @@ class ToolbarView : public views::AccessiblePaneView,
 
   void OnShowHomeButtonChanged();
 
+  void OnDKLanguageButtonPressed(const ui::Event& event);
+
   void OnTouchUiChanged();
 
   void InitGlicContainer();
@@ -392,6 +394,7 @@ class ToolbarView : public views::AccessiblePaneView,
   raw_ptr<ReloadButton> reload_ = nullptr;
   raw_ptr<WebUIToolbarWebView> toolbar_webview_ = nullptr;
   raw_ptr<HomeButton> home_ = nullptr;
+  raw_ptr<views::LabelButton> language_button_ = nullptr;
   raw_ptr<SplitTabsToolbarButton> split_tabs_ = nullptr;
   raw_ptr<CustomTabBarView> custom_tab_bar_ = nullptr;
   raw_ptr<LocationBarView> location_bar_view_ = nullptr;

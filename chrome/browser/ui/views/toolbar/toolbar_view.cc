@@ -38,6 +38,8 @@
 #include "chrome/browser/glic/public/service/legacy_glic_activity_manager.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_tuning_utils.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/themes/theme_properties.h"
@@ -129,6 +131,7 @@
 #include "components/contextual_tasks/public/features.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/omnibox/browser/location_bar_model.h"
+#include "components/language/core/browser/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/send_tab_to_self/features.h"
@@ -477,6 +480,21 @@ void ToolbarView::Init() {
     location_bar_ = toolbar_webview_->GetLocationBar();
   }
 
+  // DK Browser's always-visible English/Russian switch lives by the address bar.
+  const bool is_russian =
+      g_browser_process->GetApplicationLocale().starts_with("ru");
+  auto language_button = std::make_unique<views::LabelButton>(
+      base::BindRepeating(&ToolbarView::OnDKLanguageButtonPressed,
+                          base::Unretained(this)),
+      u"EN / РУ");
+  language_button->SetTooltipText(
+      is_russian ? u"Переключить на английский язык и перезапустить браузер"
+                 : u"Switch to Russian and restart the browser");
+  language_button->GetViewAccessibility().SetName(
+      is_russian ? u"Язык: русский. Переключить на английский"
+                 : u"Language: English. Switch to Russian");
+  language_button_ = AddChildView(std::move(language_button));
+
   bool is_glic_left_of_profile =
       features::kGlicToolbarButtonLocationParam.Get() ==
           features::GlicToolbarButtonLocation::kLeftOfProfileChip ||
@@ -701,6 +719,15 @@ void ToolbarView::Init() {
   }
 
   initialized_ = true;
+}
+
+void ToolbarView::OnDKLanguageButtonPressed(const ui::Event&) {
+  // Native Chromium strings load at startup; restart to refresh the UI.
+  const bool is_russian =
+      g_browser_process->GetApplicationLocale().starts_with("ru");
+  g_browser_process->local_state()->SetString(
+      language::prefs::kApplicationLocale, is_russian ? "en-US" : "ru");
+  chrome::AttemptRestart();
 }
 
 void ToolbarView::InitGlicContainer() {

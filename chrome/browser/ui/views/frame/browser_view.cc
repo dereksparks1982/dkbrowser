@@ -349,6 +349,7 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/gfx/scrollbar_size.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -4103,6 +4104,20 @@ ui::ImageModel BrowserView::GetWindowIcon() {
         WindowMetadataController::From(browser_.get())->GetCurrentPageIcon());
   }
 
+#if BUILDFLAG(IS_LINUX)
+  // Use the appropriate official DK icon for normal browser windows.
+  // Installed web-app windows keep their own website artwork above.
+  const bool is_russian =
+      g_browser_process->GetApplicationLocale().starts_with("ru");
+  const int icon_id =
+      is_russian ? IDR_DK_BROWSER_ICON_RU : IDR_DK_BROWSER_ICON_EN;
+  const gfx::Image& icon =
+      ui::ResourceBundle::GetSharedInstance().GetImageNamed(icon_id);
+  return ui::ImageModel::FromImageSkia(
+      gfx::ImageSkiaOperations::CreateResizedImage(
+          icon.AsImageSkia(), skia::ImageOperations::RESIZE_BEST,
+          gfx::Size(64, 64)));
+#endif
   return ui::ImageModel();
 }
 

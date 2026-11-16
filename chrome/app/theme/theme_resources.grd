@@ -79,6 +79,10 @@
       <if expr="is_win">
         <structure type="chrome_scaled_image" name="IDR_CONFLICT_FAVICON" file="common/favicon_conflicts.png" />
       </if>
+      <if expr="is_linux">
+        <structure type="chrome_scaled_image" name="IDR_DK_BROWSER_ICON_EN" file="chromium/dk_browser_icon_en.png" />
+        <structure type="chrome_scaled_image" name="IDR_DK_BROWSER_ICON_RU" file="chromium/dk_browser_icon_ru.png" />
+      </if>
       <structure type="chrome_scaled_image" name="IDR_DOWNLOADS_FAVICON" file="common/favicon_downloads.png" />
       <if expr="not is_android">
         <structure type="chrome_scaled_image" name="IDR_ENHANCED_BROWSING_ON_IOS" file="common/enhanced_browsing_on_ios.png" />

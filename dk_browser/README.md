@@ -9,3 +9,15 @@ Before building, follow Chromium's normal Linux instructions and fetch the depen
 The parent README and `DK_BROWSER.md` track implemented vs planned features.
 
 Widevine support is enabled in the GN config. A local CDM may be selected at startup with `DK_BROWSER_WIDEVINE_DIR` pointing to the installation's Widevine directory. This is implemented in `chrome/common/media/cdm_registration.cc` and tested in `cdm_registration_unittest.cc`. This configuration does not ship the CDM binary.
+
+## English and Russian assets
+
+The original approved English/Russian artwork is stored under `assets/images`. Normal Linux browser windows use the icon matching the current UI language. A visible **EN / РУ** toolbar switch persists the preferred language and restarts the browser.
+
+Before packaging a Linux release, regenerate standard icon sizes with Pillow (`python3-pil`):
+
+```bash
+python3 dk_browser/tools/prepare_icons.py
+```
+
+The script does not compile Chromium or run GitHub Actions. It creates default English launcher icon sizes and separate Russian versions. Changing the installed desktop launcher's icon automatically is not yet implemented.

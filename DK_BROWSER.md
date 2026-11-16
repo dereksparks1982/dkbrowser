@@ -8,7 +8,7 @@ DK Browser is a full Chromium source fork developed as its own general-purpose, 
 - DK Browser English product title, desktop welcome text and selected browser window titles.
 - DK Media Player becomes the fresh-session landing page when a default startup tab would normally open. Session restoration, explicit startup URLs and browser preferences are respected.
 - The Home command now opens DK Media Player when the browser's homepage is still set to the default new-tab page, without replacing a custom homepage.
-- DK Media Player's web app implements File System Access handle persistence via IndexedDB and mouse-wheel volume control. File restore is automatic when read permission persists; otherwise the player offers a button for interactive reauthorization. Firefox remains supported with a session-only file picker. Changes live in the separate `DK-Media-Player` repository.
+- DK Media Player's web app implements File System Access handle persistence via IndexedDB and mouse-wheel volume control. File restore is automatic when read permission persists; otherwise the player offers a button for interactive reauthorization. Changes live in the separate `DK-Media-Player` repository.
 - DK Browser Linux GN args to select Chromium's existing licensed/proprietary-media build pathways for codec investigation. These flags **do not add an FFmpeg HEVC software decoder** by themselves.
 - DK Softworks artwork uses a copy of the previously approved DK identity. The Chromium AUTHORS, LICENSE and upstream legal notice remain intact.
 - Widevine key-system support is enabled by the DK Browser Linux GN configuration. On Linux, `DK_BROWSER_WIDEVINE_DIR` selects a previously installed CDM directory with `manifest.json` and `_platform_specific/linux_x64/libwidevinecdm.so` (or the corresponding CPU architecture). The code validates the manifest using Chromium's own CDM parser and falls back to Chromium's existing component/bundled discovery when no valid selection is provided.
@@ -45,13 +45,21 @@ Models are candidates, not embedded distributions. Check upstream license files 
 - [Sber's GigaChat 3.5 model card](https://huggingface.co/ai-sage/GigaChat3.5-432B-A28B), [GigaChat 3.1 Lightning](https://huggingface.co/ai-sage/GigaChat3.1-10B-A1.8B), [Yandex's released foundation model](https://ir.yandex/press-releases?id=2026-09-21&year=2026).
 - [Russian software registry law, Article 12.1 of Law 149-FZ](https://www.consultant.ru/document/cons_doc_LAW_61798/2fe6eb6774cbaae1a62e4c317f27a1350b504280/) for assessing any future registration strategy.
 
+## English/Russian branding and language switch
+
+- A native Chromium Views toolbar **EN / РУ** button switches `intl.app_locale` between English and Russian and requests a session-preserving browser restart. The UI text comes from Chromium's existing language resources; DK-specific Russian product labels are updated to ДК Браузер.
+- Corrected the approved English and Russian icons in `assets/images`. Their filenames had been assigned to the wrong original source artwork. Both original Git blobs are retained unmodified, and two Linux theme resources point to the correct variants.
+- Normal browser windows select an icon according to the current interface locale. Web-app windows keep the relevant site's icon. The default OS launcher icon requires a pre-packaging generation step, `python3 dk_browser/tools/prepare_icons.py`; a locale-switching OS desktop launcher remains a future task.
+- Both GitHub README front pages feature their appropriate icon, with English/Russian navigation. Russian product translation strings are improved but still require native-language review.
+- **Not compiled or run yet**: check toolbar layout, restart behavior, Russian translations, Chromium app packaging and correct icons on a real Ubuntu machine.
+
 ## Outstanding before a usable DK Browser release
 
 1. **Compile** on Linux using a synchronized upstream DEPS checkout and check build errors. Widevine is currently source-integrated, not proven working at runtime. A compatible CDM must already be present on the machine or supplied through a supported component flow. Some streaming services additionally enforce client authorization.
 2. **Validate native MKV** playback and H.265 decoding on target Linux hardware. Chromium's HEVC parser/build flags alone are not a guarantee of a working video decoder. Implement a real FFmpeg/libavcodec decode path or suitable supported platform decoder and test codec support before claiming this works. Check legal redistribution requirements.
 3. **Verify file restoration** in a built DK Browser against real disk files across refresh, browser restart and permission prompts. The web player implementation is committed but not yet browser-tested.
 4. **Verify mouse-wheel volume** in regular and fullscreen player mode. The 5% wheel adjustment and overlay are committed to the web player.
-5. **Complete branding** across browser surfaces, images, desktop launcher and package naming. Preserve original Chromium credits.
+5. **Complete branding** across browser surfaces, Linux desktop launcher and package naming. Bilingual icons, Russian product strings and the native language selector are source-integrated but untested. Preserve original Chromium credits.
 6. **Test** cold startup, session restoration, local video reopen, fullscreen, subtitles, audio/video sync, MKV, H.264, H.265, hardware/software playback and browser upgrades.
 
 ## Defaults and user choice
