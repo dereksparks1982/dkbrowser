@@ -83,9 +83,9 @@ function translate(parsed,id){
 // Compile explicit, exact site + destination + resource-type user choices as
 // higher-priority rules. Unsupported request types are deliberately refused.
 function explicitType(type){
- const mappings={imageset:"image",beacon:"ping"};
- const mapped=mappings[type]||type;
- return Object.prototype.hasOwnProperty.call(DNR_TYPES,mapped)?DNR_TYPES[mapped]:null;
+ // Firefox distinguishes imageset and beacon from ordinary image/ping.
+ // DNR cannot preserve those exact request kinds, so never broaden them.
+ return Object.prototype.hasOwnProperty.call(DNR_TYPES,type)?DNR_TYPES[type]:null;
 }
 function explicitRule(row,id,allow){
  if(!row||!validHost(row.site)||!validHost(row.host))return null;
@@ -98,7 +98,7 @@ function explicitRule(row,id,allow){
    resourceTypes:[type]}};
 }
 function extraRules(settings,start,remaining){
- const result=[],duplicates=new Set(),rejected={count:0};
+ const result=[],duplicates=new Set();let rejected=0;
  function append(rows,allow){
   if(!Array.isArray(rows))return;
   for(const row of rows){
@@ -107,15 +107,16 @@ function extraRules(settings,start,remaining){
    // DNR dynamic rules persist independently of the Firefox tab lifecycle.
    if(allow&&row.scope!=="remember")continue;
    const rule=explicitRule(row,start+result.length,allow);
-   if(!rule){rejected.count++;continue;}
+   if(!rule){rejected++;continue;}
    const key=[allow?"allow":"block",row.site,row.host,row.type].join("|");
    if(duplicates.has(key))continue;
    duplicates.add(key);result.push(rule);
   }
  }
- append(settings?.rememberedAllowances,true);
+ // Respect explicit blocks first under quota pressure, then allowances.
  append(settings?.manualBlocks,false);
- return {rules:result,rejected:rejected.count};
+ append(settings?.rememberedAllowances,true);
+ return {rules:result,rejected};
 }
 function compile(text,settings,max=MAX_DYNAMIC){
  if(typeof text!=="string")return {rules:[],rejected:0,accepted:0,limited:false};
@@ -140,11 +141,12 @@ function compile(text,settings,max=MAX_DYNAMIC){
  // Reserve room for user-selected controls before spending the full DNR
  // quota on subscription filters. They must not disappear on large lists.
  const reserved=Math.min(limit,(
-   (settings?.manualBlocks?.length||0)+(settings?.rememberedAllowances?.length||0)+
-   (settings?.paused?.length||0)));
- const automatic=rules.splice(Math.max(0,limit-reserved));
- void automatic;
- const paused=(settings?.paused||[]).filter(validHost).slice(0,300);
+   (Array.isArray(settings?.manualBlocks)?settings.manualBlocks.length:0)+
+   (Array.isArray(settings?.rememberedAllowances)?settings.rememberedAllowances.length:0)+
+   (Array.isArray(settings?.paused)?settings.paused.length:0)));
+ rules.splice(Math.max(0,limit-reserved));
+ const paused=(Array.isArray(settings?.paused)?settings.paused:[])
+   .filter(validHost).slice(0,300);
  if(settings?.enabled!==false)for(const site of paused){
    if(rules.length>=limit)break;
    rules.push({id:rules.length+1,priority:10,
