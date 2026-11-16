@@ -1,0 +1,13 @@
+# DK Browser Linux development-build GN arguments.
+# These enable Chromium's HEVC parsing/demuxing code paths but are NOT
+# equivalent to shipping a complete working HEVC software decoder.
+# Codec availability must be tested on target machines before release.
+is_debug = false
+is_component_build = false
+symbol_level = 0
+
+# Proprietary codec configuration requires legal review before distribution.
+proprietary_codecs = true
+ffmpeg_branding = "Chrome"
+enable_hevc_parser_and_hw_decoder = true
+enable_platform_hevc = true

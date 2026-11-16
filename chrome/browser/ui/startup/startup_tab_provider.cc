@@ -274,7 +274,10 @@ StartupTabs StartupTabProviderImpl::GetNewTabPageTabsForState(
     const SessionStartupPref& pref) {
   StartupTabs tabs;
   if (!pref.ShouldRestoreLastSession()) {
-    tabs.emplace_back(chrome::ChromeUINewTabURLAsGURL());
+    // DK Browser opens DK Media Player on a fresh browser startup.
+    // Explicit startup URLs, pinned tabs, command-line URLs and session
+    // restore retain their existing priority in StartupBrowserCreatorImpl.
+    tabs.emplace_back(GURL("https://dereksparks1982.github.io/DK-Media-Player/"));
   }
   return tabs;
 }

@@ -193,12 +193,12 @@ TEST(StartupTabProviderTest, GetNewTabPageTabsForState) {
       StartupTabProviderImpl::GetNewTabPageTabsForState(pref_default);
 
   ASSERT_EQ(1U, output.size());
-  EXPECT_EQ(chrome::ChromeUINewTabURLAsGURL(), output[0].url);
+  EXPECT_EQ(GURL("https://dereksparks1982.github.io/DK-Media-Player/"), output[0].url);
 
   output = StartupTabProviderImpl::GetNewTabPageTabsForState(pref_urls);
 
   ASSERT_EQ(1U, output.size());
-  EXPECT_EQ(chrome::ChromeUINewTabURLAsGURL(), output[0].url);
+  EXPECT_EQ(GURL("https://dereksparks1982.github.io/DK-Media-Player/"), output[0].url);
 }
 
 TEST(StartupTabProviderTest, GetNewTabPageTabsForState_Negative) {

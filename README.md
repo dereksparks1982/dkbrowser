@@ -1,21 +1,31 @@
-# ![Logo](chrome/app/theme/chromium/product_logo_64.png) Chromium
+# DK Browser
 
-Chromium is an open-source browser project that aims to build a safer, faster,
-and more stable way for all users to experience the web.
+**DK Browser** is DK Softworks' free, open-source web browser built from a complete fork of [Chromium](https://github.com/chromium/chromium).
 
-The project's web site is https://www.chromium.org.
+This repository **contains Chromium's actual browser source code**, not a launcher, an Electron wrapper, or a source submodule. DK-specific changes are committed directly to the fork and maintained here.
 
-To check out the source code locally, don't use `git clone`! Instead,
-follow [the instructions on how to get the code](docs/get_the_code.md).
+## Development status
 
-Documentation in the source is rooted in [docs/README.md](docs/README.md).
+The first DK Browser source changes introduce DK Softworks branding, updated browser product and window titles, and DK Media Player as the default page when launching a fresh browsing session (while retaining Chromium's session restore and user-selected startup URL behavior).
 
-Learn how to [Get Around the Chromium Source Code Directory
-Structure](https://www.chromium.org/developers/how-tos/getting-around-the-chrome-source-code).
+A separate DK Browser Linux build configuration enables Chromium's available proprietary media/HEVC parser pathways for investigation. **Actual H.265 decoding depends on decoder support and has not been built or tested yet**. Native MKV/HEVC playback, persistent file access and mouse-wheel media controls remain engineering milestones, not completed features. See [DK_BROWSER.md](DK_BROWSER.md).
 
-For historical reasons, there are some small top level directories. Now the
-guidance is that new top level directories are for product (e.g. Chrome,
-Android WebView, Ash). Even if these products have multiple executables, the
-code should be in subdirectories of the product.
+## Relationship to DK Media Player
 
-If you found a bug, please file it at https://crbug.com/new.
+[DK Media Player](https://github.com/dereksparks1982/DK-Media-Player) remains a **web application** and is opened by DK Browser. Browser features will be implemented here; site-specific player functionality remains in its own repository.
+
+## Build groundwork
+
+Chromium uses `depot_tools`, `gclient`, `gn` and `autoninja`. Forking the source provides Chromium's main tree, but a local checkout must also synchronize dependencies from `DEPS` before compiling. Do not treat GitHub's ZIP download as a complete build environment.
+
+DK Browser's Linux GN configuration lives at [dk_browser/args.linux.gn](dk_browser/args.linux.gn); import these arguments into your chosen GN output directory when a build environment is ready.
+
+For upstream build prerequisites and commands, follow [Chromium's Linux build instructions](docs/linux/build_instructions.md).
+
+## Source licensing and attribution
+
+Chromium is open source under a [BSD-style license](LICENSE) and numerous [third-party licenses](third_party). DK Browser retains these licenses and Chromium author attribution. DK Softworks is responsible for DK Browser-specific modifications. Some media codecs may involve additional patent or redistribution obligations and require separate review before distributing builds.
+
+This is a development source fork; **there is no DK Browser executable released yet**.
+
+**No custom GitHub Actions or automatic builds are added to this project.**
