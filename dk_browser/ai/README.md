@@ -19,6 +19,22 @@ are implemented.
 4. The interface opens at `http://127.0.0.1:8766` and shows available models.
    Chat messages are only submitted to the chosen local model.
 
+### Optional local OpenAI-compatible model server
+
+DK AI also works with a separately started OpenAI-compatible local server
+(such as a compatible vLLM setup). Bind that server to `127.0.0.1:8000`
+and start DK AI with:
+
+```bash
+python3 -m dk_browser.ai --backend openai --model-port 8000 --open
+```
+
+This backend reads `GET /v1/models` and uses
+`POST /v1/chat/completions`. Only a **local loopback port** can be selected.
+The prototype has no cloud account, API key, internet server URL, or automatic
+model installation. Compatibility with GigaChat weights or a specific model
+server must be tested before making such a claim.
+
 **Official artwork:** The assistant serves the approved Latin **DK** and Cyrillic
 **ДК** imperial icons directly from `assets/images`. Both its header and
 tab favicon switch with the English/Russian language setting. The master
@@ -34,7 +50,7 @@ forgets the session's messages; closing the page also discards them.
 
 The service requires only Python's standard library. The browser UI sends
 same-origin JSON to DK AI, and the backend contacts only the fixed loopback
-Ollama address. Browser origin and Host headers are verified to mitigate
+Ollama or OpenAI-compatible model-service address. Browser origin and Host headers are verified to mitigate
 cross-site submissions and DNS rebinding. Input size, response size, and
 message count are bounded. The page uses text-only DOM updates and strict
 CSP headers; model responses are not interpreted as executable markup.

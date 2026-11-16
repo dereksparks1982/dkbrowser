@@ -69,7 +69,7 @@ class Handler(BaseHTTPRequestHandler):
     def _backend(self, path, payload=None):
         body = None if payload is None else json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
-            f"{self.server.ollama_base}{path}", data=body,
+            f"{self.server.backend_base}{path}", data=body,
             headers={"Content-Type": "application/json"} if body else {},
             method="POST" if body else "GET")
         try:
@@ -82,13 +82,16 @@ class Handler(BaseHTTPRequestHandler):
             raise BackendError("Local AI model service is unavailable or returned invalid data.") from exc
 
     def _models(self):
-        result = self._backend("/api/tags")
-        if not isinstance(result, dict) or not isinstance(result.get("models"), list):
+        openai = self.server.backend == "openai"
+        result = self._backend("/v1/models" if openai else "/api/tags")
+        key = "data" if openai else "models"
+        field = "id" if openai else "name"
+        if not isinstance(result, dict) or not isinstance(result.get(key), list):
             raise BackendError("The local model list is invalid.")
         names = []
-        for entry in result["models"][:100]:
-            if isinstance(entry, dict) and isinstance(entry.get("name"), str):
-                name = entry["name"]
+        for entry in result[key][:100]:
+            if isinstance(entry, dict) and isinstance(entry.get(field), str):
+                name = entry[field]
                 if 0 < len(name) < 200:
                     names.append(name)
         return names
@@ -144,27 +147,45 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if model not in self._models():
                 return self._json(400, {"error": "Choose an installed local model."})
-            response = self._backend("/api/chat", {
-                "model": model, "messages": messages, "stream": False,
-                "options": {"num_predict": 2048}
-            })
+            if self.server.backend == "openai":
+                response = self._backend("/v1/chat/completions", {
+                    "model": model, "messages": messages, "stream": False,
+                    "max_tokens": 2048
+                })
+            else:
+                response = self._backend("/api/chat", {
+                    "model": model, "messages": messages, "stream": False,
+                    "options": {"num_predict": 2048}
+                })
         except BackendError as exc:
             return self._json(503, {"error": str(exc)})
-        message = response.get("message") if isinstance(response, dict) else None
+        if self.server.backend == "openai":
+            choices = response.get("choices") if isinstance(response, dict) else None
+            choice = choices[0] if isinstance(choices, list) and choices else None
+            message = choice.get("message") if isinstance(choice, dict) else None
+        else:
+            message = response.get("message") if isinstance(response, dict) else None
         answer = message.get("content") if isinstance(message, dict) else None
         if not isinstance(answer, str):
             return self._json(502, {"error": "The model did not return a text answer."})
         return self._json(200, {"answer": answer[:MAX_MESSAGE_LENGTH]})
 
 
-def make_server(port=8766, ollama_port=11434):
-    if not (0 <= port <= 65535 and 1 <= ollama_port <= 65535):
+def make_server(port=8766, ollama_port=11434, backend="ollama",
+                model_port=8000):
+    if backend not in ("ollama", "openai"):
+        raise ValueError("Unsupported local AI backend.")
+    if not (0 <= port <= 65535 and 1 <= ollama_port <= 65535
+            and 1 <= model_port <= 65535):
         raise ValueError("Invalid local network port.")
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     listen_port = httpd.server_address[1]
     httpd.expected_host = f"127.0.0.1:{listen_port}"
     httpd.origin = f"http://{httpd.expected_host}"
-    httpd.ollama_base = f"http://127.0.0.1:{ollama_port}"
+    httpd.backend = backend
+    # Fixed to loopback. No arbitrary URL, external host, or token accepted.
+    backend_port = ollama_port if backend == "ollama" else model_port
+    httpd.backend_base = f"http://127.0.0.1:{backend_port}"
     return httpd
 
 
@@ -172,9 +193,13 @@ def main():
     parser = argparse.ArgumentParser(description="Run DK AI locally; no account or cloud required.")
     parser.add_argument("--port", type=int, default=8766)
     parser.add_argument("--ollama-port", type=int, default=11434)
+    parser.add_argument("--backend", choices=("ollama", "openai"),
+                        default="ollama", help="Choose a local AI model server.")
+    parser.add_argument("--model-port", type=int, default=8000,
+                        help="Loopback port for an OpenAI-compatible model server.")
     parser.add_argument("--open", action="store_true", help="Open the local UI in your browser.")
     args = parser.parse_args()
-    with make_server(args.port, args.ollama_port) as httpd:
+    with make_server(args.port, args.ollama_port, args.backend, args.model_port) as httpd:
         print(f"DK AI local assistant: {httpd.origin}")
         if args.open:
             webbrowser.open(httpd.origin)

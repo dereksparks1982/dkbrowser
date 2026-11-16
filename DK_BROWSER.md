@@ -72,7 +72,7 @@ Models are candidates, not embedded distributions. Check upstream license files 
 ## Local-first DK AI prototype
 
 - A minimal bilingual assistant UI and Python standard-library loopback server are now in `dk_browser/ai`.
-- An installed local Ollama model provides inference through fixed `127.0.0.1:11434` API calls. No model is downloaded, no cloud account is configured, and the application does not save transcripts to disk.
+- A locally installed Ollama model or a local OpenAI-compatible model service provides inference through fixed `127.0.0.1:11434` API calls. No model is downloaded, no cloud account is configured, and the application does not save transcripts to disk.
 - Server access is loopback-only. Requests check the exact local Host and POST Origin to prevent normal browser cross-origin and DNS-rebinding abuse; requests are bounded and no general network proxy, shell tools, page-scraping access or autonomous browser actions are available.
 - The server exposes only installed model names and text-chat answers, with output escaped by DOM `textContent`. The UI remembers only a language preference and displays the approved locale-specific icon, offers keyboard submission and explicit local transcript export; there is no background transcript persistence, cloud provider feature or built-in browser/sidebar registration yet.
 - Local HTTP unit tests with a simulated Ollama model are included in `dk_browser/tests/test_dk_ai_server.py`. Actual Ollama/GigaChat compatibility and runtime security still require Linux testing.

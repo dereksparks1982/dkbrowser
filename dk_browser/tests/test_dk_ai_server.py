@@ -91,7 +91,7 @@ class DKAILocalTests(unittest.TestCase):
         for language in ("en", "ru"):
             status, content = self.fetch(f"/assets/dk-icon-{language}.png")
             self.assertEqual(status, 200)
-            self.assertTrue(content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+            self.assertTrue(content.startswith(b"\x89PNG\r\n\x1a\n"))
             self.assertGreater(len(content), 100000)
         status, _ = self.fetch("/assets/../../server.py")
         self.assertEqual(status, 404)
