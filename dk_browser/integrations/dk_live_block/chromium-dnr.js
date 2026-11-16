@@ -79,6 +79,44 @@ function translate(parsed,id){
  return {id,priority:parsed.important?4:parsed.exception?3:1,
    action:{type:parsed.exception?"allow":"block"},condition};
 }
+// Chromium's DNR does not call the Firefox per-request decision handler.
+// Compile explicit, exact site + destination + resource-type user choices as
+// higher-priority rules. Unsupported request types are deliberately refused.
+function explicitType(type){
+ const mappings={imageset:"image",beacon:"ping"};
+ const mapped=mappings[type]||type;
+ return Object.prototype.hasOwnProperty.call(DNR_TYPES,mapped)?DNR_TYPES[mapped]:null;
+}
+function explicitRule(row,id,allow){
+ if(!row||!validHost(row.site)||!validHost(row.host))return null;
+ const type=explicitType(row.type);
+ if(!type||!["image","script","stylesheet","media","font","object",
+    "xmlhttprequest","sub_frame","ping","websocket","other"].includes(type))return null;
+ return {id,priority:allow?20:30,
+  action:{type:allow?"allow":"block"},
+  condition:{initiatorDomains:[row.site],requestDomains:[row.host],
+   resourceTypes:[type]}};
+}
+function extraRules(settings,start,remaining){
+ const result=[],duplicates=new Set(),rejected={count:0};
+ function append(rows,allow){
+  if(!Array.isArray(rows))return;
+  for(const row of rows){
+   if(result.length>=remaining)break;
+   // Never turn temporary/session choices into browser-wide DNR rules:
+   // DNR dynamic rules persist independently of the Firefox tab lifecycle.
+   if(allow&&row.scope!=="remember")continue;
+   const rule=explicitRule(row,start+result.length,allow);
+   if(!rule){rejected.count++;continue;}
+   const key=[allow?"allow":"block",row.site,row.host,row.type].join("|");
+   if(duplicates.has(key))continue;
+   duplicates.add(key);result.push(rule);
+  }
+ }
+ append(settings?.rememberedAllowances,true);
+ append(settings?.manualBlocks,false);
+ return {rules:result,rejected:rejected.count};
+}
 function compile(text,settings,max=MAX_DYNAMIC){
  if(typeof text!=="string")return {rules:[],rejected:0,accepted:0,limited:false};
  const lines=text.split(/\r?\n/),disabled=new Set(),pending=[],seen=new Set();
@@ -99,6 +137,13 @@ function compile(text,settings,max=MAX_DYNAMIC){
    if(converted){rules.push(converted);if(rules.length>=limit)break;}
    else rejected++;
  }
+ // Reserve room for user-selected controls before spending the full DNR
+ // quota on subscription filters. They must not disappear on large lists.
+ const reserved=Math.min(limit,(
+   (settings?.manualBlocks?.length||0)+(settings?.rememberedAllowances?.length||0)+
+   (settings?.paused?.length||0)));
+ const automatic=rules.splice(Math.max(0,limit-reserved));
+ void automatic;
  const paused=(settings?.paused||[]).filter(validHost).slice(0,300);
  if(settings?.enabled!==false)for(const site of paused){
    if(rules.length>=limit)break;
@@ -106,8 +151,13 @@ function compile(text,settings,max=MAX_DYNAMIC){
      action:{type:"allowAllRequests"},
      condition:{requestDomains:[site],resourceTypes:["main_frame","sub_frame"]}});
  }
+ if(settings?.enabled!==false){
+   const extras=extraRules(settings,rules.length+1,limit-rules.length);
+   rules.push(...extras.rules);rejected+=extras.rejected;
+ }
  return {rules:settings?.enabled===false?[]:rules,
-   accepted:rules.length,rejected,limited:rules.length>=limit};
+   accepted:settings?.enabled===false?0:rules.length,rejected,
+   limited:rules.length>=limit};
 }
 function create(api=root.chrome?.declarativeNetRequest){
  let queue=Promise.resolve(),stats={accepted:0,rejected:0,limited:false,error:"",updated:0};
@@ -156,6 +206,6 @@ function create(api=root.chrome?.declarativeNetRequest){
  }
  return {sync,status:()=>({...stats})};
 }
-root.DKChromiumRules={compile,translate,create,MAX_DYNAMIC,domainList};
+root.DKChromiumRules={compile,translate,create,MAX_DYNAMIC,domainList,explicitRule,extraRules};
 if(typeof module!=="undefined")module.exports=root.DKChromiumRules;
 })(typeof globalThis!=="undefined"?globalThis:this);
