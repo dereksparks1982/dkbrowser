@@ -1,0 +1,256 @@
+"use strict";
+const $=id=>document.getElementById(id);
+let tab=null,current=null,videoContext=null;
+const QUALITIES=new Set(["compatible","best","audio"]);
+function videoMessage(message){$("videoDownloadStatus").textContent=message;}
+async function refreshDownloadStatus(){
+ if(!videoContext)return;
+ try{
+  const job=await browser.runtime.sendMessage({action:"videoDownloadStatus"});
+  const same=job?.id===videoContext.id;
+  const running=job?.state==="running"||job?.state==="cancelling";
+  $("videoProgress").hidden=!(same&&running);
+  $("videoProgress").value=same?Math.min(100,Math.max(0,job.progress||0)):0;
+  $("cancelVideo").hidden=!(same&&running);
+  $("cancelVideo").disabled=job?.state==="cancelling";
+  $("downloadVideo").disabled=running;
+  if(same&&job.state==="running")videoMessage(job.phase==="merging"?"Merging video and audio with FFmpeg…":
+   job.phase==="processing"?"Processing downloaded media…":
+   $("videoProgress").value>=100?"Finishing media transfer…":
+   "Downloading: "+$("videoProgress").value+"%. Closing the popup will not cancel the job.");
+  else if(same&&job.state==="cancelling")videoMessage("Cancelling download…");
+  else if(same&&job.state==="complete")videoMessage("Download complete. Saved to ~/.local/share/dk-live-block/downloads/");
+  else if(same&&job.state==="cancelled")videoMessage("Download cancelled. Partial files are preserved for a manual retry.");
+  else if(same&&job.state==="interrupted")videoMessage("Previous Firefox session ended during this download. Choose Download This Video to retry and resume available partial data.");
+  else if(same&&job.state==="failed")videoMessage("Download failed: "+(job.error||"See dependency settings."));
+  else if(running)videoMessage("A different video is currently downloading.");
+  if(same&&["interrupted","cancelled","failed"].includes(job.state))
+   $("downloadVideo").textContent="Retry Download";
+  else $("downloadVideo").textContent="Download This Video";
+ }catch(_){}
+}
+function showVideoTools(){
+ videoContext=DKVideoLibrary.parseVideo(tab?.url);
+ $("videoTools").hidden=!videoContext;
+ if(!videoContext)return;
+ $("videoTitle").textContent=DKVideoLibrary.safeTitle(tab.title||"YouTube video");
+ refreshDownloadStatus().catch(()=>{});
+}
+async function saveVideo(){
+ if(!videoContext)return;
+ $("saveVideo").disabled=true;
+ try{
+  let position=0;
+  try{const reply=await browser.tabs.sendMessage(tab.id,{action:"getVideoPosition"});position=reply?.position||0;}catch(_){}
+  const result=await browser.runtime.sendMessage({action:"saveVideo",tabId:tab.id,videoId:videoContext.id,
+   title:tab.title,position});
+  videoMessage(result?.ok?"Saved to My Saved Videos at "+Math.floor(position/60)+"m "+Math.floor(position%60)+"s.":result?.error||"Could not save video.");
+ }catch(error){videoMessage(error.message);}
+ finally{$("saveVideo").disabled=false;}
+}
+async function downloadVideo(){
+ if(!videoContext)return;
+ const quality=$("videoQuality").value;
+ if(!QUALITIES.has(quality))return videoMessage("Select a supported download quality.");
+ if(!window.confirm("Download this YouTube video using verified local yt-dlp? It will save to ~/.local/share/dk-live-block/downloads/. Only download videos you are authorized to save."))return;
+ $("downloadVideo").disabled=true;
+ try{
+  if(!browser.permissions?.request||!await browser.permissions.request({permissions:["nativeMessaging"]})){
+   videoMessage("Native companion permission is required for downloading.");return;
+  }
+  const result=await browser.runtime.sendMessage({action:"startVideoDownload",tabId:tab.id,videoId:videoContext.id,quality});
+  videoMessage(result?.ok?"Download requested. Open this menu again to check progress.":result?.error||"Could not start download.");
+  if(result?.ok)await refreshDownloadStatus();
+ }catch(error){videoMessage("Download unavailable: "+error.message);}
+ finally{$("downloadVideo").disabled=false;}
+}
+async function resolveWebsiteTab(focused){
+ // On our Site Dashboard, keep toolbar controls and counts scoped to the website
+ // being inspected, rather than accidentally treating the dashboard as a website.
+ const prefix=browser.runtime.getURL("site-dashboard.html")+"?";
+ if(typeof focused?.url!=="string"||!focused.url.startsWith(prefix))return focused;
+ try{
+  const selected=new URL(focused.url).searchParams.get("tab");
+  if(!/^[1-9]\d{0,9}$/.test(selected||""))return focused;
+  const selectedTab=await browser.tabs.get(Number(selected));
+  return /^https?:\/\//i.test(selectedTab?.url||"")?selectedTab:focused;
+ }catch(_){return focused;}
+}
+async function load(){
+ const [focused]=await browser.tabs.query({active:true,currentWindow:true});
+ tab=await resolveWebsiteTab(focused);
+
+ current=await browser.runtime.sendMessage({action:"status",tabId:tab.id,url:tab.url});
+ $("count").textContent=(current.tabBlocked||0).toLocaleString();
+ $("allowedCount").textContent=(current.allowedRequests||0).toLocaleString();
+ $("viewAllowed").disabled=!Number.isInteger(tab?.id)||!current.host;
+ $("countScope").textContent=tab?.id!==undefined&&focused?.id!==tab.id?
+  "blocked on selected website tab":"blocked on this tab";
+ $("viewBlocked").disabled=!Number.isInteger(tab?.id)||!current.host;
+ $("issues").textContent=String(current.networkIssueCount||0);
+ $("popups").textContent=String(current.popupHiddenCount||0);
+ $("strictPopupRow").hidden=!current.strictPopupAvailable||!current.strictPopupEnabled;
+ $("strictPopupBlocked").textContent=String(current.strictPopupBlocked||0);
+ $("permitNextPopup").disabled=!current.strictPopupEnabled;
+ $("strictPopupMessage").textContent=current.popupPermitActive?
+  "One new tab is temporarily allowed. This permission expires within 15 seconds.":
+  "Unrequested new tabs from this site are blocked.";
+ $("mediaRecoveryRow").hidden=!current.mediaRecoveryAvailable;
+ $("streamingDiagnosticsRow").hidden=!current.mediaRecoveryAvailable;
+ $("streamingIssueCount").textContent=String(current.streamingIssueCount||0);
+ $("streamingRepairNotice").hidden=!(current.streamingAllowancesCount>0);
+ $("mediaWarning").hidden=!current.mediaRecoveryAvailable;
+ $("mediaRecovery").textContent=current.mediaRecoveryEnabled?"Disable media rescue":"Enable media rescue";
+ $("mediaRecovery").disabled=!current.siteActive;
+ $("enabled").checked=current.enabled;
+ $("metaGraphqlQuick").checked=current.settings?.metaGraphqlFilter===true;
+ $("siteCookieReject").textContent=current.cookieRejectPaused?"Enable cookie rejection here":"Disable cookie rejection here";
+ $("siteDistraction").textContent=current.distractionPaused?"Enable distraction cleanup here":"Disable distraction cleanup here";
+ $("siteCookieReject").disabled=!current.siteActive||!current.settings?.cookieReject;
+ $("siteDistraction").disabled=!current.siteActive||!current.settings?.distractionControl;$("site").textContent=current.host||"Browser page";
+ $("toggle").textContent=current.sitePaused?"Remove from allowlist":"Allowlist this website";
+ $("allowlistNotice").textContent=current.sitePaused?
+  "Automatic filters are OFF for "+(current.allowlistMatch||current.host)+
+   " and its subdomains. "+(current.selectiveBlocks||0)+" selective blocks remain active. Remove from allowlist to restore filters.":
+  "Allowlisting disables automatic filters here; manually selected blocks stay active. Other sites remain protected.";
+ $("toggle").disabled=!current.host||!current.enabled;
+ $("temporary").textContent=current.temporarilyPaused?"Resume this tab":"Pause this tab";
+ $("temporary").disabled=!current.host||!current.enabled||current.sitePaused;
+ $("picker").disabled=!current.host||!current.siteActive;
+ $("cosmeticDebugger").disabled=!current.host||!current.siteActive;
+ $("popupProtectionRow").hidden=!current.popupProtectionAvailable;
+ $("popupProtection").disabled=!current.siteActive;
+ $("popupProtection").textContent=current.popupProtectionPaused?"Resume popup cleanup":"Disable popup cleanup here";
+ $("info").textContent=(current.networkRules||0).toLocaleString()+" network rules · "+(current.cosmeticRules||0).toLocaleString()+" cosmetic filters";
+ showVideoTools();
+}
+$("metaGraphqlQuick").addEventListener("change",async()=>{
+ const control=$("metaGraphqlQuick"),enabled=control.checked;
+ control.disabled=true;
+ try{
+  const result=await browser.runtime.sendMessage({action:"setMetaGraphqlExperiment",enabled});
+  if(!result?.ok)throw Error(result?.error||"Could not save experiment.");
+  await load();
+  $("metaGraphqlNotice").textContent=enabled?
+   "GraphQL experiment ON. Reload Facebook to test. Agent Nesty Meta 05 is active.":
+   "GraphQL experiment OFF. Reload Facebook to restore ordinary responses.";
+ }catch(error){
+  await load().catch(()=>{});
+  $("metaGraphqlNotice").textContent=String(error.message||error).slice(0,140);
+ }finally{control.disabled=false;}
+});
+$("enabled").addEventListener("change",async()=>{await browser.runtime.sendMessage({action:"setGlobal",enabled:$("enabled").checked,tabId:tab.id,url:tab.url});await load();});
+$("toggle").addEventListener("click",async()=>{
+ $("toggle").disabled=true;
+ try{
+  const reply=await browser.runtime.sendMessage({action:"setSiteAllowed",tabId:tab.id,allowed:!current.sitePaused});
+  if(reply?.error){$("allowlistNotice").textContent=reply.error;return;}
+  await browser.tabs.reload(tab.id);
+  await load();
+ }catch(error){$("allowlistNotice").textContent=String(error.message||error).slice(0,160);}
+ finally{$("toggle").disabled=false;}
+});
+$("temporary").addEventListener("click",async()=>{
+ await browser.runtime.sendMessage({action:"toggleTabPause",tabId:tab.id,url:tab.url,paused:!current.temporarilyPaused});
+ await browser.tabs.reload(tab.id);await load();
+});
+$("permitNextPopup").addEventListener("click",async()=>{
+ if(!current?.strictPopupEnabled)return;
+ $("permitNextPopup").disabled=true;
+ try{
+  const result=await browser.runtime.sendMessage({action:"permitNextPopupTab",tabId:tab.id});
+  $("strictPopupMessage").textContent=result.ok?
+   "You have 15 seconds to open one new tab. A site-generated ad tab could use this allowance first.":
+   result.error||"Unable to allow a new tab.";
+ }catch(error){$("strictPopupMessage").textContent=error.message;}
+ finally{$("permitNextPopup").disabled=false;}
+});
+$("popupProtection").addEventListener("click",async()=>{
+ if(!current?.popupProtectionAvailable)return;
+ $("popupProtection").disabled=true;
+ try{
+  const result=await browser.runtime.sendMessage({action:"toggleSitePopupProtection",
+   url:tab.url,tabId:tab.id,pause:!current.popupProtectionPaused});
+  if(result.error){$("info").textContent=result.error;return;}
+  await browser.tabs.reload(tab.id);await load();
+ }catch(e){$("info").textContent=e.message;}finally{$("popupProtection").disabled=false;}
+});
+async function toggleSiteFeature(feature,paused,button){
+ button.disabled=true;
+ try{
+  const result=await browser.runtime.sendMessage({action:"setSiteFeaturePaused",tabId:tab.id,feature,paused});
+  if(!result?.ok)throw Error(result?.error||"Could not change site setting.");
+  await browser.tabs.reload(tab.id);await load();
+  $("siteProtectionInfo").textContent="This site's optional cleanup was changed. Network ad and tracker blocking remains on.";
+ }catch(error){$("siteProtectionInfo").textContent=String(error.message||error).slice(0,180);}
+ finally{button.disabled=false;}
+}
+$("siteCookieReject").addEventListener("click",()=>toggleSiteFeature("cookieReject",!current.cookieRejectPaused,$("siteCookieReject")));
+$("siteDistraction").addEventListener("click",()=>toggleSiteFeature("distractionControl",!current.distractionPaused,$("siteDistraction")));
+$("mediaRecovery").addEventListener("click",async()=>{
+ if(!current?.mediaRecoveryAvailable)return;
+ $("mediaRecovery").disabled=true;
+ try{
+  const result=await browser.runtime.sendMessage({action:"toggleMediaRecovery",url:tab.url,tabId:tab.id,enabled:!current.mediaRecoveryEnabled});
+  if(result.error){$("info").textContent=result.error;return;}
+  await browser.tabs.reload(tab.id);
+  await load();
+ }catch(e){$("info").textContent=e.message;}finally{$("mediaRecovery").disabled=false;}
+});
+$("viewAllowed").addEventListener("click",()=>browser.tabs.create({
+ url:browser.runtime.getURL("site-dashboard.html?tab="+encodeURIComponent(tab.id)+"#allowed-requests")
+}));
+$("viewBlocked").addEventListener("click",()=>browser.tabs.create({
+ url:browser.runtime.getURL("site-dashboard.html?tab="+encodeURIComponent(tab.id)+"#blocked-requests")
+}));
+$("siteDashboard").addEventListener("click",()=>browser.tabs.create({
+ url:browser.runtime.getURL("site-dashboard.html"+(Number.isInteger(tab?.id)?"?tab="+tab.id:""))
+}));
+$("cosmeticDebugger").addEventListener("click",()=>browser.tabs.create({
+ url:browser.runtime.getURL("cosmetic-debug.html?tab="+encodeURIComponent(tab.id))
+}));
+$("picker").addEventListener("click",async()=>{try{const result=await browser.tabs.sendMessage(tab.id,{action:"startPicker"});if(result.ok)window.close();}catch(e){$("info").textContent="Reload the tab and try again."; }});
+$("investigateAd").addEventListener("click",async()=>{
+ try{
+  if(!Number.isInteger(tab?.id)||!/^https?:\/\//i.test(tab?.url||"")){
+   $("info").textContent="Open a normal website tab to inspect an ad.";return;
+  }
+  const result=await browser.tabs.sendMessage(tab.id,{action:"startAdInvestigation"},{frameId:0});
+  if(result?.ok)window.close();
+  else $("info").textContent=result?.error||"Investigation unavailable here. Reload the tab and retry.";
+ }catch(e){$("info").textContent="Reload this website tab and retry the investigation.";}
+});
+$("update").addEventListener("click",async()=>{$("update").disabled=true;try{const result=await browser.runtime.sendMessage({action:"updateLists"});$("info").textContent=result.updated+" changed; "+result.checked+" checked; "+result.errors.length+" failed.";}catch(e){$("info").textContent=e.message;}finally{$("update").disabled=false;}});
+$("undo").addEventListener("click",async()=>{
+ try{
+  const latest=await browser.tabs.sendMessage(tab.id,{action:"undoTemporaryHide"}).catch(()=>null);
+  if(latest?.restored){$("info").textContent="Last page-only hidden element restored.";return;}
+  const assisted=await browser.tabs.sendMessage(tab.id,{action:"undoAiHide"},{frameId:0}).catch(()=>null);
+  if(assisted?.restored){$("info").textContent="Last investigated item restored.";return;}
+  $("info").textContent="Nothing to undo. Refresh the webpage to restore manually hidden elements.";
+ }catch(error){$("info").textContent="Could not restore: "+String(error?.message||error);}
+});
+$("recovery").addEventListener("click",()=>browser.runtime.openOptionsPage());
+$("settings").addEventListener("click",()=>browser.runtime.openOptionsPage());
+$("dependencies").addEventListener("click",()=>browser.tabs.create({url:browser.runtime.getURL("options.html#dependencies")}));
+$("reportBug").addEventListener("click",()=>browser.tabs.create({url:browser.runtime.getURL("report.html")}));
+$("networkMonitor").addEventListener("click",()=>browser.tabs.create({
+ url:browser.runtime.getURL("network-monitor.html"+(Number.isInteger(tab?.id)?"?tab="+tab.id:""))
+}));
+$("streamingDiagnostics").addEventListener("click",()=>browser.tabs.create({url:browser.runtime.getURL("options.html#streaming-diagnostics")}));
+$("savedVideos").addEventListener("click",()=>browser.tabs.create({url:browser.runtime.getURL("library.html")}));
+$("myDownloads").addEventListener("click",()=>browser.tabs.create({url:browser.runtime.getURL("downloads.html")}));
+$("saveVideo").addEventListener("click",saveVideo);
+$("downloadVideo").addEventListener("click",downloadVideo);
+$("cancelVideo").addEventListener("click",async()=>{
+ if(!videoContext)return;
+ $("cancelVideo").disabled=true;
+ try{const result=await browser.runtime.sendMessage({action:"cancelVideoDownload",videoId:videoContext.id});
+  videoMessage(result.ok?"Cancelling download…":result.error||"Unable to cancel.");
+ }catch(error){videoMessage(error.message);}
+ await refreshDownloadStatus();
+});
+setInterval(()=>{if(videoContext)refreshDownloadStatus().catch(()=>{});},1500);
+load().catch(e=>$("info").textContent=e.message);
+
+DKSupport.installButton($("patreonSupport"));

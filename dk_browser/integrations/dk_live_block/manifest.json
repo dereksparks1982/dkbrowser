@@ -1,15 +1,137 @@
 {
   "manifest_version": 3,
   "name": "DK Live Block",
-  "version": "0.1.0",
-  "description": "Built-in DK Browser preliminary network and cosmetic filtering, based on DK Live Block local fallback rules.",
+  "version": "0.3.371",
+  "description": "DK Browser built-in DK Live Block filtering and privacy controls",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy/lOPY/NiP2cDrn84Beebn3yFJeqFN1X8EMU8JxszX310Qh6Pl9QwYfqROvK/++4ORrPqGPt+6E8K0EITGLPcZlY1CVXxWdSiYeL/3wHc4dsf/NUg82LVywirgpwMOvxfPOPOewCGY6kflIfTnB8vh3aq9FK8V+8aajM5ctB2SsudMRxBpFRhqm8B+2Dja0odeu/UjyLxNZmkORPP18CtguyC/6h7ciMH9EBPT5lr9GB8SfF5foKRkiAxbLI8KggnPG6ui7nNyuJY7uvalcx2Aie0Sv4eLSpBXgVYTnS1pcQm7ubRFPTD7DRwMmeZQjz65gq2Z0I2v1qefzGYUQzXwIDAQAB",
   "permissions": [
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "storage",
+    "tabs",
+    "alarms",
+    "webRequest",
+    "webNavigation",
+    "contextMenus"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
+  "background": {
+    "service_worker": "chromium-background.js"
+  },
+  "action": {
+    "default_title": "DK Live Block",
+    "default_popup": "runtime/popup.html",
+    "default_icon": "runtime/icons/dk-live-block.png"
+  },
+  "options_ui": {
+    "page": "runtime/options.html",
+    "open_in_tab": true
+  },
+  "devtools_page": "runtime/devtools.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "*://facebook.com/*",
+        "*://*.facebook.com/*"
+      ],
+      "js": [
+        "chromium-compat.js",
+        "runtime/facebook-full-core.js"
+      ],
+      "css": [
+        "runtime/facebook-full-core.css"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "chromium-compat.js",
+        "runtime/consent.js",
+        "runtime/consent-dom.js",
+        "runtime/distractions.js",
+        "runtime/procedural.js",
+        "runtime/anti-adblock.js",
+        "runtime/paywall.js",
+        "runtime/video-assist.js",
+        "runtime/streaming-watch.js",
+        "runtime/playback-health.js",
+        "runtime/overlay-recovery.js",
+        "runtime/auth-protection.js",
+        "runtime/popup-guard.js",
+        "runtime/adaptive-model.js",
+        "runtime/ad-recognition.js",
+        "runtime/layout-reflow.js",
+        "runtime/company-modules.js",
+        "runtime/provider-intelligence.js",
+        "runtime/adaptive-dispatcher.js",
+        "runtime/meta-delivery-catalog.js",
+        "runtime/nesty-team.js",
+        "runtime/nesty-layout-scout.js",
+        "runtime/meta-agent-nesty.js",
+        "runtime/nesty-intelligence.js",
+        "runtime/ghostery-dom.js",
+        "runtime/facebook-ads.js",
+        "runtime/meta-module.js",
+        "runtime/ad-investigation.js",
+        "runtime/cbs-autoplay.js",
+        "runtime/cosmetic-debug.js",
+        "runtime/content.js",
+        "runtime/inspector-details.js",
+        "runtime/ad-investigation-ui.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "*://youtube.com/*",
+        "*://*.youtube.com/*",
+        "*://youtube-nocookie.com/*",
+        "*://*.youtube-nocookie.com/*"
+      ],
+      "js": [
+        "runtime/youtube-feed.js",
+        "runtime/youtube-page-bridge.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "runtime/safe-scriptlet-runtime.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    }
+  ],
+  "icons": {
+    "16": "runtime/icons/dk-live-block.png",
+    "48": "runtime/icons/dk-live-block.png",
+    "128": "runtime/icons/dk-live-block.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "runtime/redirect/noop.js",
+        "runtime/redirect/empty.css",
+        "runtime/blocked.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "homepage_url": "https://github.com/dereksparks1982/dkliveblock",
   "declarative_net_request": {
     "rule_resources": [
       {
@@ -18,26 +140,5 @@
         "path": "rules.json"
       }
     ]
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "css": [
-        "cosmetics.css"
-      ],
-      "run_at": "document_start"
-    },
-    {
-      "matches": [
-        "*://youtube.com/*",
-        "*://*.youtube.com/*"
-      ],
-      "css": [
-        "youtube.css"
-      ],
-      "run_at": "document_start"
-    }
-  ]
+  }
 }

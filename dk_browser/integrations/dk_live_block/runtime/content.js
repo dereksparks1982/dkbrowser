@@ -1,0 +1,619 @@
+"use strict";
+/* DK Live Block page-side cleanup. No stream rewriting, no remote scripts. */
+(function(){
+ let temporarySelectors=[],active=false,compactVideoGrids=false,css="",youtubeSkip=true,rememberVideos=false,lastRememberAt=0,cookieReject=false,adRecognition=true,antiAdblock=true,paywallPopups=true,distractionControl=true,playbackHealthEnabled=false,youtubeDiagnosticsEnabled=false,style=null,pickerStyle=null,picking=false,selected=null,banner=null,procedural=[],lastProc=0,lastAnti=0,lastPaywall=0,lastOverlayScan=0,lastAdScan=0,overlayTimer=null,overlayObserver=null,refreshSequence=0;
+ const clickedRejectButtons=new WeakSet(),clickedRejectRoots=new WeakSet();
+ let lastConsentScan=0,lastEnforcementReport=0,adScanTimer=null;
+ const hidden=new Map(),overlayRecovery=DKOverlayRecovery.create(document,window);
+ const host=location.hostname.toLowerCase(),isFacebookHost=host==="facebook.com"||host.endsWith(".facebook.com"),isYouTube=host==="youtube.com"||host.endsWith(".youtube.com")||host==="youtube-nocookie.com"||host.endsWith(".youtube-nocookie.com");
+ const isHealthSite=typeof DKPlaybackHealth!=="undefined"&&DKPlaybackHealth.supportsHost(host);
+ // Avoid interference with the complete MIT Facebook detector or players.
+ const ghosteryDOM=window===window.top&&!isFacebookHost&&
+  !DKVideoAssist.isStreamingHost(host)&&typeof DKGhosteryDOM!=="undefined"?
+  DKGhosteryDOM.create(document):null;
+ const videoController=DKVideoAssist.createController();
+ const cosmeticDebugger=DKCosmeticDebug.create(document);
+ const cbsAutoplay=typeof DKCBSAutoplay!=="undefined"?DKCBSAutoplay.create(document,window):null;
+ const healthProbe=isHealthSite?DKPlaybackHealth.createProbe():null;
+ const adProbe=isYouTube&&isHealthSite?DKPlaybackHealth.createAdProbe():null;
+ const enforcementProbe=isYouTube&&isHealthSite?
+  DKPlaybackHealth.createEnforcementProbe(DKAntiAdblock.isPlaybackEnforcement):null;
+ // Transient current-video token, used solely to reject stale SPA refusal
+ // events. Never included in exports, logs, preferences or persistent state.
+ function currentWatchId(){
+  if(!isYouTube||!["youtube.com","www.youtube.com","m.youtube.com"].includes(host)||
+      location.pathname!=="/watch")return "";
+  const ids=new URL(location.href).searchParams.getAll("v");
+  return ids.length===1&&/^[A-Za-z0-9_-]{11}$/.test(ids[0])?ids[0]:"";
+ }
+ function samplePlaybackHealth(){
+  if(!active||!playbackHealthEnabled||!healthProbe||picking||window!==window.top)return;
+  const player=document.querySelector("video.html5-main-video, #movie_player video, video");
+  const kind=healthProbe.scan(player,document);
+  if(kind)browser.runtime.sendMessage({action:"reportPlaybackHealth",kind}).catch(()=>{});
+  // Observable player state, not proof of a played/blocked advertisement.
+  const adState=adProbe?.scan(player,document);
+  if(adState)browser.runtime.sendMessage({action:"reportPlaybackHealth",kind:adState}).catch(()=>{});
+  // Detect an in-player playback refusal independently of popup hiding.
+  // Never suppress or modify the refusal; store only its fixed event kind.
+  const enforcement=enforcementProbe?.scan(document);
+  if(enforcement)browser.runtime.sendMessage({action:"reportPlaybackHealth",
+   kind:enforcement,watchVideoId:currentWatchId()}).catch(()=>{});
+ }
+ const videoWatcher=isYouTube?DKStreamingWatch.create(document,()=>skipVideo(),()=>active&&youtubeSkip&&!picking):null;
+ function syncVideoWatcher(){if(!videoWatcher)return;if(active&&youtubeSkip&&!picking){videoWatcher.start();videoWatcher.poke();}else videoWatcher.stop();}
+ const adRecognizer=typeof DKAdRecognition!=="undefined"?DKAdRecognition.create(document,window):null;
+ const facebookRecognizer=typeof DKMetaModule!=="undefined"?DKMetaModule.create(document,window):
+  typeof DKFacebookAds!=="undefined"?DKFacebookAds.create(document,window):null;
+ const layoutReflow=typeof DKLayoutReflow!=="undefined"?DKLayoutReflow.create(document,window):null;
+ const layoutScout=typeof DKNestyLayoutScout!=="undefined"?DKNestyLayoutScout.create(window):null;
+ function inspectAdSlots(){
+  if(!active||picking||!(adRecognition&&(adRecognizer||facebookRecognizer)||
+     compactVideoGrids&&layoutReflow))return;
+  lastAdScan=Date.now();
+  if(adRecognition){adRecognizer?.scan();facebookRecognizer?.scan();}
+  if(compactVideoGrids)layoutReflow?.scan();
+ }
+ function queueAdScan(){
+  if(adScanTimer!==null||!active||picking||!(adRecognition&&(adRecognizer||facebookRecognizer)||
+     compactVideoGrids&&layoutReflow)||
+    typeof setTimeout!=="function")return;
+  // Facebook receives an immediate bounded subtree pass from the observer.
+  // Keep a coalesced broad scan for late labels and DOM formats we cannot resolve early.
+  const delay=isFacebookHost?Math.max(40,160-(Date.now()-lastAdScan)):450;
+  adScanTimer=setTimeout(()=>{adScanTimer=null;inspectAdSlots();},delay);
+ }
+ function applyCSS(){
+  if(!document.documentElement)return;
+  if(!active||!css){style?.remove();style=null;return;}
+  if(!style||!style.isConnected){style=document.createElement("style");style.id="dk-live-block-style";document.documentElement.appendChild(style);}
+  if(style.textContent!==css)style.textContent=css;
+ }
+ function applyPickerCSS(){
+  if(!document.documentElement)return;
+  const safe=active?temporarySelectors.filter(s=>typeof s==="string"&&s.length>0&&s.length<=600):[];
+  if(!safe.length){pickerStyle?.remove();pickerStyle=null;return;}
+  if(!pickerStyle||!pickerStyle.isConnected){
+   pickerStyle=document.createElement("style");pickerStyle.id="dk-live-block-picker-style";
+   document.documentElement.appendChild(pickerStyle);
+  }
+  const next=safe.map(s=>s+" {display:none!important;}").join("\n");
+  if(pickerStyle.textContent!==next)pickerStyle.textContent=next;
+ }
+ async function refresh(){
+  const sequence=++refreshSequence;
+  try{
+   const s=await browser.runtime.sendMessage({action:"getStyle",url:location.href,
+    domSignals:ghosteryDOM?.snapshot()||null});
+   if(sequence!==refreshSequence)return; // Ignore stale replies after rapid SPA navigation.
+   const nextActive=!!s.active,nextAnti=!!s.antiAdblock,nextPaywall=!!s.paywallPopups,nextDistractions=!!s.distractionControl;
+   const nextProcedural=Array.isArray(s.procedural)?s.procedural:[];
+   const proceduralChanged=JSON.stringify(nextProcedural)!==JSON.stringify(procedural);
+   // Do not flash already-hidden notices on ordinary navigation or rule refresh.
+   if(active&&!nextActive||antiAdblock&&!nextAnti||paywallPopups&&!nextPaywall||distractionControl&&!nextDistractions)restoreAntiHidden();
+   if(!nextActive)temporarySelectors=[];
+   if(!nextActive||proceduralChanged){restoreHidden();cosmeticDebugger.restore();}
+   if(!nextActive||adRecognition&&!s.adRecognition){adRecognizer?.restore();facebookRecognizer?.restore();}
+   // Immediately undo an old automatic hide when its exact-site allowance is added.
+   adRecognizer?.setExceptions(s.adRecognitionExceptions);
+   facebookRecognizer?.setExceptions(s.adRecognitionExceptions);
+   const nextHealth=!!s.playbackHealthEnabled;
+   if(!nextActive||!nextHealth||!playbackHealthEnabled&&nextHealth){
+    healthProbe?.reset();enforcementProbe?.reset();
+   }
+   playbackHealthEnabled=nextHealth;
+   youtubeDiagnosticsEnabled=!!s.youtubeDiagnosticsEnabled;
+   compactVideoGrids=nextActive&&s.compactVideoGrids===true;
+   if(!compactVideoGrids)layoutReflow?.restore();
+   if(!nextActive)layoutScout?.reset?.();
+   active=nextActive;css=s.css||"";youtubeSkip=!!s.youtubeSkip;rememberVideos=!!s.rememberVideos;cookieReject=!!s.cookieReject;adRecognition=s.adRecognition!==false;
+   facebookRecognizer?.setEnabled?.(active&&adRecognition&&!picking);
+   antiAdblock=nextAnti;paywallPopups=nextPaywall;distractionControl=nextDistractions;procedural=nextProcedural;
+   if(typeof CustomEvent==="function"&&document.dispatchEvent)
+    document.dispatchEvent(new CustomEvent("dk-live-block:safe-scriptlets",{
+     detail:JSON.stringify(nextActive&&Array.isArray(s.safeScriptlets)?s.safeScriptlets:[])
+    }));
+   if(isYouTube&&window===window.top&&typeof CustomEvent==="function"&&document.dispatchEvent)
+    document.dispatchEvent(new CustomEvent("dk-live-block:youtube-response-control",{
+     detail:["enable","observe"].includes(s.youtubePageAssistMode)?
+      s.youtubePageAssistMode:s.youtubePageAssistEnabled?"enable":"disable"
+    }));
+   applyCSS();applyPickerCSS();cbsAutoplay?.setEnabled(active&&s.cbsAutoplay===true&&window===window.top&&
+    (host==="cbsnews.com"||host==="www.cbsnews.com"));queueOverlayScan();inspectAdSlots();syncVideoWatcher();
+  }catch(_){
+   // Never keep the full Facebook feed engine active after an authorization
+   // refresh failed. A subsequent successful refresh re-enables it.
+   if(isFacebookHost)facebookRecognizer?.setEnabled?.(false);
+   if(typeof CustomEvent==="function"&&document.dispatchEvent)
+    try{document.dispatchEvent(new CustomEvent("dk-live-block:safe-scriptlets",{detail:"[]"}));}
+    catch(__){}
+  }
+ }
+ function restoreHidden(){
+  for(const [el,old] of hidden){
+   try{
+    if(!el.isConnected||
+      el.style.getPropertyValue("display")!=="none"||
+      el.style.getPropertyPriority("display")!=="important")continue;
+    // Undo only our own hide. Do not overwrite a newer site style.
+    if(old.value)el.style.setProperty("display",old.value,old.priority);
+    else el.style.removeProperty("display");
+   }catch(_){}
+  }
+  hidden.clear();
+ }
+ function hideProcedural(){
+  if(!active||!procedural.length)return;
+  for(const rule of procedural.slice(0,50)){
+   let elements;try{elements=document.querySelectorAll(rule.selector);}catch(_){continue;}
+   let count=0;
+   for(const el of elements){if(++count>200)break;
+    if(el===document.body||el===document.documentElement||!DKProcedural.matches(el,rule)||
+      DKAuthProtection.isIdentityUI(el,String(el.textContent||"").slice(0,180))||
+      DKVideoAssist.isStreamingHost(host)&&DKVideoAssist.playerElement(el))continue;
+    const currentValue=el.style.getPropertyValue("display");
+    const currentPriority=el.style.getPropertyPriority("display");
+    if(hidden.has(el)){
+     // The site may have changed this element since our last scan.
+     // Keep its latest choice to restore after filtering is disabled.
+     if(currentValue==="none"&&currentPriority==="important")continue;
+    }
+    hidden.set(el,{value:currentValue,priority:currentPriority});
+    el.style.setProperty("display","none","important");if(hidden.size>800)break;
+   }
+   if(hidden.size>800)break;
+  }
+  for(const el of hidden.keys())if(!el.isConnected)hidden.delete(el);
+ }
+ function restoreAntiHidden(){overlayRecovery.restore();}
+ function unlockScrollAfterNotice(){overlayRecovery.unlockScroll();}
+ function suppressAntiAdblockNotices(){
+  if(!active||!antiAdblock||picking||!document.body)return;
+  const selector=[
+   "dialog[open]","[role='dialog']","[aria-modal='true']",
+   "yt-confirm-dialog-renderer","tp-yt-paper-dialog","ytd-enforcement-message-view-model",
+   "[id*='adblock' i]","[class*='adblock' i]",
+   "[id*='anti-ad' i]","[class*='anti-ad' i]",
+   "[class*='modal' i]","[class*='overlay' i]","[class*='popup' i]"
+  ].join(",");
+  let candidates;
+  try{candidates=document.querySelectorAll(selector);}catch(_){return;}
+  const player=document.querySelector("video");
+  let inspected=0,removed=0;
+  for(const el of candidates){
+   if(++inspected>120||removed>=6)break;
+   if(el===document.documentElement||el===document.body||el===banner)continue;
+   if((player&&el.contains(player))||el.querySelector("video, audio"))continue;
+   const info=(el.textContent||"").trim();
+   if(DKPopupGuard.protectedDialog(el,info))continue;
+   if(info.length<12||info.length>1800)continue;
+   const computed=window.getComputedStyle(el);
+   const visible=Boolean(el.isConnected&&el.getClientRects().length)&&computed.visibility!=="hidden"&&computed.display!=="none";
+   const kind=[el.localName||"",el.id||"",typeof el.className==="string"?el.className:""].join(" ");
+   const overlay=/(?:dialog|modal|overlay|popup|enforcement)/i.test(kind)||
+    el.getAttribute?.("role")==="dialog"||el.getAttribute?.("aria-modal")==="true"||
+    computed.position==="fixed"||computed.position==="sticky";
+   if(!DKAntiAdblock.shouldHide({text:info,visible,overlay,containsPlayer:false,rootElement:false}))continue;
+   // YouTube's playback-refusal dialog reflects an unresolved server-side
+   // enforcement state. Never hide it and imply playback has resumed.
+   if(isYouTube&&DKAntiAdblock.isPlaybackEnforcement(info)){
+    const now=Date.now();
+    if(playbackHealthEnabled&&window===window.top&&
+      (lastEnforcementReport===0||now-lastEnforcementReport>=20000)){
+     lastEnforcementReport=now;
+     browser.runtime.sendMessage({action:"reportPlaybackHealth",
+      kind:"enforcement",watchVideoId:currentWatchId()}).catch(()=>{});
+    }
+    continue;
+   }
+   if(!overlayRecovery.hide(el))continue;
+   removed++;
+   overlayRecovery.hideBackdropAround(el);
+  }
+  if(removed){
+   unlockScrollAfterNotice();
+   try{browser.runtime.sendMessage({action:"reportPopupCleanup",kind:"antiAdblock",count:removed}).catch(()=>{});}catch(_){}
+  }
+  overlayRecovery.prune();
+ }
+ function suppressSubscriptionModals(){
+  if(!active||!paywallPopups||picking||!document.body||document.fullscreenElement)return;
+  // Check substantive article evidence per candidate, excluding the modal itself.
+  const candidates=[
+   "dialog[open]","[role='dialog']","[aria-modal='true']",
+   "[class*='paywall' i]","[id*='paywall' i]",
+   "[class*='subscribe' i]","[id*='subscribe' i]",
+   "[class*='modal' i]","[class*='overlay' i]","[class*='gateway' i]",
+   "[data-testid*='paywall' i]"
+  ].join(",");
+  let nodes;try{nodes=document.querySelectorAll(candidates);}catch(_){return;}
+  const video=document.querySelector("video");
+  let visited=0,hiddenCount=0;
+  for(const el of nodes){
+   if(++visited>100||hiddenCount>=4)break;
+   if(el===document.body||el===document.documentElement||el===banner)continue;
+   // A modal may contain a purchase button, but never hide actual readable articles or players.
+   if((video&&el.contains(video))||el.querySelector("video, audio, article, [itemprop='articleBody']"))continue;
+   const text=(el.textContent||"").trim();
+   if(DKPopupGuard.protectedDialog(el,text))continue;
+   if(text.length>1600||text.length<17)continue;
+   const style=window.getComputedStyle(el);
+   const visible=Boolean(el.isConnected&&el.getClientRects().length)&&style.visibility!=="hidden"&&style.display!=="none";
+   const label=[el.localName||"",el.id||"",typeof el.className==="string"?el.className:""].join(" ");
+   const explicitDialog=el.localName==="dialog"||el.getAttribute?.("role")==="dialog"||el.getAttribute?.("aria-modal")==="true";
+   const positioned=style.position==="fixed"||style.position==="sticky"||style.position==="absolute";
+   const overlay=explicitDialog||positioned&&/(?:dialog|modal|paywall|overlay|subscribe|gateway)/i.test(label);
+   if(!visible||!overlay)continue;
+   const articleLoaded=DKPaywall.hasLoadedArticle(document,el);
+   if(!DKPaywall.shouldHide({text,visible,overlay,articleLoaded,containsPlayer:false,rootElement:false}))continue;
+   if(!overlayRecovery.hide(el))continue;
+   hiddenCount++;
+   overlayRecovery.hideBackdropAround(el);
+  }
+  if(hiddenCount){
+   unlockScrollAfterNotice();
+   try{browser.runtime.sendMessage({action:"reportPopupCleanup",kind:"paywall",count:hiddenCount}).catch(()=>{});}catch(_){}
+  }
+  overlayRecovery.prune();
+ }
+
+ function suppressDistractions(){
+  if(!active||!distractionControl||picking||!document.body||document.fullscreenElement)return;
+  const selector=[
+   "dialog[open]","[role='dialog']","[aria-modal='true']",
+   "[class*='newsletter' i]","[id*='newsletter' i]",
+   "[class*='survey' i]","[id*='survey' i]",
+   "[class*='mailing-list' i]","[class*='floating-ad' i]",
+   "[class*='corner-ad' i]","[data-testid*='newsletter' i]",
+   "[class*='banner' i]","[id*='banner' i]",
+   "[class*='notice' i]","[class*='notification' i]",
+   "[class*='toast' i]","[class*='alert' i]",
+   "[class*='vpn' i]","[id*='vpn' i]",
+   "[class*='popup' i]","[class*='modal' i]",
+   "[role='alert']","[role='status']",
+   "[data-testid*='banner' i]","[data-testid*='notice' i]",
+   "[style*='position:fixed' i]","[style*='position: fixed' i]"
+  ].join(",");
+  let nodes;try{nodes=document.querySelectorAll(selector);}catch(_){return;}
+  let inspected=0,removed=0;
+  for(const el of nodes){
+   if(++inspected>100||removed>=4)break;
+   if(el===document.body||el===document.documentElement||el===banner)continue;
+   let text="",marker="",sensitive=false,hasPlayer=false,hasFrame=false;
+   try{
+    text=String(el.textContent||"").trim().slice(0,1200);
+    marker=[el.id||"",typeof el.className==="string"?el.className:""].join(" ").slice(0,250);
+    sensitive=DKPopupGuard.protectedDialog(el,text);
+    hasPlayer=!!el.querySelector?.("video, audio, [id='movie_player'], .html5-video-player");
+    hasFrame=!!el.querySelector?.("iframe, object, embed");
+    if(sensitive||hasPlayer||hasFrame||DKDistractions.userEngaged(el,document.activeElement))continue;
+    const style=window.getComputedStyle(el);
+    const visible=el.isConnected&&el.getClientRects().length>0&&
+      style.display!=="none"&&style.visibility!=="hidden";
+    const explicit=el.localName==="dialog"||el.getAttribute?.("role")==="dialog"||
+      el.getAttribute?.("aria-modal")==="true";
+    const positioned=style.position==="fixed"||style.position==="sticky";
+    const overlay=explicit||positioned&&
+      (/(?:popup|modal|overlay|newsletter|survey|floating|corner-ad|banner|toast|notice|notification|alert|vpn)/i.test(marker)||
+       DKDistractions.vpnNotice(text)||DKDistractions.sitePromotion(text,host));
+    const category=DKDistractions.classify({text,labelText:marker,
+      overlay,visible,hasPlayer,hasMediaFrame:hasFrame,hasSensitive:sensitive,
+      fullscreen:!!document.fullscreenElement,host});
+    if(!category||!overlayRecovery.hide(el))continue;
+    removed++;overlayRecovery.hideBackdropAround(el);
+   }catch(_){/* Unknown DOM: never interrupt the page. */}
+  }
+  if(removed){
+   unlockScrollAfterNotice();
+   try{browser.runtime.sendMessage({action:"reportPopupCleanup",kind:"distraction",count:removed}).catch(()=>{});}catch(_){}
+  }
+  overlayRecovery.prune();
+ }
+ function scanDynamicOverlays(){
+  if(!active||picking||!document.body||(!antiAdblock&&!paywallPopups&&!distractionControl))return;
+  lastOverlayScan=Date.now();
+  if(antiAdblock){lastAnti=lastOverlayScan;suppressAntiAdblockNotices();}
+  if(paywallPopups){lastPaywall=lastOverlayScan;suppressSubscriptionModals();}
+  if(distractionControl)suppressDistractions();
+ }
+ function queueOverlayScan(){
+  if(overlayTimer!==null||!active||(!antiAdblock&&!paywallPopups&&!distractionControl)||typeof setTimeout!=="function")return;
+  const delay=Math.max(220,800-(Date.now()-lastOverlayScan));
+  overlayTimer=setTimeout(()=>{
+   overlayTimer=null;scanDynamicOverlays();
+  },delay);
+ }
+ // A single coalesced update reuses the existing document observer and style
+ // refresh. New names are scanned only under the fixed DOM feature budgets.
+ let ghosteryDOMTimer=null,lastGhosteryDOMRefreshAt=0;
+ function queueGhosteryDOMRefresh(){
+  if(!ghosteryDOM||!active||picking||ghosteryDOMTimer!==null)return;
+  ghosteryDOMTimer=setTimeout(()=>{
+   ghosteryDOMTimer=null;
+   if(!active||picking)return;
+   lastGhosteryDOMRefreshAt=Date.now();
+   void refresh();
+  },Math.max(1200,4000-(Date.now()-lastGhosteryDOMRefreshAt)));
+ }
+ function observePopupChanges(){
+  if(overlayObserver||!document.documentElement||typeof MutationObserver!=="function")return;
+  try{
+   overlayObserver=new MutationObserver(records=>{
+    // Delay heavy scanning; avoid loops from our own display style updates.
+    let popups=false,ads=false;
+    const facebookChanges=[];
+    // Preserve the old 40-record work budget while including late Facebook
+    // React updates, where a newly inserted sponsored label may appear.
+    const inspected=isFacebookHost&&typeof DKMetaModule!=="undefined"?
+     DKMetaModule.sampleMutations(records,40):records.slice(0,40);
+    for(const item of inspected){
+     if(!popups&&DKPopupGuard.shouldInspectMutation(item,el=>overlayRecovery.wasHidden(el)))popups=true;
+     if(facebookRecognizer?.observeMutation(item)){
+      ads=true;facebookChanges.push(item);
+     }
+     if(!ads&&adRecognizer&&DKAdRecognition.relevantMutation(item,host))ads=true;
+     // Finish this bounded batch: later React records may contain ad label
+    // references that disappear before the scheduled rescan.
+    }
+    if(ghosteryDOM?.observe(inspected))queueGhosteryDOMRefresh();
+    if(popups)queueOverlayScan();
+    // Only a video-list child insertion can schedule additional reflow work;
+    // the existing 450ms debounce bounds repeated site mutations.
+    const listChanged=compactVideoGrids&&!!layoutReflow&&records.slice(0,40).some(
+     r=>r.type==="childList"&&((r.addedNodes?.length||0)||(r.removedNodes?.length||0)));
+    if(ads||listChanged){
+     // Run the small Facebook mutation pass before paint, not 450ms later.
+     // React may insert a feed card without any article landmark. Schedule
+     // the viewport fallback as well, bounded separately from global scans.
+     if(isFacebookHost&&active&&adRecognition&&!picking&&facebookChanges.length){
+      try{facebookRecognizer?.scanInserted?.(facebookChanges);}catch(_){}
+      queueFacebookVisibleScan(0);
+     }
+     queueAdScan();
+    }
+   });
+   overlayObserver.observe(document.documentElement,{
+    childList:true,subtree:true,attributes:true,characterData:!!facebookRecognizer,
+    attributeFilter:["class","style","hidden","aria-hidden","open","id","name",
+     "data-ad-client","data-ad-slot","data-ad-unit","data-google-query-id","data-testid","aria-label","aria-labelledby","data-pagelet"]
+   });
+  }catch(_){overlayObserver=null;}
+ }
+ function skipVideo(){
+  if(!active||!youtubeSkip||!isYouTube||picking)return;
+  const result=videoController.scan(document);
+  // A click is not an ad-blocking victory or guaranteed successful skip.
+  if(result.clicked&&playbackHealthEnabled&&window===window.top)
+   browser.runtime.sendMessage({action:"reportPlaybackHealth",kind:"ad-skip"}).catch(()=>{});
+ }
+ function rejectCookies(){
+  if(!active||!cookieReject||picking||document.fullscreenElement)return;
+  const roots=DKConsentDOM.findBanners(document);
+  let checked=0;
+  for(const root of roots){
+   if(++checked>20)break;
+   try{
+    if(clickedRejectRoots.has(root)||DKConsentDOM.userEngaged(root,document)||
+       !DKConsentDOM.inspectBanner(root,window))continue;
+    const {buttons,context:info}=DKConsentDOM.collectControls(root);
+    if(!DKConsent.cookieContext(info)||DKPopupGuard.protectedDialog(root,info))continue;
+    let inspected=0;
+    for(const button of buttons){
+     if(++inspected>35)break;
+     if(clickedRejectButtons.has(button))continue;
+     const state=DKConsentDOM.inspectButton(button,window);
+     if(!DKConsent.shouldReject({context:info,text:button.textContent,
+       ariaLabel:button.getAttribute?.("aria-label")||"",
+       title:button.getAttribute?.("title")||"",...state}))continue;
+     if(typeof button.click!=="function")continue;
+     clickedRejectButtons.add(button);clickedRejectRoots.add(root);
+     button.click();return;
+    }
+   }catch(_){/* Unknown page widget: never interrupt browsing. */}
+  }
+ }
+ function cleanSelector(el){
+  if(el.id&&el.id.length<70)return "#"+CSS.escape(el.id);
+  const names=[];let node=el;
+  for(let i=0;i<5&&node&&node!==document.documentElement;i++){
+   let value=node.localName;if(!value)break;
+   const cls=[...node.classList].filter(x=>/^[a-zA-Z_-][\w-]{2,30}$/.test(x)&&!/^css-|^jsx-/.test(x));
+   if(cls.length)value+="."+cls.slice(0,2).map(CSS.escape).join(".");
+   const siblings=node.parentElement?[...node.parentElement.children].filter(x=>x.localName===node.localName):[];
+   if(siblings.length>1)value+=":nth-of-type("+(siblings.indexOf(node)+1)+")";
+   names.unshift(value);if(node.id){names[0]="#"+CSS.escape(node.id);break;}node=node.parentElement;
+  }
+  return names.join(" > ");
+ }
+ function endPicker(){
+  picking=false;
+  facebookRecognizer?.setEnabled?.(active&&adRecognition);
+  if(selected){selected.style.outline="";selected=null;}banner?.remove();banner=null;
+  document.removeEventListener("mouseover",hover,true);document.removeEventListener("click",choose,true);document.removeEventListener("keydown",keys,true);
+  syncVideoWatcher();
+ }
+ function hover(event){
+  if(!picking||event.target===banner||banner?.contains(event.target))return;
+  if(!(event.target instanceof Element)||event.target===document.body||event.target===document.documentElement||
+    DKVideoAssist.isStreamingHost(host)&&DKVideoAssist.playerElement(event.target))return;
+  if(selected)selected.style.outline="";selected=event.target;selected.style.outline="3px solid #11ac99";
+ }
+ async function choose(event){
+  if(!picking||event.target===banner||banner?.contains(event.target))return;
+  if(DKVideoAssist.isStreamingHost(host)&&DKVideoAssist.playerElement(event.target))return;
+  if(DKAuthProtection.isIdentityUI(event.target,String(event.target?.textContent||"").slice(0,180)))return;
+  if(!(event.target instanceof Element)||event.target===document.body||
+     event.target===document.documentElement)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  const selector=cleanSelector(event.target);
+  if(!selector||selector.length>600){if(banner)banner.textContent="Unable to select this element. Esc cancels.";return;}
+  // A selected element is hidden for this document only, not written to
+  // customRules. A normal Firefox page refresh restores it automatically.
+  endPicker();
+  if(!temporarySelectors.includes(selector))temporarySelectors.push(selector);
+  applyPickerCSS();
+ }
+ function keys(e){if(e.key==="Escape"){e.preventDefault();endPicker();}}
+ async function maybeRememberVideo(){
+  // Explicitly opt-in only. Never send a video to the background until the
+  // HTML5 player has played at least one minute outside an advertising break.
+  if(!rememberVideos||!isYouTube||window!==window.top||Date.now()-lastRememberAt<30000)return;
+  const player=document.querySelector("video");
+  if(!player||player.paused||player.ended||player.seeking||!Number.isFinite(player.currentTime)||
+    !Number.isFinite(player.duration)||player.duration<90||
+    player.currentTime<60||player.currentTime>=player.duration-15||
+    document.querySelector(".html5-video-player.ad-showing"))return;
+  const videoId=new URL(location.href).searchParams.get("v");
+  if(!/^[A-Za-z0-9_-]{11}$/.test(videoId||""))return;
+  lastRememberAt=Date.now();
+  try{await browser.runtime.sendMessage({action:"rememberVideoProgress",videoId,
+   position:Math.floor(player.currentTime),duration:Math.floor(player.duration),
+   title:String(document.title||"YouTube video").slice(0,180)});}catch(_){}
+ }
+ function startPicker(){
+  if(!active||picking||!document.body)return false;
+  picking=true;facebookRecognizer?.setEnabled?.(false);syncVideoWatcher();banner=document.createElement("div");banner.textContent="DK Live Block: click an element to hide. Esc cancels.";
+  banner.setAttribute("style","position:fixed!important;z-index:2147483647!important;right:12px!important;top:12px!important;padding:12px!important;background:#073934!important;color:white!important;border:2px solid #14b8a6!important;font:14px sans-serif!important");
+  document.documentElement.appendChild(banner);
+  document.addEventListener("mouseover",hover,true);document.addEventListener("click",choose,true);document.addEventListener("keydown",keys,true);
+  return true;
+ }
+ browser.runtime.onMessage.addListener(msg=>{
+  if(msg.action==="previewLayoutReflow"){
+   if(window!==window.top||!["http:","https:"].includes(location.protocol)||
+      !["pornhub.com","www.pornhub.com"].includes(host)||
+      !active||compactVideoGrids||picking||!layoutReflow||!layoutScout)
+    return Promise.resolve({error:"Preview requires active protection, picker off, and Compact Video Grids OFF."});
+   const result=layoutReflow.preview();
+   if(!result?.ok)return Promise.resolve({error:"Layout preview unavailable: "+(result?.reason||"unsupported")+"."});
+   const review=layoutScout.compare(result.before,result.after);
+   if(!review)return Promise.resolve({error:"Layout comparison unavailable; original page restored."});
+   return Promise.resolve({ok:true,comparison:review,
+    // Return only local count-only summaries; no video links or page markup.
+    before:result.before.geometry,after:result.after.geometry,restored:result.restored===true});
+  }
+  if(msg.action==="getLayoutReflowStatus"){
+   if(window!==window.top||!["http:","https:"].includes(location.protocol)||
+      !["pornhub.com","www.pornhub.com"].includes(host))
+    return Promise.resolve({error:"Pornhub top-level page only."});
+   const summary=layoutReflow?.diagnostics?.()||null;
+   return Promise.resolve({ok:true,site:"pornhub",active,
+    configured:compactVideoGrids,picking,summary,
+    review:summary&&layoutScout?.review(summary,{
+     active,enabled:compactVideoGrids,picking})||null});
+  }
+  if(msg.action==="getFacebookDetectorStatus"){
+   if(window!==window.top||!/^https?:$/.test(location.protocol)||
+      !(host==="facebook.com"||host.endsWith(".facebook.com")))
+    return Promise.resolve({error:"Facebook top-level page only."});
+   // Only aggregate counts and configuration flags. Never send post text,
+   // cookies, personal profile data, URLs, or DOM elements.
+   return Promise.resolve({ok:true,active,adRecognition,picking,
+    adapterLoaded:!!facebookRecognizer,lastScanAt:lastAdScan,
+    detector:facebookRecognizer?.diagnostics?.()||null,
+    nesty:facebookRecognizer?.intelligenceProfile?.()||null});
+  }
+  if(msg.action==="refresh"){refresh();return Promise.resolve({ok:true});}
+  if(msg.action==="startPicker")return Promise.resolve({ok:startPicker()});
+  if(msg.action==="undoTemporaryHide"){
+   const selector=temporarySelectors.pop();
+   if(selector)applyPickerCSS();
+   return Promise.resolve({ok:true,restored:!!selector});
+  }
+  if(msg.action==="inspectCosmeticDebug"){
+   if(!active||msg.siteHost!==host||window!==window.top)return Promise.resolve({error:"Inspector unavailable on this page."});
+   return Promise.resolve({ok:true,rows:DKCosmeticDebug.inspect(document,msg.selectors)});
+  }
+  if(msg.action==="highlightCosmeticDebug"){
+   if(!active||msg.siteHost!==host||window!==window.top)return Promise.resolve({error:"Inspector unavailable on this page."});
+   return Promise.resolve(cosmeticDebugger.highlight(msg.selector));
+  }
+  if(msg.action==="clearCosmeticDebug"){
+   cosmeticDebugger.restore();return Promise.resolve({ok:true});
+  }
+  // Read only on an explicit toolbar request; never collect passive watch history.
+  if(msg.action==="getVideoPosition"){
+   if(!/^(www\.|m\.|music\.)?youtube\.com$/.test(host)||window!==window.top)return Promise.resolve({position:0});
+   const video=document.querySelector("video");
+   const seconds=Number.isFinite(video?.currentTime)?Math.min(86400,Math.max(0,Math.floor(video.currentTime))):0;
+   return Promise.resolve({position:seconds});
+  }
+ });
+ if(isYouTube&&window===window.top&&document.addEventListener){
+  let diagnosticsSent=0,pagePrunesSent=0;
+  document.addEventListener("dk-live-block:youtube-bootstrap-observed",event=>{
+   // Untrusted page-world signal: never use it for security or block decisions.
+   if(!active||!youtubeDiagnosticsEnabled||diagnosticsSent>=8)return;
+   const x=event?.detail;
+   if(!x||!["pre-enable","post-enable","late-1s","late-3s"].includes(x.phase)||
+      !["absent","data","accessor","other"].includes(x.state)||
+      !Number.isInteger(x.adFields)||x.adFields<0||x.adFields>3||
+      typeof x.refused!=="boolean"||typeof x.initialData!=="boolean")return;
+   diagnosticsSent++;
+   browser.runtime.sendMessage({action:"reportYouTubeBootstrap",
+    observation:{phase:x.phase,state:x.state,adFields:x.adFields,
+     refused:x.refused,initialData:x.initialData,
+     ...(typeof x.playerMetadataCleaned==="boolean"?
+      {playerMetadataCleaned:x.playerMetadataCleaned}:{})}}).catch(()=>{});
+  },false);
+  document.addEventListener("dk-live-block:youtube-page-pruned",event=>{
+   // This MAIN-world event is forgeable by the website. It never drives
+   // network blocking or adaptive policy and is purely informational.
+   if(!active||!youtubeDiagnosticsEnabled||pagePrunesSent>=16)return;
+   const kind=event?.detail?.kind;
+   if(!["bootstrap","json-parse","fetch-json","fetch-text","xhr-json","xhr-text"].includes(kind))
+    return;
+   pagePrunesSent++;
+   browser.runtime.sendMessage({action:"reportYouTubePagePrune",kind}).catch(()=>{});
+  },false);
+  let bridgeReadySeen=false;
+  document.addEventListener("dk-live-block:youtube-response-ready",()=>{
+   if(bridgeReadySeen)return;
+   bridgeReadySeen=true;refresh();
+  },false);
+ }
+ refresh();
+ // YouTube single-page navigation does not necessarily reload the document.
+ if(typeof window.addEventListener==="function"){
+  const onNavigate=()=>{
+   healthProbe?.reset();adProbe?.reset();enforcementProbe?.reset();
+   videoController.reset?.();refresh();videoWatcher?.poke();
+  };
+  window.addEventListener("yt-navigate-finish",onNavigate,false);
+  window.addEventListener("popstate",onNavigate,false);
+ }
+ // Facebook may insert unmarked cards or reveal them during scrolling.
+ // Coalesce both triggers into one viewport-only pass at most every 120ms,
+ // retaining the existing global scan's independent fallback.
+ let facebookVisibleTimer=null,lastFacebookVisibleAt=0;
+ function queueFacebookVisibleScan(delay=120){
+  if(!isFacebookHost||window!==window.top||facebookVisibleTimer!==null||
+     !active||!adRecognition||picking||typeof setTimeout!=="function")return;
+  facebookVisibleTimer=setTimeout(()=>{
+   facebookVisibleTimer=null;
+   if(!active||!adRecognition||picking)return;
+   lastFacebookVisibleAt=Date.now();
+   try{facebookRecognizer?.scanVisible?.();}catch(_){}
+  },Math.max(delay,120-(Date.now()-lastFacebookVisibleAt),0));
+ }
+ if(isFacebookHost&&window===window.top&&typeof window.addEventListener==="function")
+  window.addEventListener("scroll",()=>queueFacebookVisibleScan(120),{passive:true});
+ if(!document.documentElement){
+  try{
+   const watcher=new MutationObserver(()=>{
+    if(document.documentElement){watcher.disconnect();applyCSS();observePopupChanges();queueOverlayScan();syncVideoWatcher();}
+   });
+   watcher.observe(document,{childList:true,subtree:true});
+  }catch(_){}
+ }else observePopupChanges();
+ // Lightweight video/cookie checks remain periodic; heavy overlay scans run on DOM changes
+ // and at a low-frequency fallback for pages that modify existing nodes in place.
+ setInterval(()=>{
+  skipVideo();samplePlaybackHealth();
+  if(Date.now()-lastConsentScan>=3500){lastConsentScan=Date.now();rejectCookies();}
+  if(rememberVideos&&isYouTube)maybeRememberVideo().catch(()=>{});
+  if(Date.now()-lastProc>3000){lastProc=Date.now();hideProcedural();}
+  if(Date.now()-lastAdScan>3500)inspectAdSlots();
+  if(Date.now()-lastOverlayScan>15000)scanDynamicOverlays();
+ },1250);
+})();

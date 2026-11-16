@@ -1,0 +1,152 @@
+<!doctype html><html lang="en">
+<head>
+<script src="../chromium-compat.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DK Live Block | Site Dashboard</title><link rel="stylesheet" href="style.css"></head>
+<body class="options site-dashboard">
+<header><strong>DK LIVE BLOCK</strong><small>Local site dashboard · No accounts</small></header>
+<main>
+<h1>Site Dashboard</h1>
+<p>See what DK Live Block does on a selected website, which destinations were blocked, and which exceptions you approved. This page stays inside Firefox.</p>
+<div class="network-monitor-controls"><label>Website tab
+<select id="dashboardTab"><option value="">Choose a website tab</option></select></label>
+<button id="dashboardRefreshTabs" type="button">Refresh tabs</button>
+<button id="dashboardRefresh" type="button">Refresh status</button>
+<button id="dashboardReport" type="button">Report a problem</button></div>
+<div class="network-monitor-controls">
+<button id="dashboardSessionExportText" type="button">Export open websites (.txt)</button>
+<button id="dashboardSessionExportJSON" type="button">Export open websites (.json)</button>
+</div>
+<p>Combined export is voluntary and includes up to 25 currently open website tabs. It records only privacy-limited hostnames and available request summaries, not page addresses or browsing history.</p>
+<p id="dashboardMessage" role="status" aria-live="polite">Choose a website tab.</p>
+<section id="dashboardSiteSection">
+<h2 id="dashboardSite">No site selected</h2>
+<p><strong id="dashboardShield" aria-live="polite">No website selected</strong></p>
+<p id="dashboardExplanation">Nothing is being changed.</p>
+<div class="dashboard-metrics">
+<div>Blocked requests <strong id="dashboardBlocked">0</strong></div>
+<div>Permitted requests <strong id="dashboardAllowed">0</strong></div>
+<div>Overlays suppressed <strong id="dashboardOverlays">0</strong></div>
+<div>Unwanted tabs stopped <strong id="dashboardTabsStopped">0</strong></div>
+</div>
+<div class="network-monitor-controls">
+<button id="dashboardAllowlist" type="button">Allowlist website</button>
+<button id="dashboardPause" type="button">Pause this tab</button>
+<button id="dashboardCookie" type="button">Pause cookie rejection here</button>
+<button id="dashboardDistraction" type="button">Pause distraction cleanup here</button>
+</div>
+<p id="dashboardModeNote">Allowlisting disables automatic filtering for this site and its subdomains. Any selective host/type blocks you switch on remain effective. Pausing just this tab suspends both. Cookie and distraction settings do not switch off network ad blocking.</p>
+</section>
+<section id="allowedRequestsSection" tabindex="-1">
+<h2>Permitted requests on this tab</h2>
+<p>Completed HTTP(S) subresource requests that DK Live Block did not block, grouped by destination hostname and request type. The count is requests, not distinct companies. An allowed request is not automatically safe or advertising. No URLs, paths, cookies, or request contents are recorded. The list resets when this tab reloads and only tracks activity while private request logging is enabled.</p>
+<p><strong id="dashboardAllowedCount">0</strong> completed permitted requests; <strong id="dashboardAllowedGroups">0</strong> destination/type groups; <strong id="dashboardSelectiveCount">0</strong> manual blocking choices.</p>
+<p id="dashboardAllowedState" role="status"></p>
+<div class="network-monitor-controls">
+<button id="dashboardExportAllowedText" type="button" disabled>Export permitted details (.txt)</button>
+<button id="dashboardExportAllowedJSON" type="button" disabled>Export permitted details (.json)</button>
+</div>
+<div id="dashboardAllowedList" aria-label="Permitted request destinations and individual block toggles"></div>
+<article id="dashboardAllowedDetails" hidden aria-label="Permitted request inspection">
+<h3>Permitted request details</h3>
+<p>Permitted means the request completed without DK Live Block cancelling it. It does not mean the destination is safe or that its contents were inspected.</p>
+<dl id="allowedDetailFields"></dl>
+<div id="allowedDetailLinks"></div>
+<div class="network-monitor-controls">
+<button id="allowedExportText" type="button">Export this destination (.txt)</button>
+<button id="allowedExportJSON" type="button">Export this destination (.json)</button>
+<button id="allowedDetailClose" type="button">Close details</button>
+</div>
+</article>
+<p>Turn a switch ON to block future requests to that exact hostname and resource type on this website. Turn it OFF to allow them again. Changes are remembered, but already loaded resources cannot be undone; refresh the website to test. Sign-in-critical requests and main page navigation are never blocked by these switches. The global protection switch and Pause this tab override manual blocks.</p>
+</section>
+<section id="blockedRequestsSection" tabindex="-1"><h2>Blocked requests for this tab</h2>
+<p>Shows up to the last 250 blocked requests for this tab, including repeated blocks. Only destination hostnames, resource types and coarse timestamps are retained, never private URLs or payloads. The counter can exceed this history; an empty list means request logging is disabled or no events have been retained. Export saves these details locally; domain registration data is included only for lookups you explicitly performed in this dashboard session. <strong>Allow switches affect future requests with the same destination hostname and request type on this website, not individual historical URLs. Allowing a first-party request type may also permit advertising or tracking.</strong></p>
+<div class="network-monitor-controls">
+<button id="dashboardExportText" type="button" disabled>Export all details (.txt)</button>
+<button id="dashboardExportJSON" type="button" disabled>Export all details (.json)</button>
+<button id="dashboardMonitor" type="button">Open detailed Network Monitor</button>
+<button id="dashboardClearLog" type="button">Clear recent blocked-request log</button></div>
+<p id="dashboardLogState" role="status"></p>
+<div id="dashboardRecent" aria-label="Individual blocked requests"></div>
+<article id="dashboardBlockDetails" hidden aria-label="Selected blocked request details">
+<h3>Individual blocked request</h3>
+<p id="blockDetailHint">Details reflect what Firefox observed, not a malware verdict.</p>
+<dl id="blockDetailFields"></dl>
+<h4>Domain investigation and supporting evidence</h4>
+<p id="blockOwnerNotice">Registrant, registrar, hosting-network owner and service operator can be different. Investigation runs only when requested: the registered domain is sent to a public RDAP service, Firefox resolves the hostname, and a sampled public IP may be sent for network registration lookup. No browsing page URL is transmitted.</p>
+<div id="blockDetailLinks"></div>
+<button id="blockRdapLookup" type="button">Investigate domain: registration, DNS, hosting &amp; threats</button>
+<p id="blockRdapResult" role="status" aria-live="polite"></p>
+<div class="network-monitor-controls">
+<button id="blockExportText" type="button">Export this request (.txt)</button>
+<button id="blockExportJSON" type="button">Export this request (.json)</button>
+<button id="blockDetailClose" type="button">Close details</button>
+</div>
+</article>
+</section>
+<section><h2>Streaming playback diagnostics</h2>
+<p>Coarse observations only. YouTube enforcement means the site refused playback; buffering and media errors describe separate problems. These events do not prove that a blocked request caused the failure. No video addresses or account information are collected.</p>
+<p id="dashboardPlaybackState" role="status"></p>
+<p id="dashboardYouTubeTriage" role="status" hidden></p>
+<p id="dashboardYouTubeResponse" role="status" hidden></p>
+<div class="network-monitor-controls" id="dashboardYouTubeExportControls" hidden>
+<button id="dashboardYouTubeExportJSON" type="button">Export YouTube diagnostics (.json)</button>
+<button id="dashboardYouTubeExportText" type="button">Export YouTube diagnostics (.txt)</button>
+</div>
+<p><a href="youtube-lab.html" id="dashboardYouTubeLabLink">Compare two YouTube reports in the offline diagnostic lab</a></p>
+<details id="dashboardYouTubeExperiment" hidden>
+<summary>YouTube compatibility test modes (temporary, optional)</summary>
+<p>Compare two independent filtering methods. Change only the selected YouTube tab. Reload the video tab after applying a mode. Resets after one hour, when the tab closes, or when you leave YouTube.</p>
+<label>Test mode
+<select id="dashboardYouTubeMode">
+<option value="combined">Normal (both methods)</option>
+<option value="response-only">Response filter only</option>
+<option value="bridge-only">Page bridge only</option>
+<option value="observe">Observe only (no player JSON changes)</option>
+<option value="player-pass-through">Player API passthrough (test only)</option>
+</select></label>
+<button id="dashboardYouTubeApplyMode" type="button">Apply to selected tab</button>
+<p role="status" id="dashboardYouTubeModeState"></p>
+</details>
+<div id="dashboardPlaybackEvents" aria-label="Streaming playback events"></div></section>
+<details id="dashboardLayoutReflow" hidden><summary>Video layout repair · Pornhub (experimental)</summary>
+<p>Read-only local counts of recognized video grids and empty ad spaces. No video URLs, titles, account information or uploads. The experimental setting is off by default and can be changed in Settings.</p>
+<p id="dashboardLayoutReflowState" role="status">Select a Pornhub tab to inspect.</p>
+<p id="dashboardLayoutNesty" role="status">Nesty Layout Scout: awaiting a local review.</p>
+<button id="dashboardLayoutRefresh" type="button">Recheck video layout</button>
+<button id="dashboardLayoutCompare" type="button">Compare compact layout (temporary preview)</button>
+<p id="dashboardLayoutComparison" role="status">Comparison not run. Preview does not enable the setting and always restores the original layout.</p></details>
+<section><h2>Recently blocked popups</h2>
+<p>Firefox may not reveal a destination if a tab was stopped while blank. No URLs, paths or query strings are displayed.</p>
+<div id="dashboardPopupHistory"></div>
+</section>
+<section><h2>Allowed destinations</h2>
+<p>Review exceptions that could allow advertising or tracking. Each exception can be revoked without disabling the whole website.</p>
+<h3>Custom website hostname allowances</h3>
+<div id="dashboardCustomAllowances"></div>
+<h3>Hostname and resource-type allowances</h3>
+<div id="dashboardRequestAllowances"></div>
+<p>Temporary permissions automatically expire; remembered permissions apply only to this website. Grant new exceptions from the detailed Network Monitor after observing an actually blocked request.</p>
+</section>
+<section><h2>Filter coverage</h2>
+<p id="dashboardFilterDetails">No filter information loaded.</p>
+<button id="dashboardOptions" type="button">Settings and filter lists</button>
+<a id="dashboardMetaIntel" href="meta-intelligence.html" hidden>Meta advertising intelligence</a>
+<a id="dashboardFacebookFull" href="facebook-full-settings.html">Facebook full ad and feed controls</a>
+<a id="dashboardCookieNestys" href="cookie-agents.html">Agent Nesty · Cookie Watch</a>
+</section>
+<p class="dashboard-footnote">Local display only · no telemetry · no automatic new network monitoring · no Acceptable Ads</p>
+</main>
+<script src="access-inspector.js"></script>
+<script src="block-details.js"></script>
+<script src="site-dashboard-model.js"></script>
+<script src="youtube-triage.js"></script>
+<script src="blocked-export.js"></script>
+<script src="allowed-export.js"></script>
+<script src="session-export.js"></script>
+<script src="youtube-outcome.js"></script>
+<script src="youtube-compatibility-advice.js"></script>
+<script src="youtube-report.js"></script>
+<script src="site-dashboard.js"></script>
+<script src="ui-language.js"></script>
+</body></html>

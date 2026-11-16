@@ -1,102 +1,161 @@
-"""Checks the first built-in DK Live Block source integration.
+"""Source checks for the bundled complete DK Live Block Chromium integration.
 
-These checks do not claim Firefox rule parity, complete Chromium compilation
-or live browser blocking behavior.
+No Chromium compilation, browser launch, GitHub Actions, or network access.
+Run from the DK Browser checkout:
+  python3 -m unittest dk_browser.tests.test_dk_live_block_source
 """
 import base64
 import hashlib
 import json
 from pathlib import Path
+import re
 import unittest
 
-from dk_browser.integrations.dk_live_block.generate_rules import generate
-
 ROOT = Path(__file__).resolve().parents[2]
-DIR = ROOT / "dk_browser" / "integrations" / "dk_live_block"
+DIRECTORY = ROOT / "dk_browser" / "integrations" / "dk_live_block"
+RUNTIME = DIRECTORY / "runtime"
 
 
-class DKLiveBlockComponentTests(unittest.TestCase):
+class DKLiveBlockIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.manifest = json.loads((DIR / "manifest.json").read_text(encoding="utf-8"))
-        cls.rules = json.loads((DIR / "rules.json").read_text(encoding="utf-8"))
+        cls.manifest = json.loads((DIRECTORY / "manifest.json").read_text(encoding="utf-8"))
+        cls.rules = json.loads((DIRECTORY / "rules.json").read_text(encoding="utf-8"))
+        cls.worker = (DIRECTORY / "chromium-background.js").read_text(encoding="utf-8")
+        cls.compat = (DIRECTORY / "chromium-compat.js").read_text(encoding="utf-8")
+        cls.dnr = (DIRECTORY / "chromium-dnr.js").read_text(encoding="utf-8")
         cls.loader = (ROOT / "chrome/browser/extensions/component_loader.cc").read_text(encoding="utf-8")
         cls.allow = (ROOT / "chrome/browser/extensions/component_extensions_allowlist/allowlist.cc").read_text(encoding="utf-8")
         cls.build = (ROOT / "chrome/browser/resources/BUILD.gn").read_text(encoding="utf-8")
-        cls.resources = (DIR / "BUILD.gn").read_text(encoding="utf-8")
+        cls.gn = (DIRECTORY / "BUILD.gn").read_text(encoding="utf-8")
 
-    def test_mv3_not_firefox_addon(self):
+    def test_full_manifest_is_chromium_v3_not_firefox_v2(self):
         m = self.manifest
         self.assertEqual(m["name"], "DK Live Block")
+        self.assertEqual(m["version"], "0.3.371")
         self.assertEqual(m["manifest_version"], 3)
-        self.assertEqual(m["permissions"], ["declarativeNetRequest"])
+        self.assertIn("declarativeNetRequest", m["permissions"])
+        self.assertIn("webRequest", m["permissions"])
         self.assertNotIn("webRequestBlocking", m["permissions"])
         self.assertNotIn("browser_specific_settings", m)
-        self.assertNotIn("nativeMessaging", m["permissions"])
+        self.assertNotIn("proxy", m["permissions"])
+        self.assertNotIn("nativeMessaging", m.get("permissions", []))
+        self.assertNotIn("nativeMessaging", m.get("optional_permissions", []))
+        self.assertEqual(m["host_permissions"], ["<all_urls>"])
+        self.assertEqual(m["background"]["service_worker"], "chromium-background.js")
+        self.assertEqual(m["action"]["default_popup"], "runtime/popup.html")
 
-    def test_manifest_assets_are_bundled(self):
-        rule = self.manifest["declarative_net_request"]["rule_resources"][0]
-        self.assertEqual(rule["path"], "rules.json")
-        self.assertTrue(rule["enabled"])
-        for script in self.manifest["content_scripts"]:
-            for css in script.get("css", []):
-                self.assertTrue((DIR / css).is_file(), css)
-                self.assertIn('"' + css + '"', self.resources)
-        self.assertIn('"manifest.json"', self.resources)
-        self.assertIn('"rules.json"', self.resources)
-        self.assertIn('"DK_LIVE_BLOCK_LICENSE.txt"', self.resources)
+    def test_full_background_dependency_chain(self):
+        imported = re.findall(r'"([^"]+\.js)"', self.worker)
+        self.assertGreaterEqual(len(imported), 58)
+        self.assertEqual(imported[0], "chromium-compat.js")
+        self.assertEqual(imported[-1], "runtime/background.js")
+        self.assertIn("runtime/ghostery-vendor.js", imported)
+        self.assertIn("runtime/hybrid-engine.js", imported)
+        self.assertIn("runtime/nesty-intelligence.js", imported)
+        self.assertIn("runtime/meta-graphql.js", imported)
+        self.assertIn("runtime/rules.js", imported)
+        self.assertIn("chromium-dnr.js", imported)
+        self.assertIn("DKChromiumDNR=globalThis.DKChromiumRules.create", self.worker)
+        for path in imported:
+            with self.subTest(path=path):
+                self.assertTrue((DIRECTORY / path).is_file(), path)
 
-    def test_stable_key_matches_allowlist(self):
-        public = base64.b64decode(self.manifest["key"], validate=True)
-        digest = hashlib.sha256(public).digest()[:16]
-        extension_id = "".join(chr(97 + (c >> 4)) + chr(97 + (c & 15))
-                               for c in digest)
-        self.assertEqual(extension_id, "eoiabdloaoehfmeekmoccllbfebajimh")
-        self.assertIn('"' + extension_id + '"', self.allow)
+    def test_page_scripts_and_resources_are_present(self):
+        m = self.manifest
+        self.assertEqual(len(m["content_scripts"]), 4)
+        all_files = [m["background"]["service_worker"], m["action"]["default_popup"],
+                     m["action"]["default_icon"], m["options_ui"]["page"],
+                     m["devtools_page"]]
+        for entry in m["content_scripts"]:
+            all_files.extend(entry["js"])
+            all_files.extend(entry.get("css", []))
+            if entry.get("world") != "MAIN":
+                self.assertEqual(entry["js"][0], "chromium-compat.js")
+        for item in m["web_accessible_resources"]:
+            all_files.extend(item["resources"])
+        for filename in all_files:
+            with self.subTest(filename=filename):
+                self.assertTrue((DIRECTORY / filename).is_file(), filename)
+                self.assertIn('"' + filename + '"', self.gn)
 
-    def test_normal_component_loader_not_development_bypass(self):
+    def test_original_source_modules_and_interfaces_embedded(self):
+        source = list(RUNTIME.rglob("*.js"))
+        html = list(RUNTIME.rglob("*.html"))
+        self.assertGreaterEqual(len(source), 120)
+        self.assertGreaterEqual(len(html), 16)
+        must_have = [
+            "background.js", "rules.js", "engine.js", "hybrid-engine.js",
+            "ghostery-vendor.js", "facebook-ads.js", "facebook-full-core.js",
+            "youtube-page-bridge.js", "youtube-response.js", "nesty-team.js",
+            "nesty-intelligence.js", "meta-graphql.js", "content.js",
+            "options.js", "site-dashboard.js", "popup.js", "ui-language.js",
+            "public-suffix.js", "safe-scriptlet-runtime.js"
+        ]
+        for name in must_have:
+            self.assertTrue((RUNTIME / name).is_file(), name)
+            self.assertIn('"runtime/' + name + '"', self.gn)
+
+    def test_ui_browser_compat_in_every_page(self):
+        for page in RUNTIME.glob("*.html"):
+            with self.subTest(page=page.name):
+                src = page.read_text(encoding="utf-8")
+                self.assertIn('../chromium-compat.js', src)
+
+    def test_source_icon_and_licenses(self):
+        self.assertTrue((RUNTIME / "icons/dk-live-block.png").is_file())
+        self.assertTrue((DIRECTORY / "DK_LIVE_BLOCK_LICENSE.txt").is_file())
+        self.assertTrue((RUNTIME / "LICENSE-GHOSTERY.txt").is_file())
+        self.assertTrue((RUNTIME / "LICENSE-FACEBOOK-MIT.txt").is_file())
+        self.assertTrue((RUNTIME / "LICENSE-PSL.txt").is_file())
+        self.assertTrue((DIRECTORY / "upstream/companion/native_host.py").is_file())
+        self.assertTrue((DIRECTORY / "MV2-MANIFEST.reference.json").is_file())
+
+    def test_chromium_component_pinned_identity(self):
+        key = base64.b64decode(self.manifest["key"], validate=True)
+        digest = hashlib.sha256(key).digest()[:16]
+        ext_id = "".join(chr(97 + (byte >> shift & 15))
+                         for byte in digest for shift in (4, 0))
+        self.assertEqual(ext_id, "eoiabdloaoehfmeekmoccllbfebajimh")
+        self.assertIn('"' + ext_id + '"', self.allow)
+
+    def test_native_loader_and_outputs(self):
         self.assertIn('Append(FILE_PATH_LITERAL("dk_live_block"))', self.loader)
         self.assertIn("Add(std::move(*manifest), dk_block)", self.loader)
-        self.assertIn("file_util::LoadManifest(dk_block", self.loader)
-        self.assertIn("should_disable_background_extensions", self.loader)
         self.assertNotIn("AddOrReplace(dk_block)", self.loader)
-
-    def test_limited_linux_wiring(self):
         self.assertIn("BUILDFLAG(IS_LINUX)", self.loader)
         self.assertIn("!BUILDFLAG(GOOGLE_CHROME_BRANDING)", self.loader)
         self.assertIn('dk_live_block:component_resources', self.build)
-        self.assertIn('copy("component_resources")', self.resources)
-        self.assertIn('$root_out_dir/resources/dk_live_block/{{source_file_part}}',
-                      self.resources)
+        self.assertIn('$root_out_dir/resources/dk_live_block/', self.gn)
+        self.assertIn('group("component_resources")', self.gn)
+        for name in ("runtime_root_assets", "runtime_redirect_assets",
+                     "runtime_vendor_assets", "runtime_icons"):
+            self.assertIn('copy("' + name + '")', self.gn)
 
-    def test_initial_network_seed_is_scoped(self):
+    def test_mv2_sync_interception_not_registered_on_chromium(self):
+        legacy = (RUNTIME / "background.js").read_text(encoding="utf-8")
+        self.assertIn("if (!globalThis.DKChromiumRuntime?.dnr)", legacy)
+        self.assertIn("DKChromiumDNR.sync(next,data.settings)", legacy)
+        self.assertIn("chrome", self.compat.lower())
+        self.assertIn("onMessage", self.compat)
+        self.assertIn("updateDynamicRules", self.dnr)
+        self.assertIn("parsed.scope", self.dnr)
+        self.assertIn("excludedInitiatorDomains", self.dnr)
+        self.assertIn("MAX_DYNAMIC=25000", self.dnr)
+
+    def test_original_fallback_list_is_preserved_but_not_only_backend(self):
         self.assertEqual(len(self.rules), 10)
-        ids = [x["id"] for x in self.rules]
-        self.assertEqual(ids, list(range(1, len(ids) + 1)))
-        self.assertTrue(all(x["action"] == {"type": "block"} for x in self.rules))
-        self.assertIn("||doubleclick.net^",
-                      [x["condition"]["urlFilter"] for x in self.rules])
-        targeted = [x for x in self.rules
-                    if "initiatorDomains" in x["condition"]]
-        self.assertEqual(len(targeted), 1)
-        self.assertEqual(targeted[0]["condition"]["resourceTypes"], ["media"])
+        self.assertTrue(all(r["action"] == {"type": "block"} for r in self.rules))
+        self.assertEqual(
+            self.manifest["declarative_net_request"]["rule_resources"],
+            [{"id": "dk_live_block_seed", "enabled": True, "path": "rules.json"}]
+        )
+        self.assertIn('updateDynamicRules', self.dnr)
 
-    def test_css_targets_are_separated(self):
-        generic = (DIR / "cosmetics.css").read_text(encoding="utf-8")
-        youtube = (DIR / "youtube.css").read_text(encoding="utf-8")
-        self.assertIn(".adsbygoogle", generic)
-        self.assertIn("#player-ads", youtube)
-        self.assertNotIn("#player-ads", generic)
-
-    def test_adapter_rejects_untranslatable_rules(self):
-        sample = 'const SEED=["! Comment","||example.org^","##.ads"].join("\\n");'
-        generated = generate(sample)
-        self.assertEqual(len(json.loads(generated["rules.json"])), 1)
-        self.assertIn(".ads", generated["cosmetics.css"])
-        with self.assertRaisesRegex(ValueError, "Unsupported"):
-            generate('const SEED=["||example.com^$script,important"].join("\\n");')
-        with self.assertRaisesRegex(ValueError, "not found"):
-            generate("const unrelated = true;")
+    def test_no_automated_installer_or_action(self):
+        self.assertFalse((DIRECTORY / ".github/workflows").exists())
+        self.assertFalse((DIRECTORY / "install.sh").exists())
+        self.assertTrue((DIRECTORY / "upstream/companion/native_host.py").is_file())
 
 
 if __name__ == "__main__":

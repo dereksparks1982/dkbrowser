@@ -14,26 +14,35 @@
 
 This repository **contains Chromium's actual browser source code**, not a launcher, an Electron wrapper, or a source submodule. DK-specific changes are committed directly to the fork and maintained here.
 
-## Built-in DK Live Block (initial integration)
+## Built-in DK Live Block (complete-source Chromium integration)
 
-DK Browser's Linux Chromium source now registers **DK Live Block** as a
-bundled component using the normal Chromium extension component loader.
-Its initial Chromium Manifest V3 resources are built into the browser source;
-no Firefox XPI, Mozilla signing or extension-store installation is required.
+DK Browser now bundles the complete **DK Live Block v0.3.371** runtime
+source within Chromium as an internal, allowlisted component. The source
+includes DK Live Block's own engine and Ghostery matcher, full original
+Facebook and YouTube scripts, Nesty modules, EasyList/EasyPrivacy and other
+list-update support, per-site controls, popup/cookie protections, the
+English/Russian settings interface and local diagnostics. **It requires no
+Mozilla approval or Firefox installation.**
 
-The first adapter translates the existing DK Live Block *fallback rules*:
-10 network-blocking rules through `declarativeNetRequest`, 4 global cosmetic
-selectors and 7 YouTube cosmetic selectors. These are sourced from the
-DK Live Block project, with the original license copied alongside them.
-The full Firefox engine, dynamic lists, advanced site rules, user settings
-and other modules **are not yet ported or tested**. A Chromium compile and
-live blocking tests are still required.
+The Chromium Manifest V3 port loads the original source modules with a
+compatibility layer. A new `declarativeNetRequest` adapter translates
+supported ABP list rules using DK Live Block's own parser, with explicit
+exceptions, scoped rules and site pauses. The existing static ten-rule baseline remains enabled while the
+DNR adapter adds compatible dynamic subscription rules. The existing CSS
+and page-side protection modules are bundled. The Linux companion is included only as
+reference source, never installed or started.
 
-**Separate product direction:** DK Media Player remains a **web-only**
-application, to be integrated into DK Browser later. yt-dlp belongs to the
-web player's future optional, user-approved download backend, not to a new
-desktop media player and not to DK Browser in this build. No download package
-or browser test is requested yet.
+**Source integration is not a compiled or verified browser release.**
+Firefox-specific synchronous webRequest blocking, response-body rewrites,
+DNS/proxy APIs and some other controls have no direct Chromium MV3
+equivalent. Unsupported filters are deliberately skipped rather than
+broadened; some original screens can report unsupported features until
+they receive a native adapter. See the [component notes](dk_browser/integrations/dk_live_block/README.md) and
+[development roadmap](DK_BROWSER.md). The original third-party and DK Live
+Block license notices are retained.
+
+**DK Media Player remains web-only.** Its future yt-dlp functionality is
+not a separate DK Browser download engine or desktop media player.
 
 ## Development status
 

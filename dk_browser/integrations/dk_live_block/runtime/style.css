@@ -1,0 +1,264 @@
+:root{font-family:system-ui,sans-serif;color-scheme:dark;background:#102624;color:#e9faf6}body{margin:0}
+header{padding:16px 18px;background:#083e37;display:flex;justify-content:space-between;align-items:center;gap:12px}
+header strong{font-size:16px;letter-spacing:.04em}small,footer{color:#aedbd0}footer{padding:14px;text-align:center;font-size:12px}
+main{padding:18px}button,.import{background:#13ad98;border:0;border-radius:7px;padding:10px 13px;color:#061f1c;font-weight:700;cursor:pointer}
+button:disabled{opacity:.4;cursor:default}button:hover:not(:disabled){filter:brightness(1.12)}input[type=checkbox]{width:17px;height:17px;accent-color:#12bda3}
+p{line-height:1.5;color:#c9ded9}section{margin:16px 0;padding:18px;border:1px solid #3a6059;border-radius:9px;background:#163732}
+h1{margin:0}h2{margin:0 0 12px;font-size:18px}.options{max-width:900px;margin:auto}.options label{display:block;margin:12px 0}
+.options textarea{display:block;box-sizing:border-box;width:100%;height:210px;border-radius:7px;background:#071b19;color:white;border:1px solid #51776c;padding:12px;font-family:monospace}
+.options textarea.short{height:95px}.options #log{max-height:250px;overflow:auto;white-space:pre-wrap;color:#d6fff2}
+.options .warning{border-left:4px solid #00e8eb;padding:12px;background:#102830;color:#edf8f9}.options .actions{display:flex;align-items:center;gap:16px}
+.popup{width:340px}.popup .row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid #39635a}
+.popup .metric{padding:10px 0;text-align:center}.popup .metric b{font-size:34px}.popup .full{width:100%}.popup #info{font-size:12px;min-height:36px}
+.import{display:inline-block}input[type=file]{max-width:220px;font-weight:normal}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #baf9e5}
+.options .log-row{display:flex;gap:12px;justify-content:space-between;align-items:center;border-bottom:1px solid #416d63;padding:8px 0}.options .log-row span{overflow-wrap:anywhere;min-width:0}.options .log-row button{flex-shrink:0}
+
+.options #network-recovery select,.options #network-recovery input[type=text],.options #network-recovery input[type=number]{display:block;box-sizing:border-box;max-width:100%;width:360px;margin:6px 0;padding:9px;border:1px solid #51776c;border-radius:6px;background:#071b19;color:white}.options #network-recovery label{line-height:1.5}.options #network-recovery .network-buttons{display:flex;flex-wrap:wrap;gap:10px}.options #networkIssues{max-height:300px;overflow:auto;overflow-wrap:anywhere}.options #netMessage,.options #dnsResult{overflow-wrap:anywhere}
+
+.patreon-button{margin-top:10px;background:#7f2940;color:#fff;max-width:100%;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.patreon-button::before{content:"";display:inline-block;flex:none;width:17px;height:17px;background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M0 0h4.25v24H0zM15.86 0a8.14 8.14 0 1 0 0 16.28 8.14 8.14 0 0 0 0-16.28z'/%3E%3C/svg%3E")}
+.patreon-button:disabled{opacity:.68;cursor:default}
+.popup button[data-tone="burgundy"]{background:#7f2940;color:#fff;border:1px solid #a84b62}
+.popup .popup-experiments{margin:12px 0;border:1px solid #52756e;border-radius:8px;background:#0d2926;overflow:hidden}
+.popup .popup-experiments>summary{cursor:pointer;padding:10px 12px;font-weight:700;color:#f2fcf8}
+.popup .popup-experiments[open]>summary{border-bottom:1px solid #52756e}
+.popup .popup-experiments>.row{margin:0 12px}
+.popup #metaGraphqlNotice{margin:8px 12px 12px;font-size:12px}
+.options details.settings-group{margin:12px 0;border:1px solid #3c6159;border-radius:9px;overflow:hidden;background:#0b2622}
+.options details.settings-group>summary{display:block;cursor:pointer;list-style:none;position:relative;padding:14px 46px 14px 17px;font-size:17px;font-weight:750}
+.options details.settings-group>summary::-webkit-details-marker{display:none}
+.options details.settings-group>summary::after{content:"+";position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:21px}
+.options details.settings-group[open]>summary::after{content:"−"}
+.options details.settings-group>summary:focus-visible{outline:3px solid #19d6cc;outline-offset:-3px}
+.options details.tone-black>summary{background:#071a19;color:#f7ffff}
+.options details.tone-cyan>summary{background:#19d6cc;color:#061f1c}
+.options details.tone-white>summary{background:#fafdfc;color:#082522}
+.options .settings-group-body{padding:7px 14px 14px}
+.options .settings-group-body>section{margin:12px 0}
+.options details.settings-group[open]>summary{border-bottom:1px solid #57887c}
+
+/* Build 22: responsive dependency catalog, keyboard- and screen-reader-friendly. */
+.options #dependencies code{display:inline-block;max-width:100%;overflow-wrap:anywhere;background:#071b19;padding:5px;border-radius:5px}
+.options #dependencies .network-buttons{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.options .dependency-list{display:grid;grid-template-columns:1fr;gap:10px}
+.options .dependency-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px;background:#0c2b27;border:1px solid #3b625a;border-radius:8px}
+.options .dependency-description{min-width:0;flex:1}
+.options .dependency-description p{font-size:13px;margin:5px 0;line-height:1.4}
+.options .dependency-state{display:block;font-size:12px;color:#c5eed8}
+.options .dependency-link{display:inline-block;flex-shrink:0;max-width:170px;padding:8px 12px;border:1px solid #55baa6;border-radius:7px;color:#b6fff1;text-align:center;font-size:13px;text-decoration:none}
+.options .dependency-link:hover,.options .dependency-link:focus-visible{background:#20584e;outline:2px solid #aef9e8}
+@media(max-width:580px){.options .dependency-row{flex-direction:column;align-items:flex-start}.options .dependency-link{max-width:100%}}
+
+.options .dependency-actions{display:flex;flex-direction:column;gap:7px;min-width:156px}
+.options .dependency-actions button{font-size:12px;padding:8px}
+@media(max-width:580px){.options .dependency-actions{flex-direction:row;flex-wrap:wrap}}
+
+/* Build 24: video controls for toolbar. */
+.popup .video-tools{margin:12px 0;padding:12px;border:1px solid #4c8277;border-radius:8px;background:#0c302c}
+.popup .video-tools p{font-size:12px;margin:8px 0;overflow-wrap:anywhere}
+.popup .video-tools strong{font-size:13px}
+.popup .video-actions{display:flex;flex-wrap:wrap;gap:8px}
+.popup .video-actions button{flex:1 1 110px;font-size:12px}
+.popup #videoDownloadStatus{font-size:11px}
+
+/* Build 25: clear quality choice, live progress and cancellation. */
+.popup .video-quality-label{display:block;font-size:12px;margin:10px 0}
+.popup #videoQuality{display:block;width:100%;margin-top:5px;padding:8px;border-radius:6px;color:#e9faf6;background:#071b19;border:1px solid #51776c}
+.popup #videoProgress{width:100%;height:14px;accent-color:#13ad98;margin-top:8px}
+.popup #cancelVideo{background:#bcb38c;color:#071b19}
+
+/* Build 26: searchable local watch-later list and explicit backup controls. */
+.options .library-toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:12px 0}
+.options .library-toolbar label{margin:0;font-size:13px}
+.options #videoSearch,.options #videoSort{display:block;box-sizing:border-box;padding:9px;border:1px solid #51776c;border-radius:6px;background:#071b19;color:#e9faf6;max-width:100%}
+.options #videoSearch{min-width:240px}
+.options .library-privacy{font-size:13px}
+
+/* Build 29: video collection organization and private annotations. */
+.options .saved-video-note{background:#0a2522;padding:8px;border-left:3px solid #13ad98;white-space:pre-wrap;overflow-wrap:anywhere}
+.options #videoFilter{display:block;padding:9px;border:1px solid #51776c;border-radius:6px;background:#071b19;color:#e9faf6}
+.options #libraryRows .dependency-actions{min-width:140px}
+
+/* Build 31: private playback troubleshooting rows, without raw URL displays. */
+.options #streaming-diagnostics .network-buttons{display:flex;flex-wrap:wrap;gap:8px}
+.options #streamIssuesRows{max-height:350px;overflow-y:auto;overflow-wrap:anywhere}
+
+/* Build 33: explicit temporary playback repair, never automatic. */
+.options #streamRepairRows{max-height:210px;overflow:auto}
+.options #streaming-diagnostics button{max-width:100%}
+.popup #streamingRepairNotice{font-size:12px;border-left:3px solid #00e8eb;padding:6px;background:#102830;color:#edf8f9}
+
+/* Build 35: bounded, opt-in browser network monitor. */
+.options .network-monitor-controls{display:flex;align-items:end;flex-wrap:wrap;gap:10px;margin:12px 0}
+.options .network-monitor-controls label{font-size:13px;min-width:145px}
+.options .network-monitor-controls input,.options .network-monitor-controls select{
+ display:block;max-width:100%;box-sizing:border-box;margin-top:5px;padding:8px;
+ color:#e9faf6;background:#071b19;border:1px solid #51776c;border-radius:6px
+}
+.options .network-monitor-metrics{display:flex;gap:14px;flex-wrap:wrap;padding:12px 0;font-size:13px}
+.options .network-monitor-table{overflow-x:auto;max-height:600px;overflow-y:auto}
+.options .network-monitor-table table{width:100%;border-collapse:collapse;font-size:12px}
+.options .network-monitor-table th,.options .network-monitor-table td{
+ padding:8px;text-align:left;border-bottom:1px solid #355c54;word-break:break-word
+}
+.options .network-monitor-table th{position:sticky;top:0;background:#133e37}
+.popup #networkMonitor{width:100%}
+
+/* Build 38 activity inspector and scoped request allowances */
+#accessInspector select{padding:8px;border-radius:6px;background:#071b19;color:#e9faf6;border:1px solid #51776c}
+#allowList .log-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px;border-bottom:1px solid #3a6059}
+#allowList .log-row span{overflow-wrap:anywhere}
+#monitorRows button{white-space:nowrap;font-size:11px;padding:6px}
+
+#monitorRows td label{display:inline-flex;align-items:center;gap:5px;font-size:11px;white-space:nowrap;cursor:pointer}
+
+
+/* Build 59: standalone responsive dashboard; existing popup dimensions unchanged. */
+.site-dashboard .dashboard-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.site-dashboard .dashboard-metrics>div{background:#0a2925;border:1px solid #3a6059;border-radius:7px;padding:12px;font-size:13px}
+.site-dashboard .dashboard-metrics strong{display:block;font-size:23px;margin-top:5px;color:#d9fff7}
+.site-dashboard .dashboard-line{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 2px;border-bottom:1px solid #3a6059}
+.site-dashboard .dashboard-line span{flex:1;min-width:0;overflow-wrap:anywhere}
+.site-dashboard .dashboard-line button{flex-shrink:0}
+.site-dashboard #dashboardRecent,.site-dashboard #dashboardPopupHistory{max-height:320px;overflow-y:auto}
+.site-dashboard #dashboardCustomAllowances,.site-dashboard #dashboardRequestAllowances{max-height:300px;overflow-y:auto}
+.site-dashboard #dashboardTab{max-width:100%;box-sizing:border-box}
+.site-dashboard #dashboardShield{font-size:19px;color:#c8fff3}
+.site-dashboard #dashboardMessage{border-left:3px solid #13ad98;padding:8px 12px;background:#0b2e2b}
+.site-dashboard .dashboard-footnote{font-size:12px}
+.site-dashboard button:focus-visible,.site-dashboard select:focus-visible{outline:3px solid #baf9e5;outline-offset:3px}
+@media(max-width:600px){
+ .site-dashboard .dashboard-metrics{grid-template-columns:1fr}
+ .site-dashboard .dashboard-line{align-items:flex-start;flex-direction:column}
+}
+
+/* Build 62: a visible count-to-details action, without changing popup width. */
+.popup .metric{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left}
+.popup .metric>span{min-width:0}
+.popup .metric #viewBlocked{white-space:nowrap;flex-shrink:0;padding:8px 11px;font-size:12px}
+.site-dashboard #blockedRequestsSection:focus{outline:2px solid #13ad98;outline-offset:2px}
+
+/* Build 63: deliberate individual-block inspection, safe text-only controls. */
+.site-dashboard #dashboardBlockDetails{margin-top:18px;border:1px solid #17b8a5;border-radius:9px;background:#082b28;padding:16px}
+.site-dashboard #dashboardBlockDetails[hidden]{display:none}
+.site-dashboard #blockDetailFields{display:grid;grid-template-columns:minmax(155px,1fr) minmax(0,2fr);gap:10px 20px}
+.site-dashboard #blockDetailFields dt{color:#b4dfd5;font-weight:700}
+.site-dashboard #blockDetailFields dd{margin:0;overflow-wrap:anywhere}
+.site-dashboard #blockDetailLinks{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}
+.site-dashboard #blockDetailLinks a{color:#a2fced;text-decoration:underline}
+.site-dashboard #blockDetailClose{margin-left:8px}
+@media(max-width:600px){.site-dashboard #blockDetailFields{grid-template-columns:1fr;gap:3px}}
+
+.site-dashboard #blockRdapResult{white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Popup title: show the bundled DK mark before the name, without changing geometry. */
+.popup header .popup-brand{display:inline-flex;align-items:center;gap:8px;min-width:0;flex-shrink:0}
+.popup header .popup-brand img{display:block;width:24px;height:24px;object-fit:contain;flex:none}
+.popup header .popup-brand strong{white-space:nowrap}
+.popup header>small{white-space:nowrap;font-size:12px}
+
+/* Keep the selected-site context legible in the popup without shifting the controls. */
+.popup #countScope{font-size:13px}
+
+/* Investigator evidence remains inside the existing detail panel. */
+.site-dashboard #blockRdapResult{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
+
+/* Blocked-request export controls wrap cleanly on smaller dashboard windows. */
+.site-dashboard #blockedRequestsSection .network-monitor-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.site-dashboard #dashboardBlockDetails .network-monitor-controls{margin-top:14px}
+
+/* Site Dashboard selective subresource controls; do not shift the popup shell. */
+.site-dashboard .allowed-request-line{align-items:stretch}
+.site-dashboard .allowed-request-label{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;cursor:pointer}
+.site-dashboard .allowed-request-label span{overflow-wrap:anywhere}
+.site-dashboard .allowed-request-label input{flex-shrink:0;min-width:18px;min-height:18px}
+
+/* Build 224: accessible source link in existing popup footer, without moving controls. */
+.popup footer .repo-link{color:#baf9e5;text-decoration:underline}
+.popup footer .repo-link:focus-visible{outline:3px solid #baf9e5;outline-offset:3px}
+
+/* Build 231: two equal-size, right-aligned request-inspection buttons.
+   Keep the approved 340px popup and metric/row geometry untouched. */
+.popup #viewBlocked,.popup #viewAllowed{
+ box-sizing:border-box;width:101px;min-width:101px;height:34px;
+ flex:0 0 101px;padding:7px 8px;font-size:12px;
+ line-height:20px;white-space:nowrap;text-align:center;
+}
+
+/* Build 239: three-tone command hierarchy in the already-approved 340px popup.
+   Cyan = primary action, white = investigate/navigation, black = toggle/undo.
+   No element size, spacing, order, brand geometry or icon changes. */
+.popup button[data-tone="cyan"]{background:#19d6cc;color:#042522;border:0;box-shadow:inset 0 0 0 1px #61fff4}
+.popup button[data-tone="white"]{background:#fafdfc;color:#082522;border:0;box-shadow:inset 0 0 0 1px #c8e6de}
+.popup button[data-tone="black"]{background:#071a19;color:#f1fbf8;border:0;box-shadow:inset 0 0 0 1px #608b84}
+.popup button[data-tone]:hover:not(:disabled){filter:brightness(1.09)}
+.popup button[data-tone]:focus-visible{outline:3px solid #9df5ef;outline-offset:2px}
+.popup button[data-tone]:disabled{opacity:.4}
+
+/* Build 239: slider toggles retain native checkboxes, accessible names,
+   change handlers, confirmations and failures. Action labels say Allow
+   versus Block, not an ambiguous unlabeled on/off switch. */
+.dk-toggle{display:inline-flex;align-items:center;gap:8px;position:relative;flex-shrink:0;min-height:28px;cursor:pointer}
+.dk-toggle input[type="checkbox"]{position:absolute!important;top:0;left:0;width:48px;height:26px;margin:0;opacity:0;z-index:1;cursor:pointer}
+.dk-toggle-track{display:inline-block;box-sizing:border-box;width:48px;height:26px;border:2px solid #69968d;border-radius:18px;background:#071918;transition:background .16s ease,border-color .16s ease;position:relative;pointer-events:none;flex:none}
+.dk-toggle-track::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#f6fffd;box-shadow:0 1px 4px #0008;transition:transform .16s ease;pointer-events:none}
+.dk-toggle input:checked+.dk-toggle-track{background:#19d6cc;border-color:#19d6cc}
+.dk-toggle input:checked+.dk-toggle-track::after{transform:translateX(22px);background:#062824}
+.dk-toggle input:focus-visible+.dk-toggle-track{outline:3px solid #baf9e5;outline-offset:3px}
+.dk-toggle input:disabled+.dk-toggle-track{opacity:.4;cursor:not-allowed}
+.dk-toggle-caption{font-size:12px;font-weight:700;color:#f4fffd;pointer-events:none}
+.dk-toggle[data-action="Block"] .dk-toggle-caption{color:#ffefe7}
+@media(prefers-reduced-motion:reduce){.dk-toggle-track,.dk-toggle-track::after{transition:none}}
+/* Global protection gets the same switch style without repositioning it. */
+.popup #enabled{appearance:none;-webkit-appearance:none;box-sizing:border-box;width:48px;height:26px;flex:0 0 48px;margin:0;border:2px solid #69968d;border-radius:18px;background:#071918;position:relative;cursor:pointer}
+.popup #enabled::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#f6fffd;box-shadow:0 1px 4px #0008;transition:transform .16s ease}
+.popup #enabled:checked{background:#19d6cc;border-color:#19d6cc}
+.popup #enabled:checked::after{transform:translateX(22px);background:#062824}
+.popup #enabled:focus-visible{outline:3px solid #baf9e5;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.popup #enabled::after{transition:none}}
+#trackerRows{max-height:370px;overflow-y:auto}
+#trackerRows .log-row{gap:16px;padding:10px 4px}
+#trackerRows .log-row button{min-width:128px;flex-shrink:0}
+
+/* Build 240: the old dashboard rule '.dashboard-line span { flex: 1 }'
+   must not stretch nested slider tracks into full-width bars. Keep the
+   host/description flexible while switches and captions stay intrinsic. */
+.site-dashboard .allowed-request-line .dk-toggle{
+ display:inline-flex;
+ flex:0 0 auto;
+ width:auto;
+ min-width:0;
+ max-width:max-content;
+ align-items:center;
+}
+.site-dashboard .allowed-request-line .dk-toggle-track{
+ flex:0 0 48px;
+ box-sizing:border-box;
+ width:48px;
+ min-width:48px;
+ max-width:48px;
+ height:26px;
+}
+.site-dashboard .allowed-request-line .dk-toggle-caption{
+ flex:0 0 auto;
+ min-width:0;
+ width:auto;
+ white-space:nowrap;
+}
+
+/* Build 376: floating settings-only return control, no layout reflow. */
+.options #settingsBackToTop{
+ position:fixed;right:22px;bottom:22px;z-index:100;
+ display:inline-flex;align-items:center;justify-content:center;gap:8px;
+ min-height:44px;padding:10px 15px;
+ border:2px solid #19d6cc;border-radius:9px;
+ background:#071a19;color:#e9fffc;
+ box-shadow:0 3px 14px #0009;cursor:pointer;font-size:14px;font-weight:750;
+}
+.options #settingsBackToTop span{font-size:22px;line-height:1}
+.options #settingsBackToTop[hidden]{display:none!important}
+.options #settingsBackToTop:hover{background:#143934}
+.options #settingsBackToTop:focus-visible{outline:3px solid #baf9e5;outline-offset:3px}
+@media(max-width:580px){
+ .options #settingsBackToTop{right:12px;bottom:14px;min-height:44px;padding:9px 12px}
+}

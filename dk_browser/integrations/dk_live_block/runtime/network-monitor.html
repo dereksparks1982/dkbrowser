@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head>
+<script src="../chromium-compat.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DK Live Block Network Monitor</title><link rel="stylesheet" href="style.css"></head>
+<body class="options"><header><strong>DK LIVE BLOCK</strong><small>Private network monitor</small></header>
+<main><h1>Network Monitor</h1>
+<p>Inspect requests made by the selected Firefox tab and see what DK Live Block blocks, allows or redirects, plus network failures. Monitoring starts only when you choose <strong>Start capture</strong>. The blocker works normally without it.</p>
+<div class="network-monitor-controls">
+<label>Website tab <select id="monitorTab"><option value="">Choose a website tab</option></select></label>
+<button id="monitorRefreshTabs" type="button">Refresh tabs</button>
+<button id="monitorStart" type="button">Start capture</button>
+<button id="monitorStop" type="button">Stop capture</button>
+<button id="monitorClear" type="button">Clear captured traffic</button>
+<button id="monitorExport" type="button">Export CSV</button>
+</div>
+<p id="monitorState" role="status">Capture not started.</p>
+<div id="monitorMetrics" class="network-monitor-metrics">
+<span>Requests: <strong id="monitorSeen">0</strong></span>
+<span>Blocked: <strong id="monitorBlocked">0</strong></span>
+<span>Allowed: <strong id="monitorAllowed">0</strong></span>
+<span>Failed: <strong id="monitorFailed">0</strong></span>
+<span>Redirected: <strong id="monitorRedirected">0</strong></span>
+<span>Pending: <strong id="monitorPending">0</strong></span>
+</div>
+<div class="network-monitor-controls">
+<label>Show <select id="monitorStatus"><option value="all">All requests</option><option value="blocked">Blocked only</option><option value="allowed">Allowed only</option><option value="failed">Failures only</option><option value="redirected">Redirects only</option><option value="pending">In flight</option></select></label>
+<label>Resource type <select id="monitorType"><option value="all">All types</option></select></label>
+<label>Find hostname <input id="monitorSearch" type="search" maxlength="120" placeholder="e.g. doubleclick.net"></label>
+</div>
+<section id="accessInspector"><h2>Website Access Inspector &amp; Request Controls</h2>
+<p>Inspect allowed and blocked requests. Allowed rows can be selectively blocked by hostname and resource type; blocked rows can receive reversible exceptions. Both controls affect future matching requests, not one URL. Labels marked <strong>Likely</strong> are educated guesses, not proof of what was transmitted or accessed on your computer.</p>
+<label>When you allow a blocked request, how long should the exception last?
+<select id="allowScope"><option value="temporary">This tab · 10 minutes</option>
+<option value="session">This browser session · this website</option>
+<option value="remember">Remember for this website</option></select></label>
+<p><strong>Important:</strong> An exception allows the exact <strong>destination hostname and resource type</strong> on this website. It does NOT permit just one URL, and repeated requests matching that pair may pass. It will never disable the strict popup trap or allow navigation. Avoid allowing unfamiliar scripts or trackers.</p>
+<p id="allowStatus" role="status">No exceptions have been added.</p>
+<div id="allowList"></div>
+</section>
+<section id="trackerActivity"><h2>Third-party destinations &amp; tracker controls</h2>
+<p>Review observed destinations by hostname and request type. A third-party request is not necessarily advertising, tracking or harmful. Select <strong>Inspect &amp; control</strong> for its individual request evidence and your existing reversible Allow/Block switches. Capture starts only when you press Start capture.</p>
+<div id="trackerRows" aria-live="polite">Start capture to review third-party destinations.</div>
+</section>
+<section id="popupActivity"><h2>Popup and popunder activity</h2>
+<p>Shows new tabs DK Live Block closed while private request logging was enabled. Some sites first create a blank tab, so Firefox may never reveal the intended destination. Unknown means unknown, not an assumed scam hostname.</p>
+<div class="network-monitor-controls">
+<button type="button" id="popupHistoryRefresh">Refresh popup history</button>
+<button type="button" id="popupHistoryClear">Clear popup history</button>
+</div>
+<p id="popupHistoryStatus" role="status">Popup history is kept only in Firefox memory.</p>
+<div id="popupHistoryRows"></div>
+</section>
+<p id="monitorCount" role="status">No requests captured.</p>
+<div class="network-monitor-table"><table><thead><tr><th>Time</th><th>Decision</th><th>Hostname</th><th>Type</th><th>Method</th><th>HTTP</th><th>Details</th><th>Possible purpose</th><th>Control</th></tr></thead><tbody id="monitorRows"></tbody></table></div>
+<p><button id="monitorMore" type="button" hidden>Show more requests</button></p>
+<p><strong>Privacy:</strong> The monitor keeps up to 1,500 recent requests per tab in Firefox memory. It does not collect full URL paths, query strings, request or response bodies, cookies, headers, passwords or IP packet contents. When the limit is reached, older rows are discarded and a warning appears. Export happens only when you click Export CSV.</p>
+<p>The number on the DK Live Block toolbar icon counts blocked requests on the current tab independently of whether monitoring is enabled. It resets when the tab navigates or reloads.</p>
+<p><strong>Scope:</strong> This shows Firefox web requests, not all traffic from your Linux computer. Some browser-internal or cached activity may not appear.</p>
+</main><script src="access-inspector.js"></script><script src="tracker-groups.js"></script><script src="ui-language-tools.js"></script><script src="ui-language.js"></script><script src="network-monitor.js"></script></body></html>

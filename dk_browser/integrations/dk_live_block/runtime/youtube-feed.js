@@ -1,0 +1,157 @@
+/* Bounded and independent YouTube feed/Shorts ad entry filter.
+   No media bytes, remote scripts, browsing history, or account data. */
+(function(root){"use strict";
+const MAX_BYTES=1500000,MAX_NODES=6000,MAX_DEPTH=20,MAX_ARRAY=1000,MAX_KEYS=128,MAX_EDGES=10000,MAX_PENDING=12000,MAX_REMOVALS=400;
+const FEED=new Set(["/youtubei/v1/browse","/youtubei/v1/search",
+ "/youtubei/v1/next","/youtubei/v1/playlist"]);
+const REEL="/youtubei/v1/reel_watch_sequence";
+const ARRAYS=new Set(["contents","items","entries","continuationItems","results"]);
+const ADS=new Set(["adSlotRenderer","promotedVideoRenderer",
+ "promotedSparklesWebRenderer","inFeedAdLayoutRenderer","displayAdRenderer",
+ "promotedSparklesTextSearchRenderer","compactPromotedVideoRenderer",
+ "compactPromotedItemRenderer","gridPromotedVideoRenderer",
+ "carouselAdRenderer","searchPyvRenderer"]);
+function kind(raw){
+ try{
+  const u=new URL(raw);
+  if(u.protocol!=="https:"||u.username||u.password||
+     !(u.hostname==="youtube.com"||u.hostname.endsWith(".youtube.com")))return "";
+  return u.pathname===REEL?"shorts":FEED.has(u.pathname)?"feed":"";
+ }catch(_){return "";}
+}
+function plain(x){return x!==null&&typeof x==="object"&&!Array.isArray(x);}
+function ownData(x,name){
+ if(!plain(x))return undefined;
+ const d=Object.getOwnPropertyDescriptor(x,name);
+ return d&&Object.prototype.hasOwnProperty.call(d,"value")?d.value:undefined;
+}
+function adEntry(x,kindName){
+ if(!plain(x))return false;
+ const command=ownData(x,"command");
+ const reel=ownData(command,"reelWatchEndpoint");
+ const params=ownData(reel,"adClientParams");
+ if(kindName==="shorts"&&ownData(params,"isAd")===true)return true;
+ for(const name of ADS)if(plain(ownData(x,name)))return true;
+ for(const wrapper of ["richItemRenderer","richSectionRenderer"]){
+  const content=ownData(ownData(x,wrapper),"content");
+  if(plain(content))for(const name of ADS)
+   if(plain(ownData(content,name)))return true;
+ }
+ return false;
+}
+function prune(payload,url){
+ const mode=kind(url);
+ if(!mode||!plain(payload))return {changed:false,items:0};
+ // No cosmetic metadata change can fix a server-side playback refusal.
+ // Preserve the whole response, including its ad markers and error evidence.
+ try{
+  const state=ownData(payload,"playabilityStatus");
+  const status=ownData(state,"status"),screen=ownData(state,"errorScreen");
+  // The page can return an errorScreen with status OK. Keep all error
+  // evidence and ad fields intact; it is not a playable feed.
+  if(status&&status!=="OK"||plain(screen)||Array.isArray(screen)||
+     plain(ownData(payload,"error")))
+   return {changed:false,items:0};
+ }catch(_){return {changed:false,items:0};}
+ const queue=[{node:payload,depth:0}],seen=new WeakSet(),selectedArrays=new WeakSet(),jobs=[];
+ let inspected=0,total=0,edges=0;
+ try{
+  while(queue.length){
+   const {node,depth}=queue.pop();
+   if(!node||typeof node!=="object")continue;
+   if(++inspected>MAX_NODES||depth>MAX_DEPTH)return {changed:false,items:0};
+   if(queue.length>MAX_PENDING)return {changed:false,items:0};
+   if(seen.has(node))continue;
+   seen.add(node);
+   if(Array.isArray(node)){
+    if(node.length>MAX_ARRAY)return {changed:false,items:0};
+    for(let i=node.length-1;i>=0;i--){
+     const desc=Object.getOwnPropertyDescriptor(node,String(i));
+     if(!desc||!Object.prototype.hasOwnProperty.call(desc,"value"))
+      return {changed:false,items:0};
+     queue.push({node:desc.value,depth:depth+1});
+    }
+    continue;
+   }
+   // Descriptors allow a read-only inspection without invoking page-defined
+   // getters. Treat accessor-backed objects as unsupported and leave intact.
+   const pairs=Object.entries(Object.getOwnPropertyDescriptors(node))
+    .filter(([,desc])=>desc.enumerable);
+   if(pairs.length>MAX_KEYS||(edges+=pairs.length)>MAX_EDGES)
+    return {changed:false,items:0};
+   for(const [name,desc] of pairs){
+    if(!Object.prototype.hasOwnProperty.call(desc,"value"))
+     return {changed:false,items:0};
+    const child=desc.value;
+    if(!child||typeof child!=="object")continue;
+    if(ARRAYS.has(name)&&Array.isArray(child)){
+     if(child.length>MAX_ARRAY)return {changed:false,items:0};
+     // Two response paths can alias the same contents array. A second
+     // splice would delete the next organic item after the first ad removal.
+     if(selectedArrays.has(child))continue;
+     selectedArrays.add(child);
+     const indices=[];
+     for(let i=0;i<child.length;i++){
+      const desc=Object.getOwnPropertyDescriptor(child,String(i));
+      if(!desc||!Object.prototype.hasOwnProperty.call(desc,"value"))
+       return {changed:false,items:0};
+      const entry=desc.value;
+      if(adEntry(entry,mode))indices.push(i);
+      else queue.push({node:entry,depth:depth+1});
+     }
+     if(indices.length){
+      total+=indices.length;
+      if(total>MAX_REMOVALS)return {changed:false,items:0};
+      jobs.push({array:child,indices});
+     }
+    }else queue.push({node:child,depth:depth+1});
+   }
+  }
+  if(!total)return {changed:false,items:0};
+  // Preflight every target array before changing even one. Page-world data
+  // can be frozen or sealed; those objects must remain completely untouched.
+  for(const job of jobs){
+   if(!Object.isExtensible(job.array)||Object.isFrozen(job.array)||
+      !Object.getOwnPropertyDescriptor(job.array,"length")?.writable)
+    return {changed:false,items:0};
+   // Splice can shift/delete later organic entries too, so validate all
+   // affected slots before *any* change to this or another feed array.
+   for(let i=Math.min(...job.indices);i<job.array.length;i++){
+    const desc=Object.getOwnPropertyDescriptor(job.array,String(i));
+    if(!desc||!Object.prototype.hasOwnProperty.call(desc,"value")||
+       !desc.writable||!desc.configurable)return {changed:false,items:0};
+   }
+  }
+  // Do not invoke page-owned .splice() or ArraySpeciesCreate. A website can
+  // override array.splice or install a throwing constructor / Symbol.species
+  // getter. The descriptors were checked above, so compact the existing
+  // indexed data slots in place, keeping organic entry order.
+  for(const job of jobs){
+   const originalLength=job.array.length,removed=new Set(job.indices);
+   let write=job.indices[0];
+   for(let read=write;read<originalLength;read++){
+    if(removed.has(read))continue;
+    if(read!==write)
+     job.array[write]=Object.getOwnPropertyDescriptor(job.array,String(read)).value;
+    write++;
+   }
+   job.array.length=originalLength-job.indices.length;
+  }
+  return {changed:true,items:total};
+ }catch(_){return {changed:false,items:0};}
+}
+function rewrite(url,text){
+ if(!kind(url)||typeof text!=="string"||text.length>MAX_BYTES||text.length<2)
+  return {text,changed:false,items:0};
+ const prefix=text.startsWith(")]}'\n")?")]}'\n":"";
+ let obj;try{obj=JSON.parse(prefix?text.slice(prefix.length):text);}catch(_){
+  return {text,changed:false,items:0};
+ }
+ const r=prune(obj,url);
+ return r.changed?{text:prefix+JSON.stringify(obj),changed:true,items:r.items}:
+  {text,changed:false,items:0};
+}
+const API=Object.freeze({kind,adEntry,prune,rewrite,MAX_BYTES,MAX_NODES,MAX_DEPTH,MAX_ARRAY,MAX_KEYS,MAX_EDGES,MAX_PENDING,MAX_REMOVALS});
+root.DKYouTubeFeed=API;
+if(typeof module!=="undefined")module.exports=API;
+})(typeof globalThis!=="undefined"?globalThis:this);

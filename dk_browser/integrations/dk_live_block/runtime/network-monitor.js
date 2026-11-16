@@ -1,0 +1,301 @@
+"use strict";
+const $=id=>document.getElementById(id);
+let tabId=null,lastSnapshot=null,displayLimit=250,polling=false,allowances=[],popupEvents=[],selectiveBlocks=[],controlsSite="";
+const MONITOR_STATES=new Set(["blocked","allowed","failed","redirected","pending"]);
+const safeTabId=value=>/^[0-9]{1,10}$/.test(String(value||""))?Number(value):null;
+function csvField(value){const s=String(value??"");return '"'+s.replace(/"/g,'""')+'"';}
+async function tabs(){
+ const available=(await browser.tabs.query({currentWindow:true})).filter(tab=>
+  Number.isInteger(tab.id)&&/^https?:\/\//i.test(tab.url||""));
+ const selected=tabId;
+ const selector=$("monitorTab");selector.replaceChildren();
+ for(const tab of available){
+  const option=document.createElement("option");option.value=String(tab.id);
+  const host=new URL(tab.url).hostname;
+  option.textContent=host+" · Tab "+tab.id+" · "+String(tab.title||"").slice(0,65);
+  selector.appendChild(option);
+ }
+ const query=safeTabId(new URL(location.href).searchParams.get("tab"));
+ const chosen=available.find(t=>t.id===selected)||available.find(t=>t.id===query)||
+  available.find(t=>t.active)||available[0];
+ tabId=chosen?.id??null;
+ if(tabId!==null)selector.value=String(tabId);
+ $("monitorState").textContent=chosen?"Selected: "+new URL(chosen.url).hostname+". Click Start capture to begin.":
+  "Open a regular website tab first.";
+}
+function matches(entry){
+ const status=$("monitorStatus").value,type=$("monitorType").value;
+ const search=$("monitorSearch").value.trim().toLowerCase();
+ return (status==="all"||entry.status===status)&&(type==="all"||entry.type===type)&&
+  (!search||entry.host.includes(search));
+}
+function requestSwitch(input,action){
+ const wrap=document.createElement("span");wrap.className="dk-toggle";wrap.dataset.action=action;
+ const track=document.createElement("span");track.className="dk-toggle-track";track.setAttribute("aria-hidden","true");
+ const caption=document.createElement("span");caption.className="dk-toggle-caption";caption.textContent=action;
+ wrap.append(input,track,caption);return wrap;
+}
+function render(){
+ const snapshot=lastSnapshot||{rows:[],counts:{},seen:0,dropped:0,active:false,siteHost:""};
+ $("monitorSeen").textContent=String(snapshot.seen||0);
+ for(const [key,id] of Object.entries({blocked:"monitorBlocked",allowed:"monitorAllowed",
+  failed:"monitorFailed",redirected:"monitorRedirected",pending:"monitorPending"}))
+  $(id).textContent=String(snapshot.counts?.[key]||0);
+ const allTypes=[...new Set(snapshot.rows.map(x=>x.type))].sort();
+ const selector=$("monitorType"),previous=selector.value||"all";
+ selector.replaceChildren();
+ for(const type of ["all",...allTypes]){
+  const option=document.createElement("option");option.value=type;
+  option.textContent=type==="all"?"All types":type;selector.appendChild(option);
+ }
+ selector.value=["all",...allTypes].includes(previous)?previous:"all";
+ const filtered=snapshot.rows.filter(matches).reverse();
+ const visible=filtered.slice(0,displayLimit);
+ const body=$("monitorRows");body.replaceChildren();
+ for(const entry of visible){
+  const row=document.createElement("tr");
+  for(const value of [new Date(entry.when).toLocaleTimeString(),entry.status,entry.host,
+   entry.type,entry.method||"–",entry.httpStatus??"–",entry.reason||entry.error||"–"]){
+   const cell=document.createElement("td");cell.textContent=String(value);row.appendChild(cell);
+  }
+
+  const info=DKAccessInspector.describe(entry.host,entry.type,snapshot.siteHost);
+  const purpose=document.createElement("td");
+  purpose.textContent=info.observed+" · "+(info.thirdParty?"Third-party":"Same-site")+
+   " · "+(info.certainty==="likely"?"Likely: ":"Unknown purpose: ")+info.purpose;
+  purpose.title=info.access;
+  row.appendChild(purpose);
+  const control=document.createElement("td");
+  if(entry.status==="blocked"&&entry.host&&DKAccessInspector&&
+      !["popup","main_frame","document"].includes(entry.type)){
+   const toggle=document.createElement("input");
+   toggle.type="checkbox";
+   toggle.checked=allowances.some(x=>x.host===entry.host&&x.type===entry.type);
+   toggle.title="Switch allowance for "+entry.host+" ("+entry.type+
+    ") on this website. Different URL paths may also pass.";
+   toggle.setAttribute("aria-label","Allow "+entry.type+" requests from "+entry.host);
+   toggle.addEventListener("change",async()=>{
+    const enabling=toggle.checked;toggle.disabled=true;
+    const ok=enabling?await allowEntry(entry):await revokeEntry(entry);
+    if(!ok)toggle.checked=!enabling;
+    toggle.disabled=false;
+   });
+   const label=document.createElement("label");label.append(requestSwitch(toggle,"Allow"));
+   control.appendChild(label);
+  }else if(entry.status==="allowed"&&entry.host&&controlsSite===snapshot.siteHost&&
+       !["popup","main_frame","document"].includes(entry.type)){
+   const toggle=document.createElement("input");toggle.type="checkbox";
+   toggle.checked=selectiveBlocks.some(x=>x.host===entry.host&&x.type===entry.type);
+   toggle.title="Block future "+entry.type+" requests to "+entry.host+" on this website; not an individual URL.";
+   toggle.setAttribute("aria-label","Block "+entry.type+" requests to "+entry.host);
+   toggle.addEventListener("change",async()=>{
+    const block=toggle.checked;toggle.disabled=true;
+    try{if(!await blockAllowedEntry(entry,block))toggle.checked=!block;}
+    finally{toggle.disabled=false;}
+   });
+   const label=document.createElement("label");label.append(requestSwitch(toggle,"Block"));
+   control.appendChild(label);
+  }else{
+   control.textContent=entry.status==="blocked"?
+    "No exception available":"No action";
+  }
+  row.appendChild(control);
+  body.appendChild(row);
+ }
+ renderTrackerGroups(snapshot);
+ $("monitorMore").hidden=filtered.length<=displayLimit;
+ $("monitorCount").textContent=filtered.length+" matching requests across "+new Set(filtered.map(x=>x.host+"|"+x.type)).size+" host/type pairs; showing "+visible.length+
+  (snapshot.dropped?" · "+snapshot.dropped+" oldest requests discarded at the 1,500-row limit.":"");
+ $("monitorState").textContent=snapshot.active?
+  "Capturing network requests on "+snapshot.siteHost+" (this tab only).":
+  snapshot.seen?"Capture stopped for "+snapshot.siteHost+". Results remain in memory.":
+  "Capture not running. Click Start capture to see new network requests.";
+}
+function renderTrackerGroups(snapshot){
+ const panel=$("trackerRows");if(!panel)return;
+ panel.replaceChildren();
+ if(!Array.isArray(snapshot?.rows)||!snapshot.rows.length){
+  panel.textContent="Start capture, then browse this site to review its third-party destinations.";
+  return;
+ }
+ const groups=DKTrackerGroups.group(snapshot,DKAccessInspector);
+ if(!groups.length){
+  panel.textContent="No third-party destinations observed. This is not proof none were requested.";
+  return;
+ }
+ for(const group of groups){
+  const row=document.createElement("div");row.className="log-row";
+  const summary=document.createElement("span");
+  summary.textContent=group.host+" · "+group.type+" · "+
+   group.total+" request(s), "+group.blocked+" blocked, "+group.allowed+" allowed. "+
+   (group.purpose.certainty==="likely"?"Likely purpose: ":"Unverified purpose: ")+
+   group.purpose.purpose;
+  const inspect=document.createElement("button");inspect.type="button";
+  inspect.textContent="Inspect & control";
+  inspect.addEventListener("click",()=>{
+   $("monitorStatus").value="all";
+   $("monitorType").value="all";
+   $("monitorSearch").value=group.host;
+   displayLimit=250;render();
+   $("monitorRows")?.scrollIntoView?.({behavior:"smooth",block:"start"});
+  });
+  row.append(summary,inspect);panel.appendChild(row);
+ }
+}
+function renderPopupHistory(){
+ const panel=$("popupHistoryRows");panel.replaceChildren();
+ $("popupHistoryStatus").textContent=popupEvents.length?
+  popupEvents.length+" recent blocked popup or popunder event(s) on this tab.":
+  "No recorded popup closures for this tab. Private request logging may be disabled.";
+ for(const item of popupEvents){
+  const line=document.createElement("div");line.className="log-row";
+  const desc=document.createElement("span");
+  const destination=item.destinationHost||"Destination unknown";
+  desc.textContent=new Date(item.when).toLocaleTimeString()+" · "+destination+
+   " · "+(item.reason==="strict"?"Strict popup protection":"Popup filter rule")+
+   " · Blocked";
+  desc.title=String(item.detail||"").slice(0,130);
+  line.appendChild(desc);panel.appendChild(line);
+ }
+}
+function renderAllowances(){
+ const panel=$("allowList");panel.replaceChildren();
+ if(!allowances.length){panel.textContent="No currently active request allowances for this website.";return;}
+ for(const item of allowances){
+  const line=document.createElement("div");line.className="log-row";
+  const description=document.createElement("span");
+  description.textContent=item.host+" · "+item.type+" · "+(
+   item.scope==="temporary"?"This tab (expires "+new Date(item.expires).toLocaleTimeString()+")":
+   item.scope==="session"?"Current browser session":"Remembered for this website");
+  const button=document.createElement("button");button.textContent="Revoke";
+  button.addEventListener("click",async()=>{
+   button.disabled=true;
+   try{
+    const response=await browser.runtime.sendMessage({action:"revokeMonitoredRequest",
+     tabId,host:item.host,type:item.type,scope:item.scope});
+    if(!response?.ok)throw Error(response?.error||"Unable to revoke");
+    $("allowStatus").textContent="Exception revoked. Future matching requests follow normal blocking rules.";
+    await update();
+   }catch(error){$("allowStatus").textContent=error.message;}
+   finally{button.disabled=false;}
+  });
+  line.append(description,button);panel.appendChild(line);
+ }
+}
+async function blockAllowedEntry(item,block){
+ if(tabId===null||controlsSite!==lastSnapshot?.siteHost)return false;
+ const targetTab=tabId,targetSite=controlsSite;
+ if(block&&!window.confirm("Block future "+item.type+" requests to "+item.host+
+  " on "+targetSite+"? This applies to all URLs on this hostname/type pair and may break website features."))return false;
+ try{
+  const r=await browser.runtime.sendMessage({action:"setSelectiveBlock",
+   tabId:targetTab,expectedSite:targetSite,host:item.host,type:item.type,
+   block,confirm:block});
+  if(!r?.ok)throw Error(r?.error||"Selective block denied");
+  $("allowStatus").textContent=(block?"Blocking ":"No longer manually blocking ")+
+   item.type+" requests to "+item.host+". Reload to verify.";
+  await update();return true;
+ }catch(error){
+  $("allowStatus").textContent=String(error?.message||"Rule update failed").slice(0,160);
+  return false;
+ }
+}
+async function revokeEntry(item){
+ if(tabId===null)return false;
+ const entries=allowances.filter(x=>x.host===item.host&&x.type===item.type);
+ if(!entries.length)return false;
+ try{
+  for(const entry of entries){
+   const result=await browser.runtime.sendMessage({action:"revokeMonitoredRequest",
+    tabId,host:entry.host,type:entry.type,scope:entry.scope});
+   if(!result?.ok)throw Error(result?.error||"Could not revoke request allowance");
+  }
+  $("allowStatus").textContent="Allowance switched off for "+item.host+" ("+item.type+
+   "). Future matching requests follow the normal filters.";
+  await update();return true;
+ }catch(error){$("allowStatus").textContent=error.message;return false;}
+}
+async function allowEntry(item){
+ if(tabId===null||!lastSnapshot?.active)return false;
+ const scope=$("allowScope").value;
+ const description=scope==="temporary"?"10 minutes in this tab":
+  scope==="session"?"the current browser session":"future visits to this website";
+ const warning="Allow "+item.type+" requests from "+item.host+" on "+lastSnapshot.siteHost+
+  " for "+description+"?\n\n"+
+  "IMPORTANT: This applies to ALL matching requests from this hostname and resource type, "+
+  "not only this specific URL. Ads or trackers from the same pair could also load.";
+ if(!window.confirm(warning))return false;
+ const sourceTab=tabId; // Keep the click associated with its original tab.
+ try{
+  const response=await browser.runtime.sendMessage({action:"allowMonitoredRequest",
+   tabId:sourceTab,host:item.host,type:item.type,scope,confirm:true});
+  if(!response?.ok)throw Error(response?.error||"Unable to add allowance");
+  $("allowStatus").textContent="Allowed "+item.host+" ("+item.type+") for "+description+
+   ". Reload the website to retry previously blocked requests.";
+  await update();return true;
+ }catch(error){$("allowStatus").textContent=error.message;return false;}
+}
+async function update(){
+ if(tabId===null||polling)return;
+ polling=true;
+ const queried=tabId;
+ try{
+  const [response,permitted,popups,manual]=await Promise.all([
+   browser.runtime.sendMessage({action:"getNetworkMonitor",tabId:queried}),
+   browser.runtime.sendMessage({action:"getRequestAllowances",tabId:queried}),
+   browser.runtime.sendMessage({action:"getPopupHistory",tabId:queried}),
+   browser.runtime.sendMessage({action:"getMonitoredSelectiveBlocks",tabId:queried})
+  ]);
+  if(queried!==tabId)return;
+  if(!response||!Array.isArray(response.rows))throw Error(response?.error||"Monitor unavailable");
+  if(response.rows.length>1500)throw Error("Invalid monitor response");
+  lastSnapshot=response;
+  allowances=Array.isArray(permitted)?permitted:[];
+  popupEvents=Array.isArray(popups)?popups:[];
+  controlsSite=manual?.ok&&manual.site===response.siteHost?manual.site:"";
+  selectiveBlocks=controlsSite&&Array.isArray(manual.blocks)?manual.blocks:[];
+  render();renderAllowances();renderPopupHistory();
+ }catch(error){$("monitorState").textContent="Unable to inspect traffic: "+String(error.message||error).slice(0,160);}
+ finally{polling=false;}
+}
+async function action(name){
+ if(tabId===null)return;
+ const result=await browser.runtime.sendMessage({action:name,tabId});
+ if(!result?.ok)throw Error(result?.error||"Action rejected");
+ await update();
+}
+$("monitorRefreshTabs").addEventListener("click",()=>tabs().then(update).catch(e=>$("monitorState").textContent=e.message));
+$("monitorTab").addEventListener("change",()=>{
+ tabId=safeTabId($("monitorTab").value);
+ lastSnapshot=null;allowances=[];popupEvents=[];selectiveBlocks=[];controlsSite="";displayLimit=250;update();
+});
+$("monitorStart").addEventListener("click",()=>action("startNetworkMonitor").catch(e=>$("monitorState").textContent=e.message));
+$("monitorStop").addEventListener("click",()=>action("stopNetworkMonitor").catch(e=>$("monitorState").textContent=e.message));
+$("monitorClear").addEventListener("click",()=>action("clearNetworkMonitor").catch(e=>$("monitorState").textContent=e.message));
+$("monitorMore").addEventListener("click",()=>{displayLimit+=250;render();});
+$("popupHistoryRefresh").addEventListener("click",()=>update().catch(e=>$("popupHistoryStatus").textContent=e.message));
+$("popupHistoryClear").addEventListener("click",async()=>{
+ if(tabId===null)return;
+ try{
+  const result=await browser.runtime.sendMessage({action:"clearPopupHistory",tabId});
+  if(!result?.ok)throw Error(result?.error||"Could not clear popup history");
+  popupEvents=[];renderPopupHistory();
+  $("popupHistoryStatus").textContent="Local popup history cleared.";
+ }catch(error){$("popupHistoryStatus").textContent=error.message;}
+});
+for(const id of ["monitorStatus","monitorType","monitorSearch"])
+ $(id).addEventListener(id==="monitorSearch"?"input":"change",()=>{displayLimit=250;render();});
+$("monitorExport").addEventListener("click",()=>{
+ if(!lastSnapshot?.rows?.length)return $("monitorState").textContent="No captured requests to export.";
+ const header=["Time","Decision","Hostname","Resource type","Method","HTTP status","Detail"];
+ const rows=lastSnapshot.rows.map(item=>[
+  new Date(item.when).toISOString(),item.status,item.host,item.type,item.method,
+  item.httpStatus??"",item.reason||item.error||""]);
+ const csv=[header,...rows].map(row=>row.map(csvField).join(",")).join("\r\n");
+ const url=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+ const link=document.createElement("a");link.href=url;link.download="dk-live-block-network-monitor.csv";
+ link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ $("monitorState").textContent="CSV exported locally. It contains only the fields shown in this monitor.";
+});
+tabs().then(update).catch(e=>$("monitorState").textContent=e.message);
+setInterval(()=>{if(!document.hidden)update().catch(()=>{});},1600);

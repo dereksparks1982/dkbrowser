@@ -14,46 +14,49 @@ DK Browser is a full Chromium source fork developed as its own general-purpose, 
 - Widevine key-system support is enabled by the DK Browser Linux GN configuration. On Linux, `DK_BROWSER_WIDEVINE_DIR` selects a previously installed CDM directory with `manifest.json` and `_platform_specific/linux_x64/libwidevinecdm.so` (or the corresponding CPU architecture). The code validates the manifest using Chromium's own CDM parser and falls back to Chromium's existing component/bundled discovery when no valid selection is provided.
 - Unit-test fixtures cover the local Widevine directory registration and rejection of a relative directory. These tests are committed but have not run on a compiled Chromium checkout.
 
-## DK Live Block built into DK Browser
+## DK Live Block in DK Browser: full source integration
 
-**First Linux Chromium source integration, November 2026.** DK Browser now
-registers a bundled `dk_live_block` component via Chromium's regular
-component-extension loader, with its pinned public-key extension ID on the
-component allowlist. GN copies the component's assets alongside the browser
-resources. This is *built-in browser source*, not a Firefox XPI or external
-extension-store dependency. Firefox's permission or signing is not required.
+**Bundled source:** Original DK Live Block upstream snapshot
+`dereksparks1982/dkliveblock@264e7f5ad2df24582247bd74fcd18c073e622b01`
+(v0.3.371). The complete runtime source, original icon, original
+background and content scripts, Ghostery, Facebook, Nesty, YouTube, options,
+dashboards and source licenses are vendored. The optional Linux companion
+and its licence are preserved **as source only**.
 
-**Provenance:** the initial Chromium Manifest V3 adapter reuses the fallback
-`SEED` rules from `dereksparks1982/dkliveblock/src/background.js`: 10
-network `declarativeNetRequest` block rules, 4 global cosmetic selectors
-and 7 YouTube selectors. The original license is bundled. The strict local
-`generate_rules.py` converter rejects filters it cannot translate.
-Source tests cover the manifest, rule scope, pinned identity, loader,
-allowlist and GN asset wiring.
+**Chromium adapter implemented in source:**
+- Stable component ID `eoiabdloaoehfmeekmoccllbfebajimh`, validated
+  against its manifest public key and component extension allowlist.
+- Manifest V3 service worker imports the original ordered background
+  modules. Chromium-specific startup, Firefox-compatible runtime API
+  shims and a dynamic `declarativeNetRequest` compiler are separate files.
+- Four groups of the original content scripts are registered for ordinary
+  pages, Facebook and YouTube, including scripts in the page's MAIN world
+  where specified by upstream. Original popup, options, diagnostics and
+  dashboard pages receive a Chromium runtime compatibility script.
+- The new dynamic rule compiler reuses **DKRules.network** directly,
+  supports conservative network scopes, exceptions, domain/resource types,
+  third-party filters and per-site allowances. Unsupported syntax is
+  rejected rather than translated into a broader rule. Bounded rule count.
+- GNU-compatible GN build files copy all required assets under Chromium's
+  `DIR_RESOURCES/dk_live_block/`; original license notices preserved.
+- Python component-source tests and Node DNR adapter regression source
+  tests are in the fork. No GitHub Actions or downloadable product.
 
-**Next work, before a browser release:**
+**Not yet functionally equivalent to Firefox:** Chromium MV3 does not
+expose Firefox MV2's synchronous blocking webRequest callback or
+Firefox's `filterResponseData` response-body rewriting. Direct Firefox
+DNS/proxy/notification APIs and some extension behavior require distinct
+native ports. The original blocking listener is deliberately skipped in
+Chromium, and dynamic rules handle the supported subset. Not all UI
+controls are currently guaranteed operational on Chromium.
 
-1. Build the full Linux Chromium fork and verify that the component loads,
-   registers its declarative rules, and blocks requests on real pages.
-   No install or user testing is requested yet.
-2. Adapt more of DK Live Block's original rule engine and update pipeline
-   to Chromium APIs. Add filter lists, per-site exceptions, transparent
-   blocking status, and controls. Do not claim Firefox feature parity.
-3. Port compatible cosmetic/procedural filtering, site-specific YouTube
-   and Facebook behaviors, and existing Nesty coordination where safe.
-4. Review error handling, resource budgets, privacy, browsing modes and
-   licensing before distributing the browser or bundled filter lists.
-5. Preserve independent DK Live Block maintenance; regenerate/adapt rule
-   assets from its existing source rather than forking conflicting logic.
-
-**Current limitation:** This is native component-registration and *initial*
-static rule integration in C++/GN source, **not** confirmation of a working
-compiled browser or full DK Live Block coverage.
-
-**Separate web media direction:** DK Media Player is web-only today. Its
-future yt-dlp integration requires an optional protected native service or
-backend because GitHub Pages cannot run executables. Browser integration
-of the media UI follows native Matroska validation. No desktop media player.
+**Validation still required:** Incremental native Linux Chromium build,
+component registration/startup inspection, update/list rules quotas,
+permission review, site allowlist correctness, DOM false positives,
+Facebook/YouTube playback and ad tests, old worker lifecycle, memory/
+performance budgets and licenses. Do not claim live blocking or parity
+until a running browser is verified. DK Media Player remains web-only;
+the companion source does not make yt-dlp a Browser feature.
 
 ## Russian-first AI assistant roadmap
 

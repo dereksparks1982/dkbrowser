@@ -1,0 +1,201 @@
+{
+  "manifest_version": 2,
+  "name": "DK Live Block",
+  "version": "0.3.371",
+  "description": "Free Firefox ad, tracker and unwanted-popup blocker with privacy controls",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "dk-live-block@elderred-softworks.local",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  },
+  "optional_permissions": [
+    "nativeMessaging",
+    "devtools"
+  ],
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "tabs",
+    "storage",
+    "browserSettings",
+    "alarms",
+    "<all_urls>",
+    "webNavigation",
+    "contextMenus",
+    "proxy",
+    "dns"
+  ],
+  "background": {
+    "scripts": [
+      "public-suffix.js",
+      "rules.js",
+      "engine.js",
+      "privacy.js",
+      "subscriptions.js",
+      "language-lists.js",
+      "manual-rules.js",
+      "site-allowlist.js",
+      "cosmetic-exceptions.js",
+      "network-recovery.js",
+      "list-io.js",
+      "subscription-cache.js",
+      "subscription-update-guard.js",
+      "threat-database.js",
+      "threat-warning.js",
+      "domain-investigation.js",
+      "settings.js",
+      "notification-protection.js",
+      "context-menu.js",
+      "video-assist.js",
+      "streaming-diagnostics.js",
+      "playback-health.js",
+      "streaming-repair.js",
+      "company-modules.js",
+      "meta-graphql.js",
+      "provider-intelligence.js",
+      "cookie-intelligence.js",
+      "nesty-team.js",
+      "cookie-sentinels.js",
+      "request-monitor.js",
+      "request-controls.js",
+      "popup-trap.js",
+      "original-tab-guard.js",
+      "popup-history.js",
+      "auth-protection.js",
+      "youtube-maintenance.js",
+      "video-library.js",
+      "ghostery-vendor.js",
+      "hybrid-engine.js",
+      "icon-state.js",
+      "rule-evidence.js",
+      "allowed-activity.js",
+      "rule-provenance.js",
+      "ghostery-dom.js",
+      "ghostery-cosmetics.js",
+      "youtube-feed.js",
+      "youtube-response.js",
+      "youtube-experiment.js",
+      "adaptive-model.js",
+      "adaptive-youtube.js",
+      "redirect-resources.js",
+      "safe-scriptlet-rules.js",
+      "cbs-compat.js",
+      "browser-compat.js",
+      "meta-delivery-catalog.js",
+      "adaptive-dispatcher.js",
+      "nesty-intelligence.js",
+      "background.js"
+    ],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_title": "DK Live Block",
+    "default_popup": "popup.html",
+    "default_icon": "icons/dk-live-block.png"
+  },
+  "devtools_page": "devtools.html",
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://facebook.com/*",
+        "*://*.facebook.com/*"
+      ],
+      "js": [
+        "facebook-full-core.js"
+      ],
+      "css": [
+        "facebook-full-core.css"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "consent.js",
+        "consent-dom.js",
+        "distractions.js",
+        "procedural.js",
+        "anti-adblock.js",
+        "paywall.js",
+        "video-assist.js",
+        "streaming-watch.js",
+        "playback-health.js",
+        "overlay-recovery.js",
+        "auth-protection.js",
+        "popup-guard.js",
+        "adaptive-model.js",
+        "ad-recognition.js",
+        "layout-reflow.js",
+        "company-modules.js",
+        "provider-intelligence.js",
+        "adaptive-dispatcher.js",
+        "meta-delivery-catalog.js",
+        "nesty-team.js",
+        "nesty-layout-scout.js",
+        "meta-agent-nesty.js",
+        "nesty-intelligence.js",
+        "ghostery-dom.js",
+        "facebook-ads.js",
+        "meta-module.js",
+        "ad-investigation.js",
+        "cbs-autoplay.js",
+        "cosmetic-debug.js",
+        "content.js",
+        "inspector-details.js",
+        "ad-investigation-ui.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "*://youtube.com/*",
+        "*://*.youtube.com/*",
+        "*://youtube-nocookie.com/*",
+        "*://*.youtube-nocookie.com/*"
+      ],
+      "js": [
+        "youtube-feed.js",
+        "youtube-page-bridge.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "safe-scriptlet-runtime.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    }
+  ],
+  "icons": {
+    "48": "icons/dk-live-block.png",
+    "96": "icons/dk-live-block.png",
+    "128": "icons/dk-live-block.png"
+  },
+  "web_accessible_resources": [
+    "redirect/noop.js",
+    "redirect/empty.css",
+    "blocked.html"
+  ],
+  "homepage_url": "https://github.com/dereksparks1982/dkliveblock"
+}

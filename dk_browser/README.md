@@ -8,30 +8,32 @@ Before building, follow Chromium's normal Linux instructions and fetch the depen
 
 The parent README and `DK_BROWSER.md` track implemented vs planned features.
 
-## DK Live Block (built-in Chromium component)
+## DK Live Block built-in component: full source port
 
-Linux source registers the initial DK Live Block Manifest V3 component in
-`chrome/browser/extensions/component_loader.cc` through the normal
-allowlisted component path. GN copies the component assets from
-`dk_browser/integrations/dk_live_block/` into browser output resources.
+The Chromium fork now includes the complete upstream DK Live Block
+v0.3.371 runtime in `dk_browser/integrations/dk_live_block/runtime/`,
+alongside a Chromium MV3 manifest, worker loader, API compatibility shim,
+dynamic DNR network-rule adapter and original vendor licenses. The icon
+is bundled locally. Options, popup, diagnostics, Nesty, YouTube and Facebook
+source are retained in full.
 
-The initial adapter reuses DK Live Block's fallback rule data, with
-`declarativeNetRequest` and CSS content scripts. It is not the complete
-Firefox blocking engine, does not claim runtime ad blocking yet, and
-requires no Mozilla signature. Refresh the checked-in rules from a local
-DK Live Block checkout with:
+GN bundles the runtime in
+`$root_out_dir/resources/dk_live_block/`, matching the existing native
+component loader. The original synchronous Firefox network-block callback
+is skipped on Chromium; supported original filter-list semantics are
+translated to declarative network rules instead. A ten-rule static network fallback stays enabled if dynamic updates fail.
+Chromium-only limits and unsupported Firefox APIs still need engineering.
 
-```bash
-python3 dk_browser/integrations/dk_live_block/generate_rules.py \
-  --source /path/to/dkliveblock/src/background.js --check
-```
+Run source checks locally:
+`python3 -m unittest dk_browser.tests.test_dk_live_block_source`
+and
+`node --test dk_browser/integrations/dk_live_block/chromium-dnr.test.cjs`.
+These are source and simulated adapter checks, **not a compiled browser
+acceptance test**.
 
-Use `--write` instead of `--check` to refresh the three checked-in
-generated rules/CSS assets when the original source changes. Run local
-unit tests with `python3 -m unittest dk_browser.tests.test_dk_live_block_source`.
-A full browser build and runtime verification are still outstanding.
-No downloads, GitHub Actions or browser installation are required for
-this source milestone.
+See `dk_browser/integrations/dk_live_block/README.md` for exact provenance,
+feature gaps and next checks. No extension signing, executable, native host
+installation, GitHub Actions or automatic download is included.
 
 ## Native Matroska groundwork
 

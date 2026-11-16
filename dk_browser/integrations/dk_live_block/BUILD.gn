@@ -1,12 +1,205 @@
-# DK Browser internal DK Live Block component: first Chromium MV3 ruleset.
-# Static DNR/cosmetic seed only. Keep source and upstream attribution together.
-copy("component_resources") {
+# Bundled DK Live Block v0.3.371 (complete source snapshot, Chromium MV3).
+# Source assets are copied into Chromium DIR_RESOURCES as normal product
+# files. This component is not a Firefox/Chrome Web Store extension.
+# Do not add Actions, runtime network downloads or external installers.
+group("component_resources") {
+  deps = [
+    ":root_assets",
+    ":runtime_root_assets",
+    ":runtime_redirect_assets",
+    ":runtime_vendor_assets",
+    ":runtime_icons",
+  ]
+}
+
+copy("root_assets") {
   sources = [
     "manifest.json",
     "rules.json",
     "cosmetics.css",
     "youtube.css",
     "DK_LIVE_BLOCK_LICENSE.txt",
+    "chromium-background.js",
+    "chromium-compat.js",
+    "chromium-dnr.js",
   ]
   outputs = [ "$root_out_dir/resources/dk_live_block/{{source_file_part}}" ]
 }
+
+copy("runtime_root_assets") {
+  sources = [
+    "runtime/LICENSE-FACEBOOK-MIT.txt",
+    "runtime/LICENSE-GHOSTERY.txt",
+    "runtime/LICENSE-PSL.txt",
+    "runtime/access-inspector.js",
+    "runtime/ad-investigation-ui.js",
+    "runtime/ad-investigation.js",
+    "runtime/ad-recognition.js",
+    "runtime/adaptive-dispatcher.js",
+    "runtime/adaptive-model.js",
+    "runtime/adaptive-youtube.js",
+    "runtime/allowed-activity.js",
+    "runtime/allowed-export.js",
+    "runtime/anti-adblock.js",
+    "runtime/auth-protection.js",
+    "runtime/background.js",
+    "runtime/block-details.js",
+    "runtime/blocked-export.js",
+    "runtime/blocked.css",
+    "runtime/blocked.html",
+    "runtime/blocked.js",
+    "runtime/browser-compat.js",
+    "runtime/cbs-autoplay.js",
+    "runtime/cbs-compat.js",
+    "runtime/company-modules.js",
+    "runtime/consent-dom.js",
+    "runtime/consent.js",
+    "runtime/content.js",
+    "runtime/context-menu.js",
+    "runtime/cookie-agents-ui.js",
+    "runtime/cookie-agents.html",
+    "runtime/cookie-intelligence.js",
+    "runtime/cookie-sentinels.js",
+    "runtime/cosmetic-debug-page.js",
+    "runtime/cosmetic-debug.html",
+    "runtime/cosmetic-debug.js",
+    "runtime/cosmetic-exceptions.js",
+    "runtime/dependencies.js",
+    "runtime/dependency-catalog.js",
+    "runtime/devtools-panel.html",
+    "runtime/devtools-panel.js",
+    "runtime/devtools.html",
+    "runtime/devtools.js",
+    "runtime/distractions.js",
+    "runtime/domain-investigation.js",
+    "runtime/downloads.html",
+    "runtime/downloads.js",
+    "runtime/engine.js",
+    "runtime/facebook-ads.js",
+    "runtime/facebook-diagnostic-report.js",
+    "runtime/facebook-full-core.css",
+    "runtime/facebook-full-core.js",
+    "runtime/facebook-full-settings.css",
+    "runtime/facebook-full-settings.html",
+    "runtime/facebook-full-settings.js",
+    "runtime/facebook-runtime-diagnostics.js",
+    "runtime/ghostery-cosmetics.js",
+    "runtime/ghostery-dom.js",
+    "runtime/ghostery-vendor.js",
+    "runtime/hybrid-engine.js",
+    "runtime/icon-state.js",
+    "runtime/inspector-details.js",
+    "runtime/language-lists.js",
+    "runtime/layout-reflow.js",
+    "runtime/library.html",
+    "runtime/library.js",
+    "runtime/list-io.js",
+    "runtime/manual-rules.js",
+    "runtime/meta-agent-nesty.js",
+    "runtime/meta-delivery-catalog.js",
+    "runtime/meta-graphql.js",
+    "runtime/meta-intelligence-ui.js",
+    "runtime/meta-intelligence.html",
+    "runtime/meta-module.js",
+    "runtime/nesty-intelligence.js",
+    "runtime/nesty-layout-scout.js",
+    "runtime/nesty-team.js",
+    "runtime/network-monitor.html",
+    "runtime/network-monitor.js",
+    "runtime/network-recovery.js",
+    "runtime/notification-protection.js",
+    "runtime/options-back-to-top.js",
+    "runtime/options.html",
+    "runtime/options.js",
+    "runtime/original-tab-guard.js",
+    "runtime/orion-dom.js",
+    "runtime/orion-pause.js",
+    "runtime/orion-popup.js",
+    "runtime/orion-status.html",
+    "runtime/overlay-recovery.js",
+    "runtime/page-architect.js",
+    "runtime/paywall.js",
+    "runtime/playback-health.js",
+    "runtime/popup-guard.js",
+    "runtime/popup-history.js",
+    "runtime/popup-trap.js",
+    "runtime/popup.html",
+    "runtime/popup.js",
+    "runtime/privacy.js",
+    "runtime/procedural.js",
+    "runtime/provider-intelligence.js",
+    "runtime/public-suffix.js",
+    "runtime/redirect-resources.js",
+    "runtime/report.html",
+    "runtime/report.js",
+    "runtime/request-controls.js",
+    "runtime/request-monitor.js",
+    "runtime/rule-evidence.js",
+    "runtime/rule-provenance.js",
+    "runtime/rule-validator.js",
+    "runtime/rules.js",
+    "runtime/safe-scriptlet-rules.js",
+    "runtime/safe-scriptlet-runtime.js",
+    "runtime/session-export.js",
+    "runtime/settings.js",
+    "runtime/site-allowlist.js",
+    "runtime/site-dashboard-model.js",
+    "runtime/site-dashboard.html",
+    "runtime/site-dashboard.js",
+    "runtime/streaming-diagnostics.js",
+    "runtime/streaming-repair.js",
+    "runtime/streaming-watch.js",
+    "runtime/style.css",
+    "runtime/subscription-cache.js",
+    "runtime/subscription-update-guard.js",
+    "runtime/subscriptions.js",
+    "runtime/support.js",
+    "runtime/threat-database.js",
+    "runtime/threat-warning.js",
+    "runtime/tracker-groups.js",
+    "runtime/ui-language-tools.js",
+    "runtime/ui-language.js",
+    "runtime/video-assist.js",
+    "runtime/video-library.js",
+    "runtime/youtube-compatibility-advice.js",
+    "runtime/youtube-experiment.js",
+    "runtime/youtube-feed.js",
+    "runtime/youtube-lab-ui.js",
+    "runtime/youtube-lab.css",
+    "runtime/youtube-lab.html",
+    "runtime/youtube-lab.js",
+    "runtime/youtube-maintenance.js",
+    "runtime/youtube-manual-outcome.js",
+    "runtime/youtube-outcome.js",
+    "runtime/youtube-page-bridge.js",
+    "runtime/youtube-report.js",
+    "runtime/youtube-response.js",
+    "runtime/youtube-selection-gate.js",
+    "runtime/youtube-triage.js",
+  ]
+  outputs = [ "$root_out_dir/resources/dk_live_block/runtime/{{source_file_part}}" ]
+}
+
+copy("runtime_redirect_assets") {
+  sources = [
+    "runtime/redirect/empty.css",
+    "runtime/redirect/noop.js",
+  ]
+  outputs = [ "$root_out_dir/resources/dk_live_block/runtime/redirect/{{source_file_part}}" ]
+}
+
+copy("runtime_vendor_assets") {
+  sources = [
+    "runtime/vendor/LICENSE-FACEBOOK-SPONSORED-MIT.txt",
+    "runtime/vendor/facebook-sponsored-upstream.js",
+  ]
+  outputs = [ "$root_out_dir/resources/dk_live_block/runtime/vendor/{{source_file_part}}" ]
+}
+
+copy("runtime_icons") {
+  sources = [
+    "runtime/icons/dk-live-block.png",
+  ]
+  outputs = [ "$root_out_dir/resources/dk_live_block/runtime/icons/{{source_file_part}}" ]
+}
+
