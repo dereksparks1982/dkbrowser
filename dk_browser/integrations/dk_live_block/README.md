@@ -43,6 +43,15 @@ specific compatibility boundaries.
   Explicit rule exceptions, resource types, selected scope/domain flags,
   global enable/disable and persistent site allowances are supported in
   source. Unsupported syntax is rejected, not broadened. The initial static seed remains active as a fallback if dynamic updates fail.
+
+- **Tab-only pause:** Chromium-specific session DNR rules carry the current
+  paused tab IDs with high-priority document-scoped allowances. A session-only
+  storage record restores them when MV3 suspends/restarts the worker and
+  closed-tab cleanup removes obsolete entries. This does not persist after
+  closing the browser and is not a site-wide exception.
+- **Selective controls:** Persisted, user-confirmed host/type blocks and
+  remembered allowances now reach DNR. Temporary per-request allowances
+  and Firefox's exact per-request telemetry still need distinct adapters.
 - **Page-side protection:** Original cosmetic and procedural, Facebook,
   YouTube, Nesty, popup and cookie modules remain registered. Their
   runtime behavior and feature compatibility require real-browser testing.
@@ -57,10 +66,13 @@ unchanged in Chromium MV3; those synchronous callbacks are skipped in the
 Chromium worker and supported rules use DNR. Firefox response-body editing
 (`filterResponseData`), Firefox-specific DNS/proxy and browser-wide
 notification preferences, arbitrary request-by-request decisions and
-some temporary per-tab bypasses are **not yet implemented natively**.
+temporary per-request allowances are **not yet implemented natively**.
 Some original UI controls can report unavailable actions or require
 a browser-native adapter. Do not label these as working without a compiled
 browser check. A snapshot of source modules is not proof of live filtering.
+
+Chromium tab pause and remembered allowance handling are source-level only;
+the exact effects and UI status have not been verified in a compiled browser.
 
 The optional companion remains reference source and is **never installed,
 executed or granted nativeMessaging permissions automatically**.
