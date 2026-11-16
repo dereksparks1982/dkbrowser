@@ -146,6 +146,19 @@ def main() -> int:
             if result.returncode:
                 return result.returncode
             print("PASS: DK AI JavaScript syntax")
+            dnr_dir = ROOT / "dk_browser/integrations/dk_live_block"
+            for name in ("chromium-compat.js", "chromium-background.js",
+                         "chromium-dnr.js"):
+                result = subprocess.run([node, "--check", str(dnr_dir / name)],
+                                        check=False)
+                if result.returncode:
+                    return result.returncode
+            result = subprocess.run(
+                [node, "--test", str(dnr_dir / "chromium-dnr.test.cjs")],
+                cwd=ROOT, check=False)
+            if result.returncode:
+                return result.returncode
+            print("PASS: DK Live Block Chromium adapter syntax and regression tests")
         else:
             print("SKIP: Node is unavailable; JavaScript syntax check skipped.")
     print("PASS: DK Browser local source preflight")
