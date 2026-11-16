@@ -785,6 +785,31 @@ void ComponentLoader::AddDefaultComponentExtensionsWithBackgroundPages(
   }
 
   if (!skip_session_components) {
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(GOOGLE_CHROME_BRANDING)
+    // DK Browser ships its own DK Live Block component. This is not a Mozilla
+    // add-on and does not require Firefox signing or installation. Static
+    // rules run through Chromium's declarativeNetRequest engine. The shipped
+    // asset directory must be owned by the application/package, not a site.
+    base::FilePath dk_resources_dir;
+    if (base::PathService::Get(chrome::DIR_RESOURCES, &dk_resources_dir)) {
+      const base::FilePath dk_block =
+          dk_resources_dir.Append(FILE_PATH_LITERAL("dk_live_block"));
+      if (base::PathExists(
+              dk_block.Append(FILE_PATH_LITERAL("manifest.json")))) {
+        // Use Chromium's normal component allowlist, not the developer-only
+        // AddOrReplace() path that bypasses component identity checks.
+        std::string manifest_error;
+        std::optional<base::DictValue> manifest =
+            file_util::LoadManifest(dk_block, &manifest_error);
+        if (!manifest || Add(std::move(*manifest), dk_block).empty()) {
+          LOG(ERROR) << "DK Live Block component could not be loaded: "
+                     << manifest_error;
+        }
+      } else {
+        LOG(WARNING) << "DK Live Block component resources are not packaged";
+      }
+    }
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #if BUILDFLAG(IS_CHROMEOS)
     Add(IDR_ECHO_MANIFEST,
         base::FilePath(FILE_PATH_LITERAL("/usr/share/chromeos-assets/echo")));

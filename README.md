@@ -14,6 +14,27 @@
 
 This repository **contains Chromium's actual browser source code**, not a launcher, an Electron wrapper, or a source submodule. DK-specific changes are committed directly to the fork and maintained here.
 
+## Built-in DK Live Block (initial integration)
+
+DK Browser's Linux Chromium source now registers **DK Live Block** as a
+bundled component using the normal Chromium extension component loader.
+Its initial Chromium Manifest V3 resources are built into the browser source;
+no Firefox XPI, Mozilla signing or extension-store installation is required.
+
+The first adapter translates the existing DK Live Block *fallback rules*:
+10 network-blocking rules through `declarativeNetRequest`, 4 global cosmetic
+selectors and 7 YouTube cosmetic selectors. These are sourced from the
+DK Live Block project, with the original license copied alongside them.
+The full Firefox engine, dynamic lists, advanced site rules, user settings
+and other modules **are not yet ported or tested**. A Chromium compile and
+live blocking tests are still required.
+
+**Separate product direction:** DK Media Player remains a **web-only**
+application, to be integrated into DK Browser later. yt-dlp belongs to the
+web player's future optional, user-approved download backend, not to a new
+desktop media player and not to DK Browser in this build. No download package
+or browser test is requested yet.
+
 ## Development status
 
 DK Browser source changes introduce DK Softworks branding, updated browser product and window titles, and DK Media Player as the default page when launching a fresh browsing session (while retaining Chromium's session restore and user-selected startup URL behavior). The browser Home command also opens DK Media Player while preserving a custom homepage.

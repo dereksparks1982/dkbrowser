@@ -52,6 +52,12 @@ group("resources") {
       "contextual_tasks/extension:resources",
       "omnibox_internals/aim_eligibility_extension:resources",
     ]
+    if (is_linux) {
+      # Bundle the DK-owned Chromium-compatible filtering component.
+      public_deps += [
+        "//dk_browser/integrations/dk_live_block:component_resources",
+      ]
+    }
     if (enable_webui_ntp) {
       public_deps += [ "new_tab_page_extension:resources" ]
     }

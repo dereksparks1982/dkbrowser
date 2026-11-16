@@ -8,6 +8,31 @@ Before building, follow Chromium's normal Linux instructions and fetch the depen
 
 The parent README and `DK_BROWSER.md` track implemented vs planned features.
 
+## DK Live Block (built-in Chromium component)
+
+Linux source registers the initial DK Live Block Manifest V3 component in
+`chrome/browser/extensions/component_loader.cc` through the normal
+allowlisted component path. GN copies the component assets from
+`dk_browser/integrations/dk_live_block/` into browser output resources.
+
+The initial adapter reuses DK Live Block's fallback rule data, with
+`declarativeNetRequest` and CSS content scripts. It is not the complete
+Firefox blocking engine, does not claim runtime ad blocking yet, and
+requires no Mozilla signature. Refresh the checked-in rules from a local
+DK Live Block checkout with:
+
+```bash
+python3 dk_browser/integrations/dk_live_block/generate_rules.py \
+  --source /path/to/dkliveblock/src/background.js --check
+```
+
+Use `--write` instead of `--check` to refresh the three checked-in
+generated rules/CSS assets when the original source changes. Run local
+unit tests with `python3 -m unittest dk_browser.tests.test_dk_live_block_source`.
+A full browser build and runtime verification are still outstanding.
+No downloads, GitHub Actions or browser installation are required for
+this source milestone.
+
 ## Native Matroska groundwork
 
 The source fork now separates EBML `DocType=matroska` from `DocType=webm` in `media/base/container_names.cc` and its metrics enum. This lets native media diagnostics distinguish full Matroska containers from WebM without relying on `.mkv` filenames. The Chromium C++ test suite includes valid, malformed and truncated EBML header examples. FFmpeg already has a Matroska demuxer allowed by `media/filters/ffmpeg_glue.cc` and the MIME utility already advertises Matroska types; actual playback, track switching and embedded subtitles remain pending native Linux compilation and validation.

@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "DK Live Block",
+  "version": "0.1.0",
+  "description": "Built-in DK Browser preliminary network and cosmetic filtering, based on DK Live Block local fallback rules.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy/lOPY/NiP2cDrn84Beebn3yFJeqFN1X8EMU8JxszX310Qh6Pl9QwYfqROvK/++4ORrPqGPt+6E8K0EITGLPcZlY1CVXxWdSiYeL/3wHc4dsf/NUg82LVywirgpwMOvxfPOPOewCGY6kflIfTnB8vh3aq9FK8V+8aajM5ctB2SsudMRxBpFRhqm8B+2Dja0odeu/UjyLxNZmkORPP18CtguyC/6h7ciMH9EBPT5lr9GB8SfF5foKRkiAxbLI8KggnPG6ui7nNyuJY7uvalcx2Aie0Sv4eLSpBXgVYTnS1pcQm7ubRFPTD7DRwMmeZQjz65gq2Z0I2v1qefzGYUQzXwIDAQAB",
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "dk_live_block_seed",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "css": [
+        "cosmetics.css"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://youtube.com/*",
+        "*://*.youtube.com/*"
+      ],
+      "css": [
+        "youtube.css"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

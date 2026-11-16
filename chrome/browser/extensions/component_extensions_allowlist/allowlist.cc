@@ -44,6 +44,10 @@ bool IsComponentExtensionAllowlisted(const std::string& extension_id) {
       extension_misc::kContextualTasksExtensionId,
       extension_misc::kGlicExtensionId,
       extension_misc::kInAppPaymentsSupportAppId,
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      // DK Live Block's pinned public-key component identity.
+      "eoiabdloaoehfmeekmoccllbfebajimh",
+#endif
 #if BUILDFLAG(ENABLE_WEBUI_NTP)
       extension_misc::kNewTabPageExtensionId,
 #endif  // BUILDFLAG(ENABLE_WEBUI_NTP)

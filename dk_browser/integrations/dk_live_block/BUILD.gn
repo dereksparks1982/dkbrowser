@@ -1,0 +1,12 @@
+# DK Browser internal DK Live Block component: first Chromium MV3 ruleset.
+# Static DNR/cosmetic seed only. Keep source and upstream attribution together.
+copy("component_resources") {
+  sources = [
+    "manifest.json",
+    "rules.json",
+    "cosmetics.css",
+    "youtube.css",
+    "DK_LIVE_BLOCK_LICENSE.txt",
+  ]
+  outputs = [ "$root_out_dir/resources/dk_live_block/{{source_file_part}}" ]
+}

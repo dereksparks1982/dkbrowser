@@ -1,0 +1,79 @@
+DK LIVE BLOCK: FREE USE / NO MONETIZATION LICENSE, VERSION 1.0
+Copyright (c) 2026 Elderred Softworks LLC / DK LAB
+Effective for original DK Live Block code distributed with this license.
+
+1. COVERED MATERIAL
+
+This license covers only copyrightable source code and other original material
+in DK Live Block owned and licensed by Elderred Softworks LLC / DK LAB
+("Covered Material"). It does NOT supersede licenses on third-party code,
+libraries, filter lists, data or other separately licensed materials.
+
+2. FREE USE BY PEOPLE AND COMPANIES
+
+You are granted a worldwide, non-exclusive, royalty-free copyright license to
+use, run, copy, study, modify, and redistribute Covered Material, including
+modified versions, subject to the conditions below.
+
+Individuals, nonprofits, public bodies and for-profit companies may use DK Live
+Block at no charge, including as an internal tool in ordinary business
+operations. A company earning revenue from its unrelated business activities
+while using DK Live Block internally is NOT, by itself, prohibited monetization.
+
+3. NO MONETIZATION OF DK LIVE BLOCK ITSELF
+
+Without separate written permission from the copyright owner, you must NOT:
+
+(a) sell, rent, sublicense for a fee, or charge for a copy, download, license,
+    subscription, activation, access or use of Covered Material;
+(b) bundle, repackage, or offer Covered Material, including modified or
+    rebranded versions, as a paid product, a paid product feature, or part of
+    a paid service centered on DK Live Block;
+(c) obtain advertising, affiliate, referral, sponsorship, paywall or other
+    revenue in exchange for distributing, providing access to, or promoting
+    Covered Material as a monetized offering; or
+(d) otherwise commercially exploit Covered Material itself for payment or
+    profit, directly or indirectly.
+
+This restriction does not prohibit ordinary internal business use or charging
+for unrelated products and services that do not distribute, bundle, sell, or
+market DK Live Block as part of the offering.
+
+4. SHARING AND MODIFICATIONS
+
+You may share original or modified Covered Material free of charge, provided
+that you retain this license, the copyright notice and applicable attribution
+notices, clearly identify significant modifications, and apply these same
+no-monetization terms to the Covered Material portions of distributed
+derivatives. You may not state or imply that DK LAB endorses a modified copy.
+
+5. THIRD-PARTY MATERIALS
+
+Bundled third-party components retain their own licenses and permissions.
+This license does not restrict rights granted directly by those licensors.
+Examples include the bundled Ghostery-related and Mozilla Public Suffix List
+materials under MPL-2.0 and independently licensed filter-list assets.
+Keep the required upstream notices and comply with those licenses.
+
+6. NO TRADEMARK LICENSE
+
+No license is granted to use the names DK Live Block, DK LAB, or Elderred
+Softworks as trademarks or to imply official sponsorship or endorsement.
+
+7. TERMINATION
+
+Permissions under this license terminate if you violate its conditions.
+They may be reinstated by express written permission of the copyright owner.
+Third-party materials remain governed by their own license terms.
+
+8. NO WARRANTY; LIMITATION OF LIABILITY
+
+THE COVERED MATERIAL IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NON-INFRINGEMENT. TO THE EXTENT PERMITTED BY LAW, THE COPYRIGHT
+OWNER IS NOT LIABLE FOR ANY CLAIM, DAMAGE OR OTHER LIABILITY ARISING FROM
+THE COVERED MATERIAL OR ITS USE.
+
+This is a custom source-available license, not an OSI-approved open-source
+license. Legal and distribution-platform review remains required before
+public release.
