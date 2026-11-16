@@ -191,8 +191,11 @@ function rebuild(){
   const chromiumSettings={...data.settings,
    manualBlocks:data.manualBlocks,
    rememberedAllowances:data.requestControls.remember};
-  void globalThis.DKChromiumDNR.sync(next,chromiumSettings).catch(error=>
-   console.warn("DK Live Block Chromium rules:",String(error).slice(0,180)));
+  void globalThis.DKChromiumDNR.sync(next,chromiumSettings)
+   .then(()=>globalThis.DKChromiumDNR.syncTabPauses(
+     [...data.tempPaused],data.settings))
+   .catch(error=>console.warn("DK Live Block Chromium rules:",
+     String(error).slice(0,180)));
  }
  // Settings such as ad recognition, logs, video skipping and site pauses do
  // not change the filter text. Skip re-parsing huge subscriptions for them.
@@ -946,7 +949,12 @@ browser.tabs.onRemoved.addListener(id=>{
  DKPopupHistory.clear(data.popupHistory,id);
  DKRequestControls.dropTab(data.requestControls,id);
  DKPopupTrap.revoke(data.popupTrapPermits,id);data.popupTrapClaims.delete(id);data.popupTrapAllowed.delete(id);data.popupTrapCounts.delete(id);
- DKThreatWarning.clear(data.threatWarnings,id);data.threatWarningPending.delete(id);DKNetworkMonitor.remove(data.networkMonitors,id);DKAllowedActivity.clear(data.allowedActivity,id);pendingAllowedDecisions.delete(id);DKPlaybackHealth.clear(data.playbackHealth,id);DKYouTubeResponse.clear(id);DKMetaGraphQL.clear(id);autoVideoTimes.delete(id);data.hosts.delete(id);data.counts.delete(id);data.logs.delete(id);data.networkIssues.delete(id);data.streamingIssues.delete(id);DKStreamingRepair.clear(data.streamingAllowances,id);data.popupCounts.delete(id);data.tempPaused.delete(id);toolbarIcons?.reset(id);});
+ DKThreatWarning.clear(data.threatWarnings,id);data.threatWarningPending.delete(id);DKNetworkMonitor.remove(data.networkMonitors,id);DKAllowedActivity.clear(data.allowedActivity,id);pendingAllowedDecisions.delete(id);DKPlaybackHealth.clear(data.playbackHealth,id);DKYouTubeResponse.clear(id);DKMetaGraphQL.clear(id);autoVideoTimes.delete(id);data.hosts.delete(id);data.counts.delete(id);data.logs.delete(id);data.networkIssues.delete(id);data.streamingIssues.delete(id);DKStreamingRepair.clear(data.streamingAllowances,id);data.popupCounts.delete(id);const wasPaused=data.tempPaused.delete(id);
+ if(wasPaused&&globalThis.DKChromiumDNR){
+  void globalThis.DKChromiumDNR.syncTabPauses([...data.tempPaused],data.settings);
+  void browser.storage.session?.set({dkChromiumPausedTabs:[...data.tempPaused]});
+ }
+ toolbarIcons?.reset(id);});
 browser.alarms.onAlarm.addListener(a=>{if(a.name==="refresh-rules"&&data.settings.autoUpdate){
  updateLists().catch(console.warn);
  if(data.settings.threatProtection)updateThreatDatabase().catch(console.warn);
@@ -1953,7 +1961,21 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
  }
  if(msg.action==="toggleTabPause"){
   if(id<0)return {error:"No browser tab."};
+  const previouslyPaused=data.tempPaused.has(id);
   if(msg.paused)data.tempPaused.add(id);else data.tempPaused.delete(id);
+  if(globalThis.DKChromiumDNR){
+   // A Chromium service worker can suspend; keep this session-only setting
+   // in storage.session and install a tab-restricted DNR allow rule.
+   const result=await globalThis.DKChromiumDNR.syncTabPauses(
+    [...data.tempPaused],data.settings);
+   if(result.error){
+    if(previouslyPaused)data.tempPaused.add(id);else data.tempPaused.delete(id);
+    await globalThis.DKChromiumDNR.syncTabPauses([...data.tempPaused],data.settings);
+    return {error:result.error};
+   }
+   try{await browser.storage.session?.set({dkChromiumPausedTabs:[...data.tempPaused]});}
+   catch(_){return {error:"Tab pause was applied, but its session state could not be saved."};}
+  }
   badge(id);refreshTabs();return status(id,url);
  }
  if(msg.action==="getAllowedSites")return DKSiteAllowlist.normalize(data.settings.paused);
@@ -2139,8 +2161,18 @@ async function boot(){
   if(data.youtubeRules&&data.youtubeRules.version===data.youtubeHeldVersion){
    data.youtubeRules=null;data.listErrors.youtube="Rolled-back pack disabled until a newer version arrives.";
   }
-  rebuild();
   const tabs=await browser.tabs.query({});
+  if(globalThis.DKChromiumDNR&&browser.storage.session?.get){
+   try{
+    const saved=await browser.storage.session.get("dkChromiumPausedTabs");
+    const liveIds=new Set(tabs.map(tab=>tab.id));
+    const entries=Array.isArray(saved.dkChromiumPausedTabs)?
+     saved.dkChromiumPausedTabs:[];
+    data.tempPaused=new Set(entries.filter(id=>
+     Number.isSafeInteger(id)&&id>=0&&liveIds.has(id)).slice(0,250));
+   }catch(error){console.warn("DK Live Block session pause restore:",String(error).slice(0,100));}
+  }
+  rebuild();
   for(const t of tabs)if(t.url){data.hosts.set(t.id,host(t.url));badge(t.id);}
   data.ready=true;
   try{syncProxyListener();}catch(error){
