@@ -161,8 +161,21 @@ function compile(text,settings,max=MAX_DYNAMIC){
    accepted:settings?.enabled===false?0:rules.length,rejected,
    limited:rules.length>=limit};
 }
+// Session-scoped Chromium rules, unlike dynamic rules, may use tabIds.
+// A paused tab bypasses blocking in its own document/subframes only. Rule IDs
+// are ephemeral and rebuilt from the current tab set after worker startup.
+const MAX_PAUSED_TABS=250;
+function compileTabPauses(tabIds,enabled=true){
+ if(enabled===false||!Array.isArray(tabIds))return [];
+ const ids=[...new Set(tabIds.filter(x=>Number.isSafeInteger(x)&&x>=0))].slice(0,MAX_PAUSED_TABS);
+ return ids.map((tabId,index)=>({
+  id:index+1,priority:40,action:{type:"allowAllRequests"},
+  condition:{tabIds:[tabId],resourceTypes:["main_frame","sub_frame"]}
+ }));
+}
 function create(api=root.chrome?.declarativeNetRequest){
  let queue=Promise.resolve(),stats={accepted:0,rejected:0,limited:false,error:"",updated:0};
+ let tabsStatus={paused:0,error:"",updated:0};
  function sync(source,settings){
    const compiled=compile(source,settings);
    const operation=queue.catch(()=>{}).then(async()=>{
@@ -206,8 +219,30 @@ function create(api=root.chrome?.declarativeNetRequest){
    });
    queue=operation;return operation;
  }
- return {sync,status:()=>({...stats})};
+ function syncTabPauses(tabIds,settings){
+  const rules=compileTabPauses(tabIds,settings?.enabled!==false);
+  const operation=queue.catch(()=>{}).then(async()=>{
+   if(!api?.getSessionRules||!api?.updateSessionRules){
+    tabsStatus={paused:0,error:"Chromium DNR session rules unavailable",updated:Date.now()};
+    return tabsStatus;
+   }
+   try{
+    const current=await api.getSessionRules();
+    await api.updateSessionRules({
+     removeRuleIds:current.map(rule=>rule.id),addRules:rules
+    });
+    tabsStatus={paused:rules.length,error:"",updated:Date.now()};
+   }catch(error){
+    tabsStatus={paused:0,error:String(error?.message||error).slice(0,180),
+     updated:Date.now()};
+   }
+   return tabsStatus;
+  });
+  queue=operation;
+  return operation;
+ }
+ return {sync,syncTabPauses,status:()=>({...stats,tabPauses:{...tabsStatus}})};
 }
-root.DKChromiumRules={compile,translate,create,MAX_DYNAMIC,domainList,explicitRule,extraRules};
+root.DKChromiumRules={compile,translate,create,MAX_DYNAMIC,domainList,explicitRule,extraRules,compileTabPauses};
 if(typeof module!=="undefined")module.exports=root.DKChromiumRules;
 })(typeof globalThis!=="undefined"?globalThis:this);
