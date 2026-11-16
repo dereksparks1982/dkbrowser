@@ -123,6 +123,35 @@ What remains (in implementation priority order):
 compilation, live playback, or subtitle rendering was performed. Local
 source-only tests are not a substitute for runtime tests.
 
+### Read-only FFprobe track-inventory tool
+
+A **separate, opt-in Linux development helper** now lives at
+`dk_browser/tools/matroska_probe.py`. It uses the locally installed
+`ffprobe` CLI with local-file protocol restrictions to report individual
+Matroska **video/audio/subtitle** tracks, indices, language tags, codec IDs,
+default/forced dispositions, and chapter boundaries. It does not demux or
+decode video in Chromium. The machine-readable `--json` output has stable
+schema ID `dk-browser.matroska-tracks.v1`. A `--lang ru` option translates
+the human-readable report; track titles remain in their original language.
+
+Example (no conversion, file modification or upload):
+
+```bash
+python3 dk_browser/tools/matroska_probe.py "$HOME/Videos/movie.mkv" --lang ru
+python3 dk_browser/tools/matroska_probe.py "$HOME/Videos/movie.mkv" --json
+```
+
+It requires a user-installed FFmpeg/FFprobe tool and a local file. Code limits
+the accepted extensions and number of tracks/chapters, imposes a probe timeout
+and bounded output and never enables network protocols. Regression tests mock
+the FFprobe process and exercise multiple audio languages, ASS and PGS subtitle
+track descriptors, Russian labels, malformed metadata and error handling.
+This proves the diagnostic data model, **not** browser playback. Next work is
+connecting a suitable native metadata source to Chromium's track-selection
+pipeline, followed by actual MKV subtitle rendering.
+
+
+
 
 
 1. **Compile** on Linux using a synchronized upstream DEPS checkout and check build errors. Widevine is currently source-integrated, not proven working at runtime. A compatible CDM must already be present on the machine or supplied through a supported component flow. Some streaming services additionally enforce client authorization.
