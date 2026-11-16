@@ -97,9 +97,25 @@ reports an error rather than claiming success if Chromium lacks the static
 ruleset control API. Regression cases cover off/on transitions and the
 missing-API case.
 
-**Not a parity claim:** the bundled upstream snapshot is v0.3.371, while
-DK Live Block development has progressed beyond that snapshot. Newer source
-changes are not automatically synced. A full source refresh, manifest and
-permission reconciliation, Chromium-compatible API adapters, a native build,
-and actual browser interaction tests are still required before integration
-can be called complete. Source tests are not a substitute for that work.
+**Source freshness audit:** As of November 16, 2026, the upstream
+`dkliveblock/main` tree still points to
+`264e7f5ad2df24582247bd74fcd18c073e622b01`, the precise commit
+already vendored here. Its 154 source files were compared with the bundled
+runtime by Git blob identity. Only the expected Chromium-adapted
+`background.js`, `icon-state.js` and HTML entrypoints differ; the Firefox
+manifest is preserved separately as a reference. This does not establish
+runtime feature parity or guarantee upstream stays at this commit.
+
+**Additional Chromium rule wiring:** Persisted, user-confirmed selective
+blocks and remembered host/type allowances are passed to DNR at startup and
+after changes. User blocks take precedence, and specialized resource types
+that Chromium cannot represent are skipped rather than widened. Tab-only
+and session-only allowances are intentionally **not** promoted into
+persistent Chromium dynamic rules. DNR host conditions may also match
+subdomains, so the Chromium adaptation is not an exact replacement for
+Firefox's every-request decision engine.
+
+**Still not complete:** Native Chromium equivalents for Firefox-only
+blocking responses, response-body rewriting, DNS/proxy controls, tab-only
+pauses and all original UI behavior need additional source work and
+eventual runtime review. No browser binary was compiled or tested.
