@@ -49,3 +49,13 @@ that forwards requests to an already-running Ollama local model.
 See `dk_browser/ai/README.md` for installation and privacy constraints.
 This is a separately launched development tool, not yet a compiled native
 browser sidebar or a shipped model.
+
+## No-actions source preflight
+
+Run `python3 dk_browser/tools/preflight.py` after edits and before
+accepting a source build. It invokes local Python tests and uses Node to
+check JavaScript syntax when installed. It also verifies Russian README
+language, approved English/Russian image bytes, safe Linux package identity
+and local AI boundaries. Run `--no-tests` for the fast invariants alone.
+
+It neither requires nor starts GitHub Actions, and is **not** a Chromium build.

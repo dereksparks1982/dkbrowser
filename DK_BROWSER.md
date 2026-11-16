@@ -78,6 +78,13 @@ Models are candidates, not embedded distributions. Check upstream license files 
 - Local HTTP unit tests with a simulated Ollama model are included in `dk_browser/tests/test_dk_ai_server.py`. Actual Ollama/GigaChat compatibility and runtime security still require Linux testing.
 - Future: integrate a secure native sidebar/toolbar launch flow, local-model lifecycle management, page permissions, rich translation and Russian performance benchmarks. Do not claim feature parity with Alice AI.
 
+## Offline release preflight
+
+- `python3 dk_browser/tools/preflight.py` performs local source invariants and invokes all Python unit tests without using GitHub Actions. When Node is present it also parses the JavaScript.
+- The check ties the English and Russian icon masters to their approved Git blob checksums and verifies the native theme copies; validates README language links and scans visible Russian prose for unintended Latin words.
+- It checks Linux profile/package isolation and that the local AI service stays loopback-bound with same-origin write restrictions.
+- **This is a source validation gate only**, not evidence of a successful full Chromium compilation, secure package lifecycle or real-world media/AI capability.
+
 ## Outstanding before a usable DK Browser release
 
 1. **Compile** on Linux using a synchronized upstream DEPS checkout and check build errors. Widevine is currently source-integrated, not proven working at runtime. A compatible CDM must already be present on the machine or supplied through a supported component flow. Some streaming services additionally enforce client authorization.

@@ -48,6 +48,10 @@ An experimental bilingual **DK AI** interface now lives in [dk_browser/ai](dk_br
 
 After starting Ollama and installing your own compatible model, run `python3 -m dk_browser.ai --open` from the repository root. This starts a local-only web page at `http://127.0.0.1:8766`. No third-party Python modules are required to serve it. The assistant displays the approved English or Russian imperial icon for the selected language, remembers only the UI language, offers Ctrl+Enter to send, and exports a text transcript only on request. See [AI instructions](dk_browser/ai/README.md) for security limits, including the fact that a local service is accessible to other programs running as your user.
 
+## Source quality checks (no GitHub Actions)
+
+Run `python3 dk_browser/tools/preflight.py` in a full checkout for local checks of the approved icons, Russian README text, Linux profile and package identity, AI request boundaries, Python unit tests and (when Node is installed) JavaScript syntax. Use `--no-tests` for fast, offline source-only checks. This does **not compile Chromium, install packages, start model services or run a cloud workflow**.
+
 ## Build groundwork
 
 Chromium uses `depot_tools`, `gclient`, `gn` and `autoninja`. Forking the source provides Chromium's main tree, but a local checkout must also synchronize dependencies from `DEPS` before compiling. Do not treat GitHub's ZIP download as a complete build environment.
