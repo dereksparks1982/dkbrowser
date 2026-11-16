@@ -297,12 +297,16 @@ group("linux") {
   deps = [
     ":beta",
     ":canary",
-    ":deb_repo_package",
     ":stable",
     ":unstable",
   ]
+  # Only Google's own build may ship its official repository installer.
+  if (is_chrome_branded) {
+    deps += [ ":deb_repo_package" ]
+  }
 }
 
+if (is_chrome_branded) {
 action("deb_repo_package") {
   visibility = [ ":*" ]
   script = "debian/build_repo_package.py"
@@ -322,11 +326,7 @@ action("deb_repo_package") {
 
   deps = [ ":installer_deps" ]
 
-  if (is_chrome_branded) {
-    package = "google-chrome-repo"
-  } else {
-    package = "chromium-browser-repo"
-  }
+  package = "google-chrome-repo"
 
   outputs = [ "$root_out_dir/${package}_${deb_arch}.deb" ]
 
@@ -346,6 +346,7 @@ action("deb_repo_package") {
     "-t",
     target_os,
   ]
+}
 }
 
 branding_dir = "//chrome/app/theme/$branding_path_component"
@@ -568,7 +569,7 @@ template("linux_package") {
   if (is_chrome_branded) {
     package = "google-chrome"
   } else {
-    package = "chromium-browser"
+    package = "dk-browser"
   }
 
   deb_target_name = "${target_name}_deb"
@@ -682,7 +683,7 @@ template("linux_package") {
         script = "snap/build.py"
 
         if (!is_chrome_branded) {
-          package = "chromium"
+          package = "dk-browser"
         }
         if (current_cpu == "x64") {
           snap_arch = "amd64"

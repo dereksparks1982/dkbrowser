@@ -61,7 +61,11 @@ update-alternatives --install /usr/bin/@@package_orig @@package_orig \
 remove_udev_symlinks
 
 ## MAIN ##
-install_key
-install_deb822_sources
-remove_legacy_list
-remove_legacy_key
+# DK Browser has no official signed APT repository. Never import Google's key
+# or add a Google package source when installing the independent DK package.
+if [ "@@package_orig" != "dk-browser" ]; then
+  install_key
+  install_deb822_sources
+  remove_legacy_list
+  remove_legacy_key
+fi

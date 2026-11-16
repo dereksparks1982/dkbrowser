@@ -19,6 +19,10 @@
 @@include@@rpm.include
 
 ## MAIN ##
+# Independent DK Browser packages do not import Google's RPM signing key.
+if [ "@@package_orig" = "dk-browser" ]; then
+  exit 0
+fi
 if [ -r "$DEFAULTS_FILE" ]; then
   . "$DEFAULTS_FILE"
 fi

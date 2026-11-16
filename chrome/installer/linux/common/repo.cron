@@ -24,6 +24,10 @@
 @@include@@apt.include
 
 ## MAIN ##
+# Independent DK Browser packages must not install or refresh Google's repo.
+if [ "@@package_orig" = "dk-browser" ]; then
+  exit 0
+fi
 if [ -r "$DEFAULTS_FILE" ]; then
   . "$DEFAULTS_FILE"
 fi

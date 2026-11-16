@@ -36,6 +36,12 @@ This is a **source implementation**; there is no compiled DK Browser executable 
 
 DK Browser uses its own **`~/.config/dk-browser`** profile directory instead of Chromium's `~/.config/chromium`. Bookmarks, history, settings and extensions are therefore kept separate by default. The matching snap configuration path is also DK-specific. Existing Chromium overrides such as `--user-data-dir` and the XDG configuration location still take precedence when explicitly chosen.
 
+## Linux package identity
+
+The Linux packaging source now uses a separate **`dk-browser`** application/package name and `/opt/dksoftworks/dk-browser` installation directory. The desktop entry has a Russian display name (**ДК Браузер**) while retaining an English name for English-language desktops. DK Browser packaging must **not** add Google's software repositories, fetch Google's update signing key or claim Google-hosted updates. No DK update feed exists yet; system package upgrades and signatures need real release infrastructure before distribution.
+
+The normal upstream `chrome` executable remains internal to the package, while `dk-browser` is the launcher and installed icon name. The approved icon source files and preparer are under `assets/images` and `dk_browser/tools`. **Linux packages have not been built or verified yet.**
+
 ## Build groundwork
 
 Chromium uses `depot_tools`, `gclient`, `gn` and `autoninja`. Forking the source provides Chromium's main tree, but a local checkout must also synchronize dependencies from `DEPS` before compiling. Do not treat GitHub's ZIP download as a complete build environment.

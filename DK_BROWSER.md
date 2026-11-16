@@ -60,6 +60,15 @@ Models are candidates, not embedded distributions. Check upstream license files 
 - The Google-branded code paths and their profile directory names remain unchanged.
 - Static source checks are recorded in `dk_browser/tests/test_linux_profile_identity.py`. This has not been validated in a compiled browser, and snap packaging remains disabled by the normal GN configuration.
 
+## DK Browser Linux packaging identity
+
+- Separate non-Google Linux package name (`dk-browser`), installation directory (`/opt/dksoftworks/dk-browser`), desktop icon identifier and protocol scheme. Include `Name[ru]=ДК Браузер` in the desktop file.
+- Keep Chromium's binary `chrome` as an internal executable, launched by the `dk-browser` package wrapper. Do not assume the binary has been renamed.
+- No DK signed package repository exists. The DK-specific Debian and RPM paths skip Google's updater and key installation; the default Linux group excludes Chromium's Google-hosted repository installer for DK. Google-branded source paths remain available when building that brand.
+- The publisher contact in package metadata is currently a GitHub no-reply address used as a *development placeholder*. Confirm a real support/maintainer address before public binary packages.
+- The icon preparer must be run before Linux package generation, and the DK package must be tested for safe install/uninstall and correct launch behavior. No .deb, .rpm, Snap or Flatpak was actually generated.
+- Review remaining installer/update-script assumptions, upstream Linux integration and every security consequence before publishing an installable package.
+
 ## Outstanding before a usable DK Browser release
 
 1. **Compile** on Linux using a synchronized upstream DEPS checkout and check build errors. Widevine is currently source-integrated, not proven working at runtime. A compatible CDM must already be present on the machine or supplied through a supported component flow. Some streaming services additionally enforce client authorization.

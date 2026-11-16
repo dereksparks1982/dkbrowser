@@ -558,6 +558,9 @@ class InstallerConfig:
 
     @staticmethod
     def _compute_deb_repoconfig(arch: str, package: str) -> tuple[str, str]:
+        if package == "dk-browser":
+            # No DK-hosted, signed package repository exists yet.
+            return "", ""
         base_repo_config = "dl.google.com/linux/chrome/deb/ stable main"
         default = f"deb [arch={arch}] https://{base_repo_config}"
         repoconfig = os.environ.get("REPOCONFIG", default)
@@ -568,6 +571,9 @@ class InstallerConfig:
 
     @staticmethod
     def _compute_rpm_repoconfig(package: str) -> tuple[str, str]:
+        if package == "dk-browser":
+            # Never direct DK packages at Google's RPM update servers.
+            return "", ""
         # ${PACKAGE#google-} removes "google-" prefix.
         if package.startswith("google-"):
             repo_package = package[7:]
@@ -919,7 +925,11 @@ class InstallerConfig:
             if self.channel not in ["beta", "unstable", "canary"]:
                 self.uri_scheme = "x-scheme-handler/google-chrome;"
         else:
-            self.uri_scheme = "x-scheme-handler/chromium;"
+            self.uri_scheme = (
+                "x-scheme-handler/dk-browser;"
+                if self.package_orig == "dk-browser"
+                else "x-scheme-handler/chromium;"
+            )
 
         # apparmor profile
         artifacts.append(

@@ -28,3 +28,16 @@ The fork's non-Google Linux profile defaults to `~/.config/dk-browser`. Google-b
 
 To check the source invariants without compiling Chromium:
 `python3 -m unittest discover -s dk_browser/tests`.
+
+## Linux package identity
+
+Non-Google Linux packages are named `dk-browser`, install under
+`/opt/dksoftworks/dk-browser`, and register a `dk-browser` desktop/icon
+identity. The internal Chromium executable remains named `chrome`.
+`Name[ru]=ДК Браузер` selects Russian application-menu labeling.
+
+No DK repository or signing infrastructure has been deployed. The DK .deb
+and .rpm maintenance scripts must not register Google's apt/yum repositories
+or signing keys. Packaging still requires building Chromium, preparing
+native icon sizes with `dk_browser/tools/prepare_icons.py` and testing actual
+install/uninstall lifecycle.
