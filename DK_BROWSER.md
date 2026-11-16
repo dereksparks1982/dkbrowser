@@ -217,3 +217,32 @@ pipeline, followed by actual MKV subtitle rendering.
 The `dk_browser/args.linux.gn` file supplies a starting point for a Linux development build with Chromium's supported media configuration. Actual codec availability depends on built FFmpeg and Linux hardware/platform decoder support. Check the resulting `media_buildflags.h` and inspect runtime decoding using `chrome://media-internals`.
 
 No Chromium executable was compiled by these source commits; this is repository-source development. There is no released DK Browser binary or claimed DRM/codec compatibility matrix.
+
+
+## Chromium upstream synchronization (source-only, November 16, 2026)
+
+DK Browser preserves its Chromium fork ancestry and the DK-specific changes
+while incorporating upstream Chromium commit
+`cfba7487b2e7e4a3a4fca808786a20780ea54c86` through a two-parent
+merge. The common ancestor was
+`c351363961e57cc3abe06e5e42359514c0a70ea4`.
+
+The source-level reconciliation retained the DK additions under
+`dk_browser/`, `assets/`, DK Browser README and engineering files,
+Linux packaging/profile, DK Live Block component wiring, Widevine/media
+changes, Russian strings and browser toolbar customizations. Chromium's
+new upstream files and dependency-roll changes were retained.
+
+Five files had changes on both sides. Their independent changes were
+combined in `chrome/browser/ui/views/frame/browser_view.cc`,
+`chrome/browser/ui/views/toolbar/BUILD.gn`, `toolbar_view.cc` and
+`toolbar_view.h`. Two old translation IDs that upstream removed were
+also removed from the DK-customized
+`chrome/app/resources/chromium_strings_ru.xtb`.
+
+This is a **source merge, not a verified browser**. No compilation, Linux
+launch, functionality checks or test suites were run. Recheck the external
+dependencies in `DEPS`, build flags, extension startup and media plumbing
+when the owner resumes compilation/testing. GitHub Actions were not used.
+The upstream `main` branch keeps moving, so this records a specific
+immutable commit, not permanent parity.
