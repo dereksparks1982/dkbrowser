@@ -124,6 +124,23 @@ function create(api=root.chrome?.declarativeNetRequest){
          removeRuleIds:current.map(item=>item.id),
          addRules:compiled.rules
        });
+       // The bundled static seed is separate from dynamic rules. Disabling
+       // protection must disable BOTH, or the switch still blocks requests.
+       // Re-enable the seed only when protection is enabled again.
+       if(api.getEnabledRulesets && api.updateEnabledRulesets){
+         const seed="dk_live_block_seed";
+         const enabled=await api.getEnabledRulesets();
+         const hasSeed=enabled.includes(seed);
+         const wantSeed=settings?.enabled!==false;
+         if(hasSeed!==wantSeed){
+           await api.updateEnabledRulesets(wantSeed?
+             {enableRulesetIds:[seed]}:{disableRulesetIds:[seed]});
+         }
+       }else if(settings?.enabled===false){
+         // A Chromium implementation without ruleset control cannot
+         // truthfully report protection as fully disabled.
+         throw new Error("Static ruleset toggle unavailable");
+       }
        stats={accepted:compiled.accepted,rejected:compiled.rejected,
          limited:compiled.limited,error:"",updated:Date.now()};
      }catch(error){
