@@ -279,8 +279,8 @@ public final class ProductionSupportedFlagList {
                         + " values in ViewStructure.setAutofillOptions."),
         Flag.baseFeature(
                 AndroidAutofillFeatures.ANDROID_AUTOFILL_REFETCH_MANAGER_IF_DISABLED_NAME,
-                "When enabled, fetches the Android AutofillManager again if it's disabled, e.g."
-                        + " after an app moves a WebView to an Activity."),
+                "When enabled, fetches the Android AutofillManager again if it's disabled or"
+                        + " after an app moves a WebView to a different Activity."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_ACCEPT_DOM_MUTATION_AFTER_AUTOFILL_SUBMISSION,
                 "Accepts DOM_MUTATION_AFTER_AUTOFILL submissions detected on password forms."),
@@ -1587,6 +1587,14 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AccessibilityFeatures.ACCESSIBILITY_MAP_TO_NEW_CLASS_NAMES,
                 "When enabled, maps Android a11y controls to their new className strings."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_UPDATE_DISPLAY_OBSERVER_ON_DISPLAY_CHANGES,
+                "Updates the DisplayAndroid observer when the display changes."),
+        Flag.baseFeature(
+                NetFeatures.DNS_TASK_ALLOW_PARTIAL_ADDRESS_RESULTS,
+                "Allows the built-in DNS resolver (HostResolverDnsTask) to succeed when one"
+                        + " address transaction (A or AAAA) succeeds and the sibling address"
+                        + " transaction fails."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

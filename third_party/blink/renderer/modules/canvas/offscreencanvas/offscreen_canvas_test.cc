@@ -276,12 +276,11 @@ TEST_P(OffscreenCanvasTest, CompositorFrameOpacity) {
 
   const bool context_alpha = GetParam().alpha;
 
-  auto resource = CanvasResourceSharedImage::CreateForTesting(
+  auto resource = CanvasResource::CreateForTesting(
       offscreen_canvas().Size(), viz::SinglePlaneFormat::kBGRA_8888,
       kPremul_SkAlphaType, gfx::ColorSpace::CreateSRGB(),
       gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY,
-      /*is_software=*/true,
-      /*is_accelerated=*/false, /*provider=*/nullptr,
+      /*is_software=*/true, /*client=*/nullptr,
       /*context_provider_wrapper=*/nullptr, shared_image_interface_provider());
   EXPECT_TRUE(!!resource);
 

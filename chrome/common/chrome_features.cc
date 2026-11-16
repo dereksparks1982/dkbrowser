@@ -542,7 +542,13 @@ BASE_FEATURE(kGlic,
 #endif
 );
 
-BASE_FEATURE(kGlicBackgroundActuation, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicBackgroundActuation,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE(kGlicSupportLinks, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1035,6 +1041,11 @@ BASE_FEATURE(kGlicArchiveConversation, base::FEATURE_DISABLED_BY_DEFAULT);
 // Whether to enable OneTimePassword filling in Glic.
 // TODO(b/500683394): Clean up after launch.
 BASE_FEATURE(kGlicActorAutofillOneTimePassword,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Whether Glic OneTimePassword filling accepts OTPs whose sender domain only
+// matches the OTP frame via the Public Suffix List in non-login flows.
+BASE_FEATURE(kGlicActorAutofillOneTimePasswordPslMatching,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether to click a field before filling it in Glic actor autofill.

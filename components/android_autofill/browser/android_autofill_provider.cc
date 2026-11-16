@@ -10,6 +10,8 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
@@ -134,21 +136,9 @@ void AndroidAutofillProvider::AttachToJavaAutofillProvider(
 
 void AndroidAutofillProvider::RenderFrameDeleted(
     content::RenderFrameHost* rfh) {
-  // If the popup menu has been triggered from within an iframe and that frame
-  // is deleted, hide the popup. This is necessary because the popup may
-  // actually be shown by the AutofillExternalDelegate of an ancestor frame,
-  // which is not notified about `rfh`'s destruction and therefore won't close
-  // the popup.
-  if (session_state_ && session_state_->manager &&
-      session_state_->last_queried_field_rfh_id == rfh->GetGlobalId()) {
-    OnHidePopup(session_state_->manager.get());
-  }
-  if (credman_sheet_rfh_id_ == rfh->GetGlobalId()) {
-    // `WebAuthnCredManDelegateFactory` takes care of cleaning up
-    // `GetCredManDelegate(rfh)`.
-    credman_sheet_status_ = CredManBottomSheetLifecycle::kNotShown;
-    credman_sheet_rfh_id_ = {};
-  }
+  // RenderFrameHostStateChanged() is not called on FrameTree::Shutdown():
+  // crbug.com/40693086.
+  MaybeHidePopupAndResetCredMan(rfh->GetGlobalId());
 }
 
 void AndroidAutofillProvider::RenderFrameHostStateChanged(
@@ -169,14 +159,7 @@ void AndroidAutofillProvider::RenderFrameHostStateChanged(
   };
 
   if (should_hide_popup(new_state)) {
-    if (session_state_ && session_state_->manager &&
-        session_state_->last_queried_field_rfh_id == rfh->GetGlobalId()) {
-      OnHidePopup(session_state_->manager.get());
-    }
-    if (credman_sheet_rfh_id_ == rfh->GetGlobalId()) {
-      ClearCredManCompletionCallback();
-      credman_sheet_status_ = CredManBottomSheetLifecycle::kNotShown;
-    }
+    MaybeHidePopupAndResetCredMan(rfh->GetGlobalId());
   }
 }
 
@@ -186,20 +169,28 @@ void AndroidAutofillProvider::DidFinishNavigation(
       navigation_handle->IsSameDocument()) {
     return;
   }
+  MaybeHidePopupAndResetCredMan(
+      navigation_handle->GetPreviousRenderFrameHostId());
+}
 
+void AndroidAutofillProvider::MaybeHidePopupAndResetCredMan(
+    content::GlobalRenderFrameHostId rfh_id) {
+  CHECK(rfh_id);
+  // If the popup menu has been triggered from within an iframe and that frame
+  // becomes inactive, navigates, or is deleted, hide the popup. This is
+  // necessary because `session_state_->manager` may belong to an ancestor
+  // frame, which is not reset and therefore won't close the popup via
+  // OnManagerResetOrDestroyed().
   if (session_state_ && session_state_->manager &&
-      session_state_->last_queried_field_rfh_id ==
-          navigation_handle->GetPreviousRenderFrameHostId()) {
+      session_state_->last_queried_field_rfh_id == rfh_id) {
     OnHidePopup(session_state_->manager.get());
   }
-
-  if (credman_sheet_rfh_id_ ==
-      navigation_handle->GetPreviousRenderFrameHostId()) {
+  if (credman_sheet_rfh_id_ == rfh_id) {
     // Clear the callback to prevent a race condition where the platform UI
-    // dismissal (triggered by navigation) calls back and overwrites the
-    // `credman_sheet_status_` to `kClosed` after we reset it to `kNotShown`.
-    ClearCredManCompletionCallback();
-    credman_sheet_status_ = CredManBottomSheetLifecycle::kNotShown;
+    // dismissal calls back and overwrites `credman_sheet_status_` to `kClosed`
+    // after we reset it to `kNotShown`. `WebAuthnCredManDelegateFactory` takes
+    // care of cleaning up `WebAuthnCredManDelegate` itself on frame deletion.
+    ClearCredManCompletionCallback(CredManBottomSheetLifecycle::kNotShown);
   }
 }
 
@@ -886,12 +877,11 @@ gfx::RectF AndroidAutofillProvider::ToClientAreaBound(
 }
 
 void AndroidAutofillProvider::Reset() {
-  ClearCredManCompletionCallback();
+  ClearCredManCompletionCallback(CredManBottomSheetLifecycle::kNotShown);
 
   // Clear all session-specific state.
   session_state_.reset();
 
-  credman_sheet_status_ = CredManBottomSheetLifecycle::kNotShown;
   was_shown_bottom_sheet_timer_.Stop();
   was_bottom_sheet_just_shown_ = false;
 
@@ -1030,7 +1020,10 @@ AndroidAutofillProvider::CachedData::operator=(CachedData&&) = default;
 
 AndroidAutofillProvider::CachedData::~CachedData() = default;
 
-void AndroidAutofillProvider::ClearCredManCompletionCallback() {
+void AndroidAutofillProvider::ClearCredManCompletionCallback(
+    CredManBottomSheetLifecycle new_status) {
+  CHECK_NE(new_status, CredManBottomSheetLifecycle::kIsShowing);
+  credman_sheet_status_ = new_status;
   if (!credman_sheet_rfh_id_) {
     return;
   }
@@ -1055,8 +1048,7 @@ void AndroidAutofillProvider::OnCredManUiClosed(
       credman_sheet_rfh_id_ != rfh_id) {
     return;
   }
-  credman_sheet_status_ = CredManBottomSheetLifecycle::kClosed;
-  ClearCredManCompletionCallback();
+  ClearCredManCompletionCallback(CredManBottomSheetLifecycle::kClosed);
   if (keyboard_suppressor_) {
     keyboard_suppressor_->Unsuppress();
   }

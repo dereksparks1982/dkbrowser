@@ -494,6 +494,7 @@ void AutofillClient::ShowAutofillAiAttributionVerification(
 void AutofillClient::ShowEmailVerificationPopup(
     const gfx::RectF& element_bounds,
     const url::Origin& issuer_origin,
+    const gfx::Image& issuer_logo,
     const std::u16string& email,
     base::OnceCallback<void(EmailVerificationPermissionUiStatus)> callback) {
   NOTIMPLEMENTED();
@@ -549,10 +550,6 @@ one_time_tokens::GmailOtpService* AutofillClient::GetGmailOtpService() {
 
 one_time_tokens::GmailOtpBackend* AutofillClient::GetGmailOtpBackend() const {
   return nullptr;
-}
-
-bool AutofillClient::DocumentUsedWebOTP() {
-  return false;
 }
 
 PasswordManagerAutofillHelperDelegate*

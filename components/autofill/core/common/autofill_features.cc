@@ -834,7 +834,7 @@ BASE_FEATURE(kAutofillFixStateCountryMisclassification,
 
 // Enables pre-launch metrics for one-time passwords (OTPs) received in Gmail.
 BASE_FEATURE(kAutofillGmailOtpPreLaunchMetrics,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, Greek regexes are used for parsing in branded builds.
 BASE_FEATURE(kAutofillGreekRegexes, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -934,7 +934,7 @@ BASE_FEATURE(kAutofillMoveSmallFormLogicToClient,
 // If enabled, the new suggestion generation logic is used.
 // TODO(crbug.com/409962888): Remove once launched.
 BASE_FEATURE(kAutofillNewSuggestionGeneration,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, `SuggestionType::kAddressEntryOnTyping` suggestions are offered
 // even if `FormFieldData::should_autocomplete()` is false
@@ -954,6 +954,13 @@ BASE_FEATURE(kAutofillOnlyConsiderSingleFieldFormsAsSearchForms,
 // TODO(crbug.com/479905438) Remove once launched.
 BASE_FEATURE(kAutofillOptimizeIsNormalizedNameVariantOf,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, launches asynchronous suggestion generators first and uses
+// `SuggestionBarrierCallback` to eagerly cancel lower-priority non-mergeable
+// generators once a higher-priority source returns suggestions.
+// TODO(crbug.com/409962888): Remove once launched.
+BASE_FEATURE(kAutofillOptimizeSuggestionGeneration,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, uses the tab-scoped `OtpCoordinator` and per-frame
 // `OtpTabToFrameOrchestrator` instead of `OtpManagerImpl`.
@@ -1058,6 +1065,18 @@ BASE_FEATURE(kAutofillPopupDontAcceptNonVisibleEnoughSuggestion,
 // guards against double destruction or showing while hiding.
 // TODO(crbug.com/524084900): Remove when launched.
 BASE_FEATURE(kAutofillPopupUseDeleteSoon, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, `FormFiller::FillOrPreviewForm()` runs the bookkeeping of fills
+// after `AutofillDriver::ApplyFormAction()` (cache updates, undo history, fill
+// log events, metrics and observer notifications) in a separate task instead of
+// synchronously. Previews always notify observers synchronously. Disabled by
+// default because observers are then notified about fills
+// (`AutofillManager::Observer::OnFillOrPreviewForm()`) one task later, e.g.,
+// after the suggestions were hidden.
+// TODO(crbug.com/582269824): Remove when the asynchronous bookkeeping has
+// launched.
+BASE_FEATURE(kAutofillPostTaskAfterFillOrPreviewForm,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether iframe subqueries use their host form's structural
 // signature and omit main-form-only metadata.

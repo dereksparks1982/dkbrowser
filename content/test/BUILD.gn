@@ -1811,6 +1811,7 @@ test("content_browsertests") {
     "../browser/webui/web_ui_navigation_browsertest.cc",
     "../browser/webui/web_ui_security_browsertest.cc",
     "../browser/worker_host/dedicated_worker_host_navigation_browsertest.cc",
+    "../browser/worker_host/shared_worker_permissions_policy_browsertest.cc",
     "../browser/worker_host/worker_browsertest.cc",
     "../browser/worker_network_isolation_key_browsertest.cc",
     "../child/webthemeengine_impl_default_browsertest.cc",
@@ -2129,8 +2130,14 @@ test("content_browsertests") {
   }
 
   if (enable_screen_ai_service) {
-    sources += [ "../renderer/accessibility/annotations/ax_main_node_annotator_browsertest.cc" ]
-    deps += [ "//services/screen_ai" ]
+    sources += [
+      "../renderer/accessibility/annotations/ax_canvas_annotator_browsertest.cc",
+      "../renderer/accessibility/annotations/ax_main_node_annotator_browsertest.cc",
+    ]
+    deps += [
+      "//services/screen_ai",
+      "//services/screen_ai/public/mojom",
+    ]
   }
 
   if (enable_library_cdms) {
@@ -2679,6 +2686,7 @@ test("content_unittests") {
     "../browser/devtools/protocol/digital_credentials_handler_unittest.cc",
     "../browser/devtools/protocol/display_capture_launcher_unittest.cc",
     "../browser/devtools/protocol/media_recorder_unittest.cc",
+    "../browser/devtools/protocol/network_handler_unittest.cc",
     "../browser/devtools/protocol/tracing_handler_unittest.cc",
     "../browser/devtools/protocol_unittest.cc",
     "../browser/devtools/request_body_collector_unittest.cc",
@@ -3250,6 +3258,7 @@ test("content_unittests") {
       "../app/locale_posix_unittest.cc",
       "../browser/child_thread_type_switcher_linux_unittest.cc",
       "../child/sandboxed_process_thread_type_handler_unittest.cc",
+      "../common/zygote/zygote_communication_linux_unittest.cc",
     ]
   }
 
@@ -3522,6 +3531,7 @@ test("content_unittests") {
     deps += [
       "//components/crash/content/browser/error_reporting",
       "//content/app:locale",
+      "//content/common:sandbox_support_linux",
       "//sandbox/linux:sandbox_services",
       "//sandbox/linux:sandbox_services_headers",
     ]

@@ -5,6 +5,7 @@
 #include "chrome/browser/password_manager/password_change_delegate_impl.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
@@ -26,6 +27,7 @@
 #include "chrome/browser/ui/autofill/autofill_client_provider.h"
 #include "chrome/browser/ui/autofill/autofill_client_provider_factory.h"
 #include "chrome/browser/ui/passwords/password_change_ui_controller.h"
+#include "components/affiliations/core/browser/affiliation_service.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_field_detector.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
@@ -37,7 +39,6 @@
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
 #include "components/password_manager/core/browser/generation/password_generator.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/url_formatter/elide_url.h"
@@ -129,16 +130,15 @@ PasswordChangeUIDelegate::State ToDelegateState(
 }  // namespace
 
 PasswordChangeDelegateImpl::PasswordChangeDelegateImpl(
-    GURL change_password_url,
     password_manager::LeakedPasswordDetails details,
     tabs::TabInterface* tab_interface)
-    : change_password_url_(change_password_url.is_empty()
-                               ? details.credentials.url
-                               : std::move(change_password_url)),
-      leak_details_(std::move(details)),
+    : leak_details_(std::move(details)),
       originator_(tab_interface->GetContents()),
       profile_(Profile::FromBrowserContext(originator_->GetBrowserContext())),
       ukm_source_id_(originator_->GetPrimaryMainFrame()->GetPageUkmSourceId()) {
+  CHECK(leak_details_.change_password_url_match.has_value());
+  CHECK(
+      leak_details_.change_password_url_match->change_password_url.is_valid());
   tab_will_detach_subscription_ = tab_interface->RegisterWillDetach(
       base::BindRepeating(&PasswordChangeDelegateImpl::OnTabWillDetach,
                           weak_ptr_factory_.GetWeakPtr()));
@@ -284,19 +284,17 @@ void PasswordChangeDelegateImpl::StartPasswordChangeFlow() {
   flow_start_time_ = base::Time::Now();
 
   logs_uploader_ = std::make_unique<ModelQualityLogsUploader>(
-      originator_, change_password_url_);
+      originator_, GetChangePasswordUrl());
   logs_uploader_->SetLoginPasswordFormInfo(leak_details_.credentials);
 
   if (!actuator_) {
     if (base::FeatureList::IsEnabled(
             password_change::features::kPasswordChangeWithGlic)) {
-      actuator_ = std::make_unique<GlicPasswordChangeActuator>(
-          password_manager::FromPasswordForm(leak_details_.credentials),
-          originator_, profile_, change_password_url_);
+      actuator_ = std::make_unique<GlicPasswordChangeActuator>(leak_details_,
+                                                               originator_);
     } else {
       actuator_ = std::make_unique<ScriptPasswordChangeActuator>(
-          change_password_url_, leak_details_.credentials, profile_,
-          logs_uploader_.get());
+          leak_details_, profile_, logs_uploader_.get());
     }
     actuator_->AddObserver(this);
   }
@@ -451,7 +449,7 @@ PasswordChangeUIDelegate::State PasswordChangeDelegateImpl::GetCurrentState()
 }
 
 const GURL& PasswordChangeDelegateImpl::GetChangePasswordUrl() const {
-  return change_password_url_;
+  return leak_details_.change_password_url_match->change_password_url;
 }
 
 const std::u16string& PasswordChangeDelegateImpl::GetUsername() const {
@@ -460,8 +458,11 @@ const std::u16string& PasswordChangeDelegateImpl::GetUsername() const {
 
 password_manager::PasswordString
 PasswordChangeDelegateImpl::GetGeneratedPassword() const {
-  return actuator_ ? actuator_->GetGeneratedPassword()
-                   : password_manager::PasswordString();
+  CHECK(actuator_);
+  PasswordChangeActuator::NewPasswordResult generated_password =
+      actuator_->GetOrGenerateNewPassword(/*form_manager=*/nullptr);
+  CHECK(generated_password.has_value());
+  return std::move(generated_password).value();
 }
 
 void PasswordChangeDelegateImpl::Stop() {
@@ -530,17 +531,13 @@ base::expected<password_manager::PasswordString,
                PasswordChangeDelegateImpl::Error>
 PasswordChangeDelegateImpl::GetNewPassword(
     password_manager::PasswordFormManager* form_manager) {
+  // Only the Glic actuator generates the new password on request.
+  CHECK(base::FeatureList::IsEnabled(
+      password_change::features::kPasswordChangeWithGlic));
   if (!actuator_) {
     return base::unexpected(Error::kNoPasswordChangeFlow);
   }
-  // Generating a password for the form observed by `form_manager` isn't
-  // supported yet, only the password generated by the actuator is returned.
-  password_manager::PasswordString new_password =
-      actuator_->GetGeneratedPassword();
-  if (new_password.empty()) {
-    return base::unexpected(Error::kGenerationFailed);
-  }
-  return new_password;
+  return actuator_->GetOrGenerateNewPassword(form_manager);
 }
 
 void PasswordChangeDelegateImpl::UpdateState(State new_state) {
@@ -582,7 +579,7 @@ bool PasswordChangeDelegateImpl::IsPrivacyNoticeAcknowledged() const {
 
 std::u16string PasswordChangeDelegateImpl::GetDisplayOrigin() const {
   return url_formatter::FormatUrlForSecurityDisplay(
-      change_password_url_, url_formatter::SchemeDisplay::OMIT_CRYPTOGRAPHIC);
+      GetChangePasswordUrl(), url_formatter::SchemeDisplay::OMIT_CRYPTOGRAPHIC);
 }
 
 void PasswordChangeDelegateImpl::OnCrossOriginNavigationDetected() {

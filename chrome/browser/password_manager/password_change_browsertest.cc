@@ -44,6 +44,7 @@
 #include "chrome/browser/ui/views/passwords/password_bubble_view_base.h"
 #include "chrome/browser/ui/views/passwords/password_change/password_change_toast.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/affiliations/core/browser/affiliation_service.h"
 #include "components/affiliations/core/browser/mock_affiliation_service.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/test_autofill_manager_injector.h"
@@ -63,6 +64,7 @@
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
 #include "components/password_manager/core/browser/features/password_features.h"
+#include "components/password_manager/core/browser/leak_detection_dialog_utils.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_store/password_form_converters.h"
@@ -196,9 +198,14 @@ class PasswordChangeBrowserTest : public base::test::WithFeatureOverride,
 
   password_manager::LeakedPasswordDetails CreateLeakedPasswordDetails(
       password_manager::PasswordForm form) {
+    std::optional<affiliations::AffiliationService::ChangePasswordUrlMatch>
+        match;
+    if (form.change_password_url.is_valid()) {
+      match.emplace(std::exchange(form.change_password_url, GURL()));
+    }
     return password_manager::LeakedPasswordDetails(
         password_manager::CredentialLeakFlags::kHasChangePasswordUrl,
-        std::move(form), /*in_account_store=*/false);
+        std::move(form), /*in_account_store=*/false, std::move(match));
   }
 
   password_manager::PasswordForm CreatePasswordForm(
@@ -501,16 +508,8 @@ class PasswordChangeBrowserTest : public base::test::WithFeatureOverride,
   base::WeakPtrFactory<PasswordChangeBrowserTest> weak_ptr_factory_{this};
 };
 
-// Flaky: crbug.com/456247817
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
-#define MAYBE_ChangePasswordFormIsFilledAutomatically \
-  DISABLED_ChangePasswordFormIsFilledAutomatically
-#else
-#define MAYBE_ChangePasswordFormIsFilledAutomatically \
-  ChangePasswordFormIsFilledAutomatically
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_P(PasswordChangeBrowserTest,
-                       MAYBE_ChangePasswordFormIsFilledAutomatically) {
+                       ChangePasswordFormIsFilledAutomatically) {
   SetPrivacyNoticeAcceptedPref();
   PasswordChangeDelegateImpl* delegate = OfferUiAndStartFlow(CreatePasswordForm(
       WebContents()->GetLastCommittedURL(), u"test", u"pa$$word",
@@ -522,6 +521,10 @@ IN_PROC_BROWSER_TEST_P(PasswordChangeBrowserTest,
   SetWebContents(web_contents);
   PasswordsNavigationObserver observer(web_contents);
   EXPECT_TRUE(observer.Wait());
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return delegate->GetCurrentState() ==
+           PasswordChangeUIDelegate::State::kChangingPassword;
+  }));
 
   std::string generated_password =
       base::UTF16ToUTF8(delegate->GetGeneratedPassword().secure_value());

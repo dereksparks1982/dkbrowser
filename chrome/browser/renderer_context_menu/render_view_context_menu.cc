@@ -73,6 +73,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/browser/glic/public/glic_provider_metrics.h"
+#include "chrome/browser/glic/public/glic_provider_spec.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/indigo/indigo_image_replacement.h"
 #include "chrome/browser/indigo/indigo_image_replacement_manager.h"
@@ -393,6 +394,7 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/devtools/devtools_policy_dialog.h"
+#include "chrome/browser/enterprise/data_protection/clipboard_toast_tracker.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
@@ -5767,13 +5769,21 @@ void RenderViewContextMenu::ExecCopyVideoFrame() {
       blink::mojom::MediaPlayerActionType::kCopyVideoFrame,
       /*enable=*/true));
 #if !BUILDFLAG(IS_ANDROID)
-  if (enterprise_data_protection::IsClipboardCopyAllowedByPolicyForUI(
-          GetWebContentsForDataControls()) &&
+  bool copy_allowed_by_policy =
+      enterprise_data_protection::IsClipboardCopyAllowedByPolicyForUI(
+          GetWebContentsForDataControls());
+  if (copy_allowed_by_policy &&
       toast_features::IsEnabled(toast_features::kVideoFrameCopiedToast)) {
     auto* const toast_controller = GetToastController();
     if (toast_controller) {
       toast_controller->MaybeShowToast(ToastParams(ToastId::kVideoFrameCopied));
     }
+  }
+  if (RenderFrameHost* frame_host = GetRenderFrameHost();
+      !copy_allowed_by_policy && frame_host) {
+    enterprise_data_protection::ClipboardToastTracker::GetForProfile(
+        GetProfile())
+        ->MarkVideoFrameCopy(frame_host->GetGlobalId());
   }
 #endif
 }
@@ -5954,7 +5964,7 @@ void RenderViewContextMenu::MaybeAppendOpenGlicItem(bool add_separator) {
                          &params_.selection_text);
     const bool is_page_eligible = IsPageContextEligible(source_web_contents_);
     const bool show_text_selection_menu_item =
-        base::FeatureList::IsEnabled(features::kGlicTextSelectionContextMenu) &&
+        glic::GlicEnabling::IsTextSelectionContextMenuEnabled(GetProfile()) &&
         !params_.selection_text.empty() && is_page_eligible;
 
     const std::string arm = features::kGlicContextMenuArm.Get();
@@ -5967,7 +5977,9 @@ void RenderViewContextMenu::MaybeAppendOpenGlicItem(bool add_separator) {
       // The auto-submit arm sends the page along with the selection, so the
       // label mentions both.
       const int label_id =
-          features::kGlicTextSelectionContextMenuAutoSubmit.Get()
+          glic::GetGlicProviderSpec(GetProfile())
+                  .GetTextSelectionContextMenuFeatureParams()
+                  .auto_submit
               ? IDS_GLIC_CONTEXT_MENU_ASK_GEMINI_ABOUT_PAGE_AND_SELECTION
               : IDS_GLIC_CONTEXT_MENU_ASK_GEMINI_ABOUT;
       label = l10n_util::GetStringFUTF16(label_id, printable_selection_text);

@@ -462,7 +462,7 @@
   {
     "name": "android-device-signals-disclaimer",
     "owners": [ "ssolarewicz@google.com", "cec-growth@google.com" ],
-    "expiry_milestone": 160
+    "expiry_milestone": 165
   },
   {
     "name": "android-elegant-text-height",
@@ -2633,7 +2633,7 @@
       "kalinino@google.com",
       "//components/critical_actions/OWNERS"
     ],
-    "expiry_milestone": 160
+    "expiry_milestone": 185
   },
   {
     "name": "cros-components",
@@ -3003,7 +3003,7 @@
   {
     "name": "device-signals-backfill-disclaimer",
     "owners": [ "ssolarewicz@google.com", "cec-growth@google.com" ],
-    "expiry_milestone": 160
+    "expiry_milestone": 163
   },
   {
     "name": "device-trust-connector-android",
@@ -4995,7 +4995,7 @@
       "yasamans@google.com",
       "bling-alchemy-eng@google.com"
     ],
-    "expiry_milestone": 160
+    "expiry_milestone": 170
   },
   {
     "name": "export-platform-policies-json",
@@ -5377,6 +5377,11 @@
     "expiry_milestone": 81
   },
   {
+    "name": "fre-ablation",
+    "owners": [ "cheickcisse@google.com", "zijingl@google.com", "bling-mony-pod@google.com" ],
+    "expiry_milestone": 165
+  },
+  {
     "name": "fre-string-changes",
     "owners": ["mschillaci@google.com", "jhimawan@google.com", "nehasapre@google.com", "clank-app-team@google.com"],
     "expiry_milestone": 165
@@ -5427,16 +5432,6 @@
     "name": "fwupd-developer-mode",
     "owners": [ "rishabhagr@chromium.org" ],
     "expiry_milestone": 145
-  },
-  {
-    "name": "gaia-auth-fetcher-dont-send-sid-cookies",
-    "owners": [
-      "msarda@google.com",
-      "alexilin@chromium.org",
-      "bsazonov@chromium.org",
-      "chrome-signin-team@google.com"
-    ],
-    "expiry_milestone": 158
   },
   {
     "name": "gamepad-raw-input-change-event",
@@ -5526,12 +5521,12 @@
   {
     "name": "gemini-fre-experiment",
     "owners": [ "hamzamoh@google.com", "bling-alchemy-eng@google.com" ],
-    "expiry_milestone": 160
+    "expiry_milestone": 170
   },
   {
     "name": "gemini-fre-refactor",
     "owners": [ "hamzamoh@google.com", "bling-alchemy-eng@google.com" ],
-    "expiry_milestone": 160
+    "expiry_milestone": 170
   },
   {
     "name": "gemini-host-experiment-ids",
@@ -5567,7 +5562,7 @@
   {
     "name": "gemini-multi-tab-context",
     "owners": [ "joepeplowski@google.com", "bling-alchemy-eng@google.com" ],
-    "expiry_milestone": 160
+    "expiry_milestone": 166
   },
   {
     "name": "gemini-native-header",
@@ -6094,7 +6089,7 @@
       "wendlassida@google.com",
       "chrome-signin-mobile-team@google.com"
     ],
-    "expiry_milestone": 160
+    "expiry_milestone": 165
   },
   {
     "name": "happiness-tracking-surveys-for-desktop-demo",
@@ -9061,11 +9056,6 @@
     "expiry_milestone": 158
   },
   {
-    "name": "single-ca-cert-verification-phase-2",
-    "owners": ["olsa@chromium.org", "chromeos-commercial-networking@google.com"],
-    "expiry_milestone": 160
-  },
-  {
     "name": "site-isolation-trial-opt-out",
     "owners": [ "site-isolation-dev@chromium.org", "alexmos@chromium.org", "creis@chromium.org", "lukasza@chromium.org" ],
     // This is useful to opt out of active site isolation modes for debugging
@@ -9271,7 +9261,7 @@
       "chrome-shopping-eng@google.com",
       "top-chrome-desktop-ui@google.com"
     ],
-    "expiry_milestone": 155
+    "expiry_milestone": 170
   },
   {
     "name": "sync-autofill-valuable",
@@ -9751,11 +9741,6 @@
     "expiry_milestone": 162
   },
   {
-    "name": "uno-phase-2-follow-up",
-    "owners": [ "droger@chromium.org", "chrome-signin-team@google.com" ],
-    "expiry_milestone": 160
-  },
-  {
     "name": "unsafely-treat-insecure-origin-as-secure",
     "owners": [ "security-dev@chromium.org" ],
     // This flag is supported for bypassing security restrictions on HTTP pages,
@@ -9969,34 +9954,12 @@
     "expiry_milestone": 164
   },
   {
-    "name": "vc-relighting-inference-backend",
-    "owners": [
-      "shik@chromium.org",
-      "chingkang@chromium.org",
-      "jcliang@chromium.org",
-      "ototot@chromium.org",
-      "cros-odml-foundations-eng@google.com"
-    ],
-    "expiry_milestone": 150
-  },
-  {
     "name": "vc-retouch-inference-backend",
     "owners": [
       "shik@chromium.org",
       "chingkang@chromium.org",
       "jcliang@chromium.org",
       "ototot@google.com",
-      "cros-odml-foundations-eng@google.com"
-    ],
-    "expiry_milestone": 150
-  },
-  {
-    "name": "vc-segmentation-inference-backend",
-    "owners": [
-      "shik@chromium.org",
-      "chingkang@chromium.org",
-      "jcliang@chromium.org",
-      "ototot@chromium.org",
       "cros-odml-foundations-eng@google.com"
     ],
     "expiry_milestone": 150
@@ -10205,7 +10168,7 @@
   {
     "name": "webium",
     "owners": [ "robliao@chromium.org", "kerenzhu@chromium.org" ],
-    "expiry_milestone": 160
+    "expiry_milestone": 165
   },
   {
     "name": "webnn-coreml",

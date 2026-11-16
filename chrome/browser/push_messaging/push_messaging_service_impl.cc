@@ -656,7 +656,7 @@ void PushMessagingServiceImpl::DeliverMessageCallback(
         app_identifier.is_null()
             ? -1 /* kInvalidServiceWorkerRegistrationId */
             : app_identifier.service_worker_registration_id(),
-        app_id, message.sender_id,
+        app_id,
         base::BindOnce(&UnregisterCallbackToClosure,
                        completion_closure_runner.Release()));
 
@@ -1280,7 +1280,6 @@ void PushMessagingServiceImpl::Unsubscribe(
     blink::mojom::PushUnregistrationReason reason,
     const GURL& requesting_origin,
     int64_t service_worker_registration_id,
-    const std::string& sender_id,
     UnregisterCallback callback) {
   push_messaging::AppIdentifier app_identifier =
       PushMessagingAppIdentifier::FindByServiceWorker(
@@ -1289,7 +1288,7 @@ void PushMessagingServiceImpl::Unsubscribe(
   UnsubscribeInternal(
       reason, requesting_origin, service_worker_registration_id,
       app_identifier.is_null() ? std::string() : app_identifier.app_id(),
-      sender_id, std::move(callback));
+      std::move(callback));
 }
 
 void PushMessagingServiceImpl::UnsubscribeInternal(
@@ -1297,7 +1296,6 @@ void PushMessagingServiceImpl::UnsubscribeInternal(
     const GURL& origin,
     int64_t service_worker_registration_id,
     const std::string& app_id,
-    const std::string& sender_id,
     UnregisterCallback callback) {
   DCHECK(!app_id.empty() || (!origin.is_empty() &&
                              service_worker_registration_id !=
@@ -1310,13 +1308,13 @@ void PushMessagingServiceImpl::UnsubscribeInternal(
       service_worker_registration_id ==
           -1 /* kInvalidServiceWorkerRegistrationId */) {
     // Can't clear Service Worker database.
-    DidClearPushSubscriptionId(reason, app_id, sender_id, std::move(callback));
+    DidClearPushSubscriptionId(reason, app_id, std::move(callback));
     return;
   }
   ClearPushSubscriptionId(
       profile_, origin, service_worker_registration_id,
       base::BindOnce(&PushMessagingServiceImpl::DidClearPushSubscriptionId,
-                     weak_factory_.GetWeakPtr(), reason, app_id, sender_id,
+                     weak_factory_.GetWeakPtr(), reason, app_id,
                      std::move(callback)));
 
   origins_requesting_user_visible_requirement_bypass.erase(origin);
@@ -1325,7 +1323,6 @@ void PushMessagingServiceImpl::UnsubscribeInternal(
 void PushMessagingServiceImpl::DidClearPushSubscriptionId(
     blink::mojom::PushUnregistrationReason reason,
     const std::string& app_id,
-    const std::string& sender_id,
     UnregisterCallback callback) {
   if (app_id.empty()) {
     // Without an |app_id|, we can neither delete the subscription from the
@@ -1401,16 +1398,10 @@ void PushMessagingServiceImpl::DidClearPushSubscriptionId(
                      weak_factory_.GetWeakPtr(), app_id, was_subscribed));
 }
 
-void PushMessagingServiceImpl::DidUnregister(bool was_subscribed,
-                                             gcm::GCMClient::Result result) {
-  DidUnsubscribe(std::string() /* app_id_when_instance_id */, was_subscribed);
-}
-
 void PushMessagingServiceImpl::DidDeleteID(const std::string& app_id,
                                            bool was_subscribed,
                                            InstanceID::Result result) {
-  // DidUnsubscribe must be run asynchronously when passing a non-empty
-  // |app_id_when_instance_id|, since it calls
+  // DidUnsubscribe must be run asynchronously, since it calls
   // InstanceIDDriver::RemoveInstanceID which deletes the InstanceID itself.
   // Calling that immediately would cause a use-after-free in our caller.
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -1419,11 +1410,9 @@ void PushMessagingServiceImpl::DidDeleteID(const std::string& app_id,
                      weak_factory_.GetWeakPtr(), app_id, was_subscribed));
 }
 
-void PushMessagingServiceImpl::DidUnsubscribe(
-    const std::string& app_id_when_instance_id,
-    bool was_subscribed) {
-  if (!app_id_when_instance_id.empty())
-    GetInstanceIDDriver()->RemoveInstanceID(app_id_when_instance_id);
+void PushMessagingServiceImpl::DidUnsubscribe(const std::string& app_id,
+                                              bool was_subscribed) {
+  GetInstanceIDDriver()->RemoveInstanceID(app_id);
 
   if (was_subscribed)
     DecreasePushSubscriptionCount(1, false /* was_pending */);
@@ -1455,7 +1444,6 @@ void PushMessagingServiceImpl::DidDeleteServiceWorkerRegistration(
   UnsubscribeInternal(
       blink::mojom::PushUnregistrationReason::SERVICE_WORKER_UNREGISTERED,
       origin, service_worker_registration_id, app_identifier.app_id(),
-      std::string() /* sender_id */,
       base::BindOnce(&UnregisterCallbackToClosure,
                      service_worker_unregistered_callback_for_testing_.is_null()
                          ? base::DoNothing()
@@ -1486,7 +1474,7 @@ void PushMessagingServiceImpl::DidDeleteServiceWorkerDatabase() {
         blink::mojom::PushUnregistrationReason::SERVICE_WORKER_DATABASE_WIPED,
         app_identifier.origin(),
         app_identifier.service_worker_registration_id(),
-        app_identifier.app_id(), std::string() /* sender_id */,
+        app_identifier.app_id(),
         base::BindOnce(&UnregisterCallbackToClosure, completed_closure));
   }
 }
@@ -1590,29 +1578,9 @@ void PushMessagingServiceImpl::UnexpectedUnsubscribe(
     const push_messaging::AppIdentifier& app_identifier,
     blink::mojom::PushUnregistrationReason reason,
     UnregisterCallback unregister_callback) {
-  // When `pushsubscriptionchange` is supported by default, get |sender_id| from
-  // GetPushSubscriptionFromAppIdentifier callback and do not get the info from
-  // IO twice
-  bool need_sender_id = false;
-#if BUILDFLAG(IS_ANDROID)
-  need_sender_id =
-      !push_messaging::AppIdentifier::UseInstanceID(app_identifier.app_id());
-#endif
-    if (need_sender_id) {
-      GetSenderId(
-          profile_, app_identifier.origin(),
-          app_identifier.service_worker_registration_id(),
-          base::BindOnce(
-              &PushMessagingServiceImpl::DidGetSenderIdUnexpectedUnsubscribe,
-              weak_factory_.GetWeakPtr(), app_identifier, reason,
-              std::move(unregister_callback)));
-    } else {
-      UnsubscribeInternal(reason, app_identifier.origin(),
-                          app_identifier.service_worker_registration_id(),
-                          app_identifier.app_id(),
-                          std::string() /* sender_id */,
-                          std::move(unregister_callback));
-    }
+  UnsubscribeInternal(reason, app_identifier.origin(),
+                      app_identifier.service_worker_registration_id(),
+                      app_identifier.app_id(), std::move(unregister_callback));
 }
 
 void PushMessagingServiceImpl::GetPushSubscriptionFromAppIdentifier(
@@ -1696,21 +1664,6 @@ void PushMessagingServiceImpl::FirePushSubscriptionChangeForAppIdentifier(
       std::move(old_subscription));
 }
 
-void PushMessagingServiceImpl::DidGetSenderIdUnexpectedUnsubscribe(
-    const push_messaging::AppIdentifier& app_identifier,
-    blink::mojom::PushUnregistrationReason reason,
-    UnregisterCallback callback,
-    const std::string& sender_id) {
-  // Unsubscribe the push_messaging::AppIdentifier with the push service.
-  // It's possible for GetSenderId to have failed and sender_id to be empty, if
-  // cookies (and the SW database) for an origin got cleared before permissions
-  // are cleared for the origin. Unsubscribe does not use `sender_id`, so it
-  // still deletes the InstanceID of a legacy app_id in that case.
-  UnsubscribeInternal(reason, app_identifier.origin(),
-                      app_identifier.service_worker_registration_id(),
-                      app_identifier.app_id(), sender_id, std::move(callback));
-}
-
 void PushMessagingServiceImpl::SetContentSettingChangedCallbackForTesting(
     base::RepeatingClosure callback) {
   content_setting_changed_callback_for_testing_ = std::move(callback);
@@ -1779,8 +1732,7 @@ void PushMessagingServiceImpl::StartRefresh(
           old_app_identifier.service_worker_registration_id(),
           std::nullopt /* expiration_time */);
 
-  refresher_.Refresh(old_app_identifier, new_app_identifier.app_id(),
-                     sender_id);
+  refresher_.Refresh(old_app_identifier, new_app_identifier.app_id());
 
   UpdateSubscription(
       new_app_identifier,
@@ -1886,15 +1838,13 @@ void PushMessagingServiceImpl::DidUpdateSubscription(
 // PushMessagingRefresher::Observer methods ------------------------------------
 
 void PushMessagingServiceImpl::OnOldSubscriptionExpired(
-    const std::string& app_id,
-    const std::string& sender_id) {
+    const std::string& app_id) {
   // Unsubscribe without clearing SW database, since values of the new
   // subscription are already saved there.
   // After unsubscribing, the refresher will get notified.
   UnsubscribeInternal(
       blink::mojom::PushUnregistrationReason::REFRESH_FINISHED,
       GURL() /* origin */, -1 /* service_worker_registration_id */, app_id,
-      sender_id,
       base::BindOnce(&UnregisterCallbackToClosure,
                      base::BindOnce(&PushMessagingRefresher::OnUnsubscribed,
                                     refresher_.GetWeakPtr(), app_id)));
@@ -1926,7 +1876,7 @@ bool PushMessagingServiceImpl::IsPermissionSet(const GURL& origin,
 void PushMessagingServiceImpl::GetEncryptionInfoForAppId(
     const std::string& app_id,
     const std::string& sender_id,
-    gcm::GCMEncryptionProvider::EncryptionInfoCallback callback) {
+    InstanceID::GetEncryptionInfoCallback callback) {
   // A legacy (non-InstanceID) app_id stores its encryption keys with an empty
   // authorized entity. Keep using these keys, because the app server already
   // has the public key. This has the same effect as the deprecated

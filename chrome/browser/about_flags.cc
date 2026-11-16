@@ -3245,21 +3245,10 @@ const FeatureEntry::FeatureParam kVcInferenceBackendNpu[] = {
     {"inference_backend", "NPU"},
 };
 
-const FeatureEntry::FeatureVariation kVcRelightingInferenceBackendVariations[] =
-    {{"AUTO", kVcInferenceBackendAuto, nullptr},
-     {"GPU", kVcInferenceBackendGpu, nullptr},
-     {"NPU", kVcInferenceBackendNpu, nullptr}};
-
 const FeatureEntry::FeatureVariation kVcRetouchInferenceBackendVariations[] = {
     {"AUTO", kVcInferenceBackendAuto, nullptr},
     {"GPU", kVcInferenceBackendGpu, nullptr},
     {"NPU", kVcInferenceBackendNpu, nullptr}};
-
-const FeatureEntry::FeatureVariation
-    kVcSegmentationInferenceBackendVariations[] = {
-        {"AUTO", kVcInferenceBackendAuto, nullptr},
-        {"GPU", kVcInferenceBackendGpu, nullptr},
-        {"NPU", kVcInferenceBackendNpu, nullptr}};
 
 const FeatureEntry::FeatureParam kVcSegmentationModelHighResolution[] = {
     {"segmentation_model", "high_resolution"},
@@ -8156,10 +8145,6 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kAudioFlexibleLoopbackForSystemLoopbackDescription,
      kOsCrOS,
      FEATURE_VALUE_TYPE(media::kAudioFlexibleLoopbackForSystemLoopback)},
-    {"single-ca-cert-verification-phase-2",
-     flag_descriptions::kSingleCaCertVerificationPhase2Name,
-     flag_descriptions::kSingleCaCertVerificationPhase2Description, kOsCrOS,
-     FEATURE_VALUE_TYPE(ash::features::kSingleCaCertVerificationPhase2)},
     {"fix-static-ip-for-two-managed-ethernet-ports",
      flag_descriptions::kFixStaticIpForTwoManagedEthPortsName,
      flag_descriptions::kFixStaticIpForTwoManagedEthPortsDescription, kOsCrOS,
@@ -8820,7 +8805,7 @@ const FeatureEntry kFeatureEntries[] = {
      FEATURE_VALUE_TYPE(features::kFedCmActiveModeMultipleIdentityProviders)},
 
     {"fedcm-idp-links", flag_descriptions::kFedCmIdpLinksName,
-     flag_descriptions::kFedCmIdpLinksDescription, kOsDesktop,
+     flag_descriptions::kFedCmIdpLinksDescription, kOsAll,
      FEATURE_VALUE_TYPE(features::kFedCmIdpLinks)},
 
     {"fedcm-idp-registration", flag_descriptions::kFedCmIdPRegistrationName,
@@ -9342,13 +9327,6 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kDesksTemplatesDescription, kOsCrOS,
      FEATURE_VALUE_TYPE(ash::features::kDesksTemplates)},
 
-    {"vc-relighting-inference-backend",
-     flag_descriptions::kVcRelightingInferenceBackendName,
-     flag_descriptions::kVcRelightingInferenceBackendDescription, kOsCrOS,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(
-         ash::features::kVcRelightingInferenceBackend,
-         kVcRelightingInferenceBackendVariations,
-         "VcRelightingInferenceBackend")},
     {"vc-retouch-inference-backend",
      flag_descriptions::kVcRetouchInferenceBackendName,
      flag_descriptions::kVcRetouchInferenceBackendDescription, kOsCrOS,
@@ -9360,13 +9338,6 @@ const FeatureEntry kFeatureEntries[] = {
      FEATURE_WITH_PARAMS_VALUE_TYPE(ash::features::kVcSegmentationModel,
                                     kVcSegmentationModelVariations,
                                     "VCSegmentationModel")},
-    {"vc-segmentation-inference-backend",
-     flag_descriptions::kVcSegmentationInferenceBackendName,
-     flag_descriptions::kVcSegmentationInferenceBackendDescription, kOsCrOS,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(
-         ash::features::kVcSegmentationInferenceBackend,
-         kVcSegmentationInferenceBackendVariations,
-         "VcSegmentationInferenceBackend")},
     {"vc-web-api", flag_descriptions::kVcWebApiName,
      flag_descriptions::kVcWebApiDescription, kOsCrOS,
      FEATURE_VALUE_TYPE(ash::features::kVcWebApi)},
@@ -10274,12 +10245,6 @@ const FeatureEntry kFeatureEntries[] = {
      kOsMac | kOsWin | kOsLinux,
      FEATURE_VALUE_TYPE(
          net::features::kDeviceBoundSessionsIncludeAudienceClaim)},
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-    {"uno-phase-2-follow-up", flag_descriptions::kUnoPhase2FollowUpName,
-     flag_descriptions::kUnoPhase2FollowUpDescription, kOsDesktop,
-     FEATURE_VALUE_TYPE(syncer::kUnoPhase2FollowUp)},
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 
     {"pwm-show-suggestions-on-autofocus",
      flag_descriptions::kPasswordManagerShowSuggestionsOnAutofocusName,

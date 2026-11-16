@@ -111,18 +111,21 @@ GURL GetUrlFromEndpoint(const content::ClipboardEndpoint& endpoint) {
 
 bool SkipDataControlOrContentAnalysisChecks(
     const content::ClipboardEndpoint& main_endpoint) {
-  // Data Controls and content analysis copy/paste checks require an active tab
-  // to be meaningful, so if it's gone they can be skipped.
-  if (main_endpoint.web_contents()) {
-    return false;
+  // Every lookup past this point needs a BrowserContext. The fetcher returns
+  // null once the endpoint's frame, worker or context is gone, even if its tab
+  // is still open, e.g. when a subframe is removed.
+  if (!main_endpoint.browser_context()) {
+    return true;
   }
 
-  // A service worker never has a tab, but it does have a BrowserContext to
-  // evaluate rules against, so the checks still apply. The fetcher returns
-  // null once the worker or its context is gone, and every lookup past this
-  // point needs one.
-  return !(main_endpoint.is_service_worker() &&
-           main_endpoint.browser_context());
+  // Data Controls and content analysis copy/paste checks require an active tab
+  // to be meaningful, so if it's gone they can be skipped.
+  // A service worker never has a tab, but the checks still apply to it.
+  if (!main_endpoint.web_contents()) {
+    return !main_endpoint.is_service_worker();
+  }
+
+  return false;
 }
 
 // Returns the level a copy kept in managed Chrome is tracked with: "managed
@@ -922,7 +925,9 @@ void OnDataControlsCopyWarning(
     data_controls::Verdict verdict,
     content::ContentBrowserClient::IsClipboardCopyAllowedCallback callback,
     bool bypassed) {
-  if (bypassed) {
+  // Without its source, e.g. a subframe removed while the warning was shown,
+  // the copy can't be checked further, so it's refused even if bypassed.
+  if (bypassed && !SkipDataControlOrContentAnalysisChecks(source)) {
     MaybeReportDataControlsCopy(source, metadata, verdict, /*bypassed=*/true);
     IsCopyToOSClipboardRestricted(source, metadata, data, std::move(callback));
     return;
@@ -1649,13 +1654,10 @@ bool IsClipboardCopyAllowedByPolicyForUI(content::WebContents* web_contents) {
   return true;
 }
 
-void CopyTextToClipboard(content::RenderFrameHost* rfh,
-                         const std::u16string& text) {
-  if (!rfh) {
-    return;
-  }
-
-  content::ClipboardEndpoint clipboard_endpoint = MakeClipboardEndpoint(*rfh);
+void CopyTextToClipboard(content::RenderFrameHost& rfh,
+                         const std::u16string& text,
+                         base::OnceCallback<void(bool copied)> callback) {
+  content::ClipboardEndpoint clipboard_endpoint = MakeClipboardEndpoint(rfh);
   auto dte = std::make_unique<ui::DataTransferEndpoint>(
       *clipboard_endpoint.data_transfer_endpoint());
 
@@ -1672,18 +1674,26 @@ void CopyTextToClipboard(content::RenderFrameHost* rfh,
       std::move(data),
       base::BindOnce(
           [](std::unique_ptr<ui::DataTransferEndpoint> dte,
+             base::OnceCallback<void(bool copied)> callback,
              const ui::ClipboardFormatType& data_type,
              const content::ClipboardPasteData& data,
              std::optional<std::u16string> replacement_data) {
-            ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste,
-                                          std::move(dte));
-            if (replacement_data) {
-              scw.WriteText(std::move(*replacement_data));
-            } else {
-              scw.WriteText(data.text);
+            // A copy blocked by policy comes back empty.
+            bool copied = !replacement_data && !data.text.empty();
+            // The writer commits when it goes out of scope, so `callback` runs
+            // once the text is on the clipboard.
+            {
+              ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste,
+                                            std::move(dte));
+              if (replacement_data) {
+                scw.WriteText(std::move(*replacement_data));
+              } else {
+                scw.WriteText(data.text);
+              }
             }
+            std::move(callback).Run(copied);
           },
-          std::move(dte)));
+          std::move(dte), std::move(callback)));
 }
 
 void CopyImageToClipboard(content::RenderFrameHost& rfh,

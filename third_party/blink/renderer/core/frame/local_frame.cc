@@ -31,7 +31,6 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 
 #include <algorithm>
-#include <cstdint>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -500,6 +499,17 @@ void LocalFrame::CreateView(const gfx::Size& viewport_size,
   if (is_local_root) {
     frame_view->SetParentVisible(true);
   }
+
+  bool subtree_throttled = false;
+  if (Frame* parent = Tree().Parent()) {
+    if (FrameView* parent_view = parent->View()) {
+      subtree_throttled = parent_view->CanThrottleRenderingForPropagation();
+    }
+  }
+  frame_view->UpdateRenderThrottlingStatus(
+      /*hidden_for_throttling=*/false, subtree_throttled,
+      /*display_locked=*/Owner() && Owner()->IsDisplayLocked(),
+      /*recurse=*/false);
 
   AttachViewToOwner();
 

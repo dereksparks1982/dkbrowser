@@ -24,6 +24,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/service/glic_activity_manager.h"
 #include "chrome/browser/glic/public/service/legacy_glic_activity_manager.h"
+#include "chrome/browser/glic/service/glic_activity_manager_impl.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/mock_glic_keyed_service.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
@@ -39,6 +40,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
+#include "ui/views/bubble/bubble_anchor.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
 #include "ui/views/controls/button/button.h"
@@ -98,7 +100,7 @@ class TestGlicSplitButtonDelegate : public glic::GlicSplitButtonDelegate {
           base::BindRepeating(
               &GlicActivityListBubbleController::OnBubbleDestroyed,
               controller_->GetWeakPtr()));
-      bubble_->Show(anchor_view_);
+      bubble_->Show(views::BubbleAnchor(anchor_view_));
     }
   }
 
@@ -641,7 +643,7 @@ TEST_F(GlicActivityListBubbleControllerActivityHubTest,
        CreateRowViewModels_ActorTasks) {
   auto* fake_actor_service = static_cast<actor::ActorKeyedServiceFake*>(
       actor::ActorKeyedService::Get(profile_));
-  auto* activity_manager = &mock_glic_keyed_service_->activity_manager();
+  auto* activity_manager = &mock_glic_keyed_service_->activity_manager_impl();
   ASSERT_TRUE(activity_manager);
 
   actor::TaskId id_1 = fake_actor_service->CreateTaskForTesting();
@@ -677,7 +679,7 @@ TEST_F(GlicActivityListBubbleControllerActivityHubTest,
 
 TEST_F(GlicActivityListBubbleControllerActivityHubTest,
        OnActivityAlert_InterruptionLevels) {
-  auto* activity_manager = &mock_glic_keyed_service_->activity_manager();
+  auto* activity_manager = &mock_glic_keyed_service_->activity_manager_impl();
   ASSERT_TRUE(activity_manager);
 
   // Seed an in-progress conversation activity so there is a displayable row
@@ -724,7 +726,7 @@ TEST_F(GlicActivityListBubbleControllerActivityHubTest,
 
 TEST_F(GlicActivityListBubbleControllerActivityHubTest,
        CreateRowViewModels_ConversationActivities) {
-  auto* manager = &mock_glic_keyed_service_->activity_manager();
+  auto* manager = &mock_glic_keyed_service_->activity_manager_impl();
   ASSERT_TRUE(manager);
 
   manager->OnConversationActivityStateChanged(

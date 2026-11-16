@@ -56,12 +56,20 @@ BASE_FEATURE(kFastFaviconDisplay, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables showing the identity provider's account management page, privacy
 // policy and terms of service links in the FedCM modal permission dialog on
-// desktop. In passive mode, an account that needs permission then requests it
-// through the modal dialog instead of the bubble. With multiple identity
-// providers, this also requires `kFedCmActiveModeMultipleIdentityProviders`.
-// The links are shown in the disclosure container, so this also enables the
-// container UI, as if `kFedCmPermissionUiWithContainer` were enabled.
+// desktop and the active mode bottom sheet on Android. On desktop, an account
+// that needs permission in passive mode then requests it through the modal
+// dialog instead of the bubble (with multiple identity providers, this also
+// requires `kFedCmActiveModeMultipleIdentityProviders`). Passive mode on
+// Android is unchanged. The links are shown in the disclosure container, so
+// this also enables the container UI, as if `kFedCmPermissionUiWithContainer`
+// were enabled.
 BASE_FEATURE(kFedCmIdpLinks, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Populates an opaque `initiator_origin` when Desktop FedCM opens modal dialog
+// popups (`FedCmModalDialogView::ShowPopupWindow()`) or info/policy link tabs
+// (`FedCmAccountSelectionView::ShowUrl()`). Kill switch for
+// crbug.com/415848455.
+BASE_FEATURE(kFedCmOpaqueInitiatorOrigin, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the request permission UI with a container for the disclosure text
 // in the FedCM modal permission dialog on desktop and the active mode bottom
@@ -72,7 +80,13 @@ BASE_FEATURE(kFedCmPermissionUiWithContainer,
 // Enables the Match Case (Aa) toggle button in the Find-in-Page bar.
 BASE_FEATURE(kFindInPageMatchCase, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kImportExportFlags, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kImportExportFlags,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE(kInfoBarQueuedCountPill, base::FEATURE_DISABLED_BY_DEFAULT);
 

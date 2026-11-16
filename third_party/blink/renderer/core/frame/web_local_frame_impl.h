@@ -108,7 +108,7 @@ struct ContextMenuData;
 struct WebAssociatedURLLoaderOptions;
 struct WebPrintParams;
 
-// Implementation of WebFrame, note that this is a reference counted object.
+// Implementation of WebFrame for local frames.
 class CORE_EXPORT WebLocalFrameImpl final
     : public GarbageCollected<WebLocalFrameImpl>,
       public WebNavigationControl {
@@ -598,6 +598,29 @@ class CORE_EXPORT WebLocalFrameImpl final
   void WillSendSubmitEvent(const WebFormElement& form);
   void WasHidden();
   void WasShown();
+  void DidSetPageLifecycleState(BFCacheStateChange bfcache_change);
+  void OnMainFrameAdRectangleChanged(int element_id, const gfx::Rect& ad_rect);
+  void DidChangePerformanceTiming();
+  void DidObserveUserInteraction(base::TimeTicks max_event_start,
+                                 base::TimeTicks max_event_queued_main_thread,
+                                 base::TimeTicks max_event_processing_start,
+                                 base::TimeTicks max_event_commit_finish,
+                                 base::TimeTicks max_event_end,
+                                 uint64_t interaction_offset,
+                                 uint64_t performance_timeline_navigation_id);
+  void DidChangeCpuTiming(base::TimeDelta time, base::TimeDelta ad_time);
+  void DidObserveLoadingBehavior(LoadingBehaviorFlag behavior);
+  void DidObserveJavaScriptFrameworks(
+      const JavaScriptFrameworkDetectionResult& result);
+  void DidObserveSoftNavigation(SoftNavigationMetricsForReporting metrics);
+  void DidObserveSoftNavigationFirstContentfulPaint(
+      uint64_t performance_timeline_navigation_id,
+      base::TimeDelta first_contentful_paint);
+  void DidObserveSoftLargestContentfulPaint(
+      const LargestContentfulPaintDetailsForReporting& lcp);
+  void DidObserveLayoutShift(double score,
+                             bool after_input_or_scroll,
+                             uint64_t performance_timeline_navigation_id);
 
  protected:
   // WebLocalFrame protected overrides:

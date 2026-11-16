@@ -703,22 +703,59 @@ constexpr FeatureEntry::FeatureVariation
         {" - with Instructions", kAnimatedDBPInFREWithInstructions, nullptr}};
 
 constexpr FeatureEntry::FeatureParam
-    kAndroidSwitcherDBPInFRESegmentationSignal[] = {
+    kAndroidSwitcherDBPInFRESegmentationGoogleEcosystem[] = {
         {first_run::kAndroidSwitcherDefaultBrowserPromoInFREParam,
          first_run::
-             kAndroidSwitcherDefaultBrowserPromoInFREParamSegmentationSignal}};
+             kAndroidSwitcherDefaultBrowserPromoInFREParamSegmentationSignal},
+        {first_run::kAndroidSwitcherDefaultBrowserPromoInFREArmParam,
+         first_run::
+             kAndroidSwitcherDefaultBrowserPromoInFREArmGoogleEcosystem}};
 constexpr FeatureEntry::FeatureParam
-    kAndroidSwitcherDBPInFRESwitcherInfoSignal[] = {
+    kAndroidSwitcherDBPInFRESwitcherInfoGoogleEcosystem[] = {
         {first_run::kAndroidSwitcherDefaultBrowserPromoInFREParam,
          first_run::
-             kAndroidSwitcherDefaultBrowserPromoInFREParamSwitcherInfoSignal}};
+             kAndroidSwitcherDefaultBrowserPromoInFREParamSwitcherInfoSignal},
+        {first_run::kAndroidSwitcherDefaultBrowserPromoInFREArmParam,
+         first_run::
+             kAndroidSwitcherDefaultBrowserPromoInFREArmGoogleEcosystem}};
+constexpr FeatureEntry::FeatureParam
+    kAndroidSwitcherDBPInFRESegmentationHybrid[] = {
+        {first_run::kAndroidSwitcherDefaultBrowserPromoInFREParam,
+         first_run::
+             kAndroidSwitcherDefaultBrowserPromoInFREParamSegmentationSignal},
+        {first_run::kAndroidSwitcherDefaultBrowserPromoInFREArmParam,
+         first_run::kAndroidSwitcherDefaultBrowserPromoInFREArmHybrid}};
+constexpr FeatureEntry::FeatureParam
+    kAndroidSwitcherDBPInFRESwitcherInfoHybrid[] = {
+        {first_run::kAndroidSwitcherDefaultBrowserPromoInFREParam,
+         first_run::
+             kAndroidSwitcherDefaultBrowserPromoInFREParamSwitcherInfoSignal},
+        {first_run::kAndroidSwitcherDefaultBrowserPromoInFREArmParam,
+         first_run::kAndroidSwitcherDefaultBrowserPromoInFREArmHybrid}};
 
 constexpr FeatureEntry::FeatureVariation
     kAndroidSwitcherDefaultBrowserPromoInFREVariations[] = {
-        {" - Segmentation Signal", kAndroidSwitcherDBPInFRESegmentationSignal,
-         nullptr},
-        {" - Switcher Info Signal", kAndroidSwitcherDBPInFRESwitcherInfoSignal,
-         nullptr}};
+        {" - Segmentation Signal (Google Ecosystem)",
+         kAndroidSwitcherDBPInFRESegmentationGoogleEcosystem, nullptr},
+        {" - Switcher Info Signal (Google Ecosystem)",
+         kAndroidSwitcherDBPInFRESwitcherInfoGoogleEcosystem, nullptr},
+        {" - Segmentation Signal (Hybrid)",
+         kAndroidSwitcherDBPInFRESegmentationHybrid, nullptr},
+        {" - Switcher Info Signal (Hybrid)",
+         kAndroidSwitcherDBPInFRESwitcherInfoHybrid, nullptr}};
+
+constexpr FeatureEntry::FeatureParam kFREAblationSkipHistorySync[] = {
+    {first_run::kFREAblationParam,
+     first_run::kFREAblationParamSkipHistorySync}};
+constexpr FeatureEntry::FeatureParam
+    kFREAblationSkipAllExceptSignInAndChoice[] = {
+        {first_run::kFREAblationParam,
+         first_run::kFREAblationParamSkipAllExceptSignInAndChoice}};
+
+constexpr FeatureEntry::FeatureVariation kFREAblationVariations[] = {
+    {" - Skip History Sync", kFREAblationSkipHistorySync, nullptr},
+    {" - Skip All Except Sign-in and Choice",
+     kFREAblationSkipAllExceptSignInAndChoice, nullptr}};
 
 constexpr FeatureEntry::FeatureParam kBestFeaturesScreenInFirstRunArm2[] = {
     {first_run::kBestFeaturesScreenInFirstRunParam, "2"}};
@@ -2040,6 +2077,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
          first_run::kAnimatedDefaultBrowserPromoInFRE,
          kAnimatedDefaultBrowserPromoInFREVariations,
          "AnimatedDBPInFRE-Layout")},
+    {"fre-ablation", flag_descriptions::kFREAblationName,
+     flag_descriptions::kFREAblationDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(first_run::kFREAblation,
+                                    kFREAblationVariations,
+                                    "FREAblation")},
     {"fullscreen-transition-speed",
      flag_descriptions::kFullscreenTransitionSpeedName,
      flag_descriptions::kFullscreenTransitionSpeedDescription, flags_ui::kOsIos,
@@ -2835,12 +2877,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          enterprise_connectors::kEnableBulkDataEntryConnectorIOS)},
-    {"gaia-auth-fetcher-dont-send-sid-cookies",
-     flag_descriptions::kGaiaAuthFetcherDontSendSIDCookiesName,
-     flag_descriptions::kGaiaAuthFetcherDontSendSIDCookiesDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(
-         switches::kDontIncludeSIDUnsecureCookiesInGaiaAuthFetcher)},
     {"gemini-quizzes", flag_descriptions::kGeminiQuizzesName,
      flag_descriptions::kGeminiQuizzesDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(kGeminiQuizzes,

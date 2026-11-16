@@ -2082,8 +2082,8 @@ chromium-metrics-reviews@google.com.
   <owner>creis@chromium.org</owner>
   <owner>site-isolation-dev@chromium.org</owner>
   <summary>
-    Recorded when RenderFrameImpl::IsValidCommitUrl detects a navigation URL
-    that would be blocked by RenderProcessHostImpl::FilterURL and rewrites it to
+    Recorded when blink::IsValidCommitUrl detects a navigation URL that would be
+    blocked by RenderProcessHostImpl::FilterURL and rewrites it to
     about:blank#blocked. See also BrowserRenderProcessHost.BlockedByFilterURL
     for cases caught by the browser process, and https://crbug.com/40066983.
   </summary>
@@ -2261,18 +2261,6 @@ chromium-metrics-reviews@google.com.
   <token key="FrameType" variants="FrameTypes"/>
 </histogram>
 
-<histogram name="Navigation.RendererDidNavigateTime.{FrameType}" units="ms"
-    expires_after="2023-07-28">
-  <owner>cduvall@chromium.org</owner>
-  <owner>jam@chromium.org</owner>
-  <summary>
-    Measures time it takes to call
-    NavigationControllerImpl::RendererDidNavigate. Recorded for each navigation
-    that is not a same document navigation.
-  </summary>
-  <token key="FrameType" variants="FrameTypes"/>
-</histogram>
-
 <histogram
     name="Navigation.RendererRunLoopStartToFirstCommitNavigation2.{FrameType}"
     units="ms" expires_after="2027-04-01">
@@ -2390,17 +2378,6 @@ chromium-metrics-reviews@google.com.
     and tracks whether the navigation is eligible for screenshotting for
     navigation transitions
   </summary>
-</histogram>
-
-<histogram name="Navigation.SendCommitNavigationTime.{FrameType}" units="ms"
-    expires_after="2023-08-15">
-  <owner>cduvall@chromium.org</owner>
-  <owner>jam@chromium.org</owner>
-  <summary>
-    Measures the time RenderFrameHostImpl::SendCommitNavigation takes to run.
-    Recorded every time the method executes.
-  </summary>
-  <token key="FrameType" variants="FrameTypes"/>
 </histogram>
 
 <histogram name="Navigation.StartAdjustment.AllFrames"
@@ -3228,25 +3205,6 @@ chromium-metrics-reviews@google.com.
     Recorded on RenderFrameHostManager::GetFrameHostForNavigation(), for
     {InitiatorType} navigations that picked a RenderFrameHost that is different
     from the speculative RFH previously created for the navigation.
-  </summary>
-  <token key="InitiatorType" variants="InitiatorType"/>
-</histogram>
-
-<histogram
-    name="Navigation.{InitiatorType}.WastedSpeculativeRFH.ProcessDiffers"
-    enum="Boolean" expires_after="2025-03-01">
-  <owner>rakina@chromium.org</owner>
-  <owner>chrome-security-architecture@google.com</owner>
-  <summary>
-    For {InitiatorType} navigations that result in wasting a speculative RFH
-    that's previously created for the navigation (i.e. when the
-    WastedSpeculativeRFHCase metric records kWasted_NowUseCurrentRFH or
-    kWasted_NowUseNewSpeculativeRFH), records whether the renderer process for
-    the wasted speculative RFH and the new RFH differ.
-
-    Recorded on RenderFrameHostManager::GetFrameHostNavigation(), for
-    {InitiatorType} navigations that picked a RenderFrameHost that is different
-    from a speculative RFH previously created for the navigation.
   </summary>
   <token key="InitiatorType" variants="InitiatorType"/>
 </histogram>

@@ -45,6 +45,10 @@ constexpr char kDeviceTabVisibilityListChangedEvent[] =
 // `DeviceTabVisibilityEntry` dictionary structure consumed by the WebUI.
 base::DictValue BuildSessionDictionary(const SyncedSession& session,
                                        bool visible) {
+  // Every synced session has a non-empty identifier tag, and
+  // `ForeignSessionFilter::kAll` only returns sessions with a non-empty name.
+  CHECK(!session.GetSessionTag().empty());
+  CHECK(!session.GetSessionName().empty());
   return base::DictValue()
       .Set("sessionTag", session.GetSessionTag())
       .Set("deviceName", session.GetSessionName())
@@ -141,8 +145,6 @@ void DeviceTabVisibilityHandler::HandleSetDeviceTabVisibility(
     const base::ListValue& args) {
   CHECK_EQ(args.size(), 2U);
   const std::string& session_tag = args[0].GetString();
-  // TODO(crbug.com/570417844): Verify that `session_tag` corresponds to a
-  // known foreign session.
   CHECK(!session_tag.empty());
   const bool visible = args[1].GetBool();
   AllowJavascript();

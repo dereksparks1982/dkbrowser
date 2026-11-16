@@ -1335,10 +1335,10 @@ bool IsUnusedAndTiedToBrowsingInstance(
   // reuse from unrelated windows (such as when over the process limit), this
   // will disqualify any initial processes in unrelated windows.
   //
-  // This check is important for certain chrome://*.top-chrome/ WebUI cases (see
-  // `IsWebUIAndUsesTLDForProcessLockURL()`), which need to only reuse available
-  // existing top-chrome WebUI processes, but should not attempt to reuse an
-  // unused process from an unrelated blank tab.
+  // This check is important for WebUIs that share a process lock host (see
+  // `WebUIConfig::process_lock_host()`), which should only reuse existing
+  // processes with the same lock, not an unused process from an unrelated blank
+  // tab.
   bool stays_in_existing_browsing_instance = false;
   host->ForEachRenderFrameHost([&stays_in_existing_browsing_instance,
                                 &isolation_context](RenderFrameHost* rfh) {
@@ -1695,15 +1695,10 @@ RenderProcessHost* RenderProcessHostImpl::CreateRenderProcessHost(
     flags |= RenderProcessFlags::kDisallowV8FeatureFlagOverrides;
   }
 
-#if !BUILDFLAG(IS_ANDROID)
-  if (site_instance) {
-    const GURL& site_url =
-        site_instance->GetSecurityPrincipal().GetDeprecatedSiteURL();
-    if (GetContentClient()->browser()->IsTopChromeWebUIURL(site_url)) {
-      flags |= RenderProcessFlags::kForTopChromeWebUI;
-    }
+  if (site_instance && GetContentClient()->browser()->IsTopChromeWebUIURL(
+                           site_instance->GetSiteInfo().site_url())) {
+    flags |= RenderProcessFlags::kForTopChromeWebUI;
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   return new RenderProcessHostImpl(browser_context, storage_partition_impl,
                                    flags, is_spare_renderer,
@@ -2000,6 +1995,8 @@ bool RenderProcessHostImpl::Init() {
   is_initialized_ = true;
   is_dead_ = false;
   sent_render_process_ready_ = false;
+  process_launched_time_ = base::TimeTicks();
+  startup_timings_ = StartupTimings{};
 
   // We may reach Init() during process death notification (e.g.
   // RenderProcessExited on some observer). In this case the Channel may be
@@ -2116,6 +2113,7 @@ bool RenderProcessHostImpl::Init() {
     // on starting in-process-render-thread.
     // So put it here to trigger Channel initialization earlier to enable
     // in-process-render-thread using Channel there.
+    startup_timings_.init_start = base::TimeTicks::Now();
     for (auto* observer : GetAllCreationObservers()) {
       observer->OnRenderProcessHostCreated(this);
     }
@@ -2183,6 +2181,7 @@ bool RenderProcessHostImpl::Init() {
             ? metrics_memory_region_
             : nullptr,
         tracing_config_memory_region_, tracing_output_memory_region_);
+    startup_timings_.init_start = child_process_launcher_->init_start_time();
 
     // Send initialization messages to the renderer, before any other messages
     // that might need them (e.g. navigation commits).
@@ -3087,6 +3086,11 @@ base::TimeTicks RenderProcessHostImpl::GetProcessLaunchedTime() const {
   return process_launched_time_;
 }
 
+const RenderProcessHost::StartupTimings&
+RenderProcessHostImpl::GetStartupTimings() const {
+  return startup_timings_;
+}
+
 std::string RenderProcessHostImpl::GetKeepAliveDurations() const {
   CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   std::stringstream result;
@@ -3782,13 +3786,8 @@ bool RenderProcessHostImpl::ShouldPauseChannelUntilProcessLaunched() {
   if (base::FeatureList::IsEnabled(
           features::kSkipIPCChannelPausingForNonGuests)) {
     if (features::kSkipIPCChannelPausingForNonGuestsInternalWebUiOnly.Get()) {
-#if !BUILDFLAG(IS_ANDROID)
       // Skip pausing if we're on initial WebUI, so return false in that case.
       return !IsForTopChromeWebUI();
-#else
-      // We're definitely not on initial WebUI, so return true to pause.
-      return true;
-#endif
     }
     // Skip pausing in all cases.
     return false;
@@ -3847,8 +3846,9 @@ void RenderProcessHostImpl::AppendRendererCommandLine(
   GetContentClient()->browser()->AppendExtraCommandLineSwitches(
       command_line, GetDeprecatedID());
 
-  if (IsPdf())
+  if (IsPdf()) {
     command_line->AppendSwitch(switches::kPdfRenderer);
+  }
 
 #if BUILDFLAG(IS_WIN)
   if (command_line->HasSwitch(kExtensionProcess)) {
@@ -6210,6 +6210,15 @@ void RenderProcessHostImpl::OnProcessLaunched() {
     return;
 
   process_launched_time_ = base::TimeTicks::Now();
+  if (child_process_launcher_) {
+    startup_timings_.launch_begin =
+        child_process_launcher_->launch_begin_time();
+    startup_timings_.launch_complete =
+        child_process_launcher_->launch_complete_time();
+  } else {
+    startup_timings_.launch_begin = process_launched_time_;
+    startup_timings_.launch_complete = process_launched_time_;
+  }
 
 #if BUILDFLAG(IS_ANDROID)
   next_launch_for_initial_outermost_main_frame_ = false;

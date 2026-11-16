@@ -20,6 +20,7 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "cc/base/math_util.h"
 #include "cc/paint/skia_paint_canvas.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -213,7 +214,7 @@ CanvasNon2DResourceProvider::CanvasNon2DResourceProvider(
               ? std::make_optional(kUnusedResourceExpirationTime)
               : std::nullopt;
 
-      image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
+      image_pool_ = gpu::SharedImagePool<CanvasResource>::Create(
           image_info, sii, "CanvasResourceRaster", kMaxRecycledCanvasResources,
           expiration_time);
     }
@@ -251,7 +252,7 @@ CanvasNon2DResourceProvider::CanvasNon2DResourceProvider(
           size, format, gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY, color_space,
           kTopLeft_GrSurfaceOrigin, alpha_type, /*buffer_usage=*/std::nullopt,
           /*is_software=*/true);
-      image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
+      image_pool_ = gpu::SharedImagePool<CanvasResource>::Create(
           image_info, sii, "CanvasResourceSharedImage",
           kMaxRecycledCanvasResources);
     }
@@ -278,7 +279,7 @@ CanvasNon2DResourceProvider::~CanvasNon2DResourceProvider() {
                              max_inflight_resources_, 20);
 }
 
-scoped_refptr<CanvasResourceSharedImage>
+scoped_refptr<CanvasResource>
 CanvasNon2DResourceProvider::NewOrRecycledResource() {
   if (!image_pool_) {
     return nullptr;
@@ -291,11 +292,10 @@ CanvasNon2DResourceProvider::NewOrRecycledResource() {
 
   if (!resource->IsInitialized()) {
     if (image_pool_->GetImageInfo().is_software) {
-      resource->InitializeSoftware(
-          CreateWeakPtr(), shared_image_interface_provider_, hdr_metadata_);
+      resource->InitializeSoftware(CreateWeakPtr(),
+                                   shared_image_interface_provider_);
     } else {
-      resource->Initialize(CreateWeakPtr(), context_provider_wrapper_,
-                           hdr_metadata_, !is_software_);
+      resource->Initialize(CreateWeakPtr());
     }
     ++num_inflight_resources_;
     if (num_inflight_resources_ > max_inflight_resources_) {
@@ -373,7 +373,7 @@ void CanvasNon2DResourceProvider::OnFlushForImage(
 }
 
 void CanvasNon2DResourceProvider::OnResourceRefReturned(
-    scoped_refptr<CanvasResourceSharedImage> resource) {
+    scoped_refptr<CanvasResource> resource) {
   if (!resource->IsLost() && resource->HasOneRef() && image_pool_) {
     image_pool_->ReleaseImage(std::move(resource));
   }
@@ -450,7 +450,7 @@ CanvasNon2DResourceProvider::DoExternalOverdrawAndProduceResource(
     return nullptr;
   }
 
-  scoped_refptr<CanvasResourceSharedImage> software_resource;
+  scoped_refptr<CanvasResource> software_resource;
   if (IsSoftware()) {
     software_resource = NewOrRecycledResource();
     if (!software_resource) {
@@ -513,14 +513,15 @@ void CanvasNon2DResourceProvider::EnsureResourceReadyForDraw() {
 
 scoped_refptr<ExportedCanvasResource>
 CanvasNon2DResourceProvider::CreateExportedResource(
-    scoped_refptr<CanvasResourceSharedImage> resource) {
+    scoped_refptr<CanvasResource> resource) {
   auto wait_sync_token = base::BindRepeating(
-      [](scoped_refptr<CanvasResourceSharedImage> resource,
-         gpu::SyncToken sync_token) { resource->WaitSyncToken(sync_token); },
+      [](scoped_refptr<CanvasResource> resource, gpu::SyncToken sync_token) {
+        resource->WaitSyncToken(sync_token);
+      },
       resource);
 
   auto release_callback = base::BindOnce(
-      [](scoped_refptr<CanvasResourceSharedImage> resource,
+      [](scoped_refptr<CanvasResource> resource,
          const gpu::SyncToken& sync_token, bool is_lost) {
         if (is_lost) {
           resource->NotifyResourceLost();
@@ -542,8 +543,7 @@ CanvasNon2DResourceProvider::ProduceCanvasResource() {
   TRACE_EVENT0("blink", "CanvasNon2DResourceProvider::ProduceCanvasResource");
   if (IsSoftware()) {
     DCHECK(GetSkSurface());
-    scoped_refptr<CanvasResourceSharedImage> output_resource =
-        NewOrRecycledResource();
+    scoped_refptr<CanvasResource> output_resource = NewOrRecycledResource();
     if (!output_resource) {
       return nullptr;
     }
@@ -601,7 +601,7 @@ scoped_refptr<StaticBitmapImage> CanvasNon2DResourceProvider::Snapshot() {
     // the ref-count on the resource as a proxy for a read lock to allow
     // recycling the resource once all refs have been released.
     auto release_callback = base::BindOnce(
-        [](scoped_refptr<CanvasResourceSharedImage> resource,
+        [](scoped_refptr<CanvasResource> resource,
            const gpu::SyncToken& sync_token, bool lost_resource) {
           CHECK(resource);
           CHECK(!lost_resource);
@@ -696,6 +696,8 @@ CanvasImageProvider* CanvasNon2DResourceProvider::GetOrCreateImageProvider() {
 void CanvasNon2DResourceProvider::FlushRecording(
     cc::PaintRecord last_recording) {
   if (is_software_) {
+    // Disable subnormal floats for performance and security reasons.
+    cc::ScopedSubnormalFloatDisabler disabler;
     if (!skia_canvas_) {
       auto* image_provider = GetOrCreateImageProvider();
       skia_canvas_ = std::make_unique<cc::SkiaPaintCanvas>(

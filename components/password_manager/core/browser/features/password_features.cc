@@ -150,10 +150,10 @@ BASE_FEATURE(kChangePasswordTool, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPasswordDateLastFilled, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPasswordFormClientsideClassifier,
-#if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
+#if BUILDFLAG(IS_IOS)
              base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
 #endif
 );
 
@@ -163,6 +163,9 @@ BASE_FEATURE(kPasswordGenerationDropFullscreenAndCheckPointerLock,
 BASE_FEATURE(kPasswordManagerLogToTerminal, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPasswordManagerOnDeviceEncryptionMetricsReporter,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPasswordManagerOnDeviceEncryptionTimeToUnlockMetrics,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPasswordManualFallbackSecurityChecks,

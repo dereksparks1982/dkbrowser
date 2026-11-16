@@ -615,6 +615,7 @@ test("components_unittests") {
     }
     deps += [
       "//components/autofill/ios/browser:unit_tests",
+      "//components/autofill/ios/common:unit_tests",
       "//components/autofill/ios/form_util:unit_tests",
       "//components/commerce/ios/browser:unit_tests",
       "//components/contextual_search/internal/ios:unit_tests",
@@ -825,6 +826,7 @@ test("components_unittests") {
       "//components/guest_os:unit_tests",
       "//components/ownership:unit_tests",
       "//components/reporting/health:unit_tests",
+      "//components/session_manager/core:unit_tests",
       "//components/session_manager/test:unit_tests",
       "//components/user_manager:unit_tests",
     ]

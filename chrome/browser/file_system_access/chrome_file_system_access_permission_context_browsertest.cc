@@ -419,6 +419,53 @@ IN_PROC_BROWSER_TEST_F(ChromeFileSystemAccessPermissionContextBrowserTest,
   ui::SelectFileDialog::SetFactory(nullptr);
 }
 
+// Verifies that if a `FileSystemFileHandle`'s underlying file is removed and
+// replaced with a directory at the same path, both in-place rename and
+// cross-directory `move()` reject with `TypeMismatchError` instead of moving
+// the directory.
+IN_PROC_BROWSER_TEST_F(ChromeFileSystemAccessPermissionContextBrowserTest,
+                       MoveSourceFileReplacedByDirectoryRejected) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+
+  const base::FilePath test_dir = temp_dir().GetPath().AppendASCII("test");
+  ASSERT_TRUE(base::CreateDirectory(test_dir));
+
+  const GURL url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  base::ScopedClosureRunner reset_dialog_factory(
+      base::BindOnce([]() { ui::SelectFileDialog::SetFactory(nullptr); }));
+  ASSERT_NO_FATAL_FAILURE(PickDirectoryAsDirHandle(test_dir));
+
+  EXPECT_EQ(content::EvalJs(GetWebContents(), R"((async () => {
+        const fileHandle = await self.dirHandle.getFileHandle(
+            'staging.ext', {create: true});
+        await self.dirHandle.removeEntry('staging.ext');
+        const stagingDir = await self.dirHandle.getDirectoryHandle(
+            'staging.ext', {create: true});
+        await stagingDir.getFileHandle('nested.txt', {create: true});
+        const destDir = await self.dirHandle.getDirectoryHandle(
+            'dest', {create: true});
+
+        const renameResult = await fileHandle.move('renamed.ext')
+            .then(() => 'ALLOWED')
+            .catch(e => 'BLOCKED: ' + e.name);
+        const moveResult = await fileHandle.move(destDir, 'moved.ext')
+            .then(() => 'ALLOWED')
+            .catch(e => 'BLOCKED: ' + e.name);
+
+        return renameResult + ' / ' + moveResult;
+      })())")
+                .ExtractString(),
+            "BLOCKED: TypeMismatchError / BLOCKED: TypeMismatchError");
+
+  EXPECT_TRUE(base::PathExists(
+      test_dir.AppendASCII("staging.ext").AppendASCII("nested.txt")));
+  EXPECT_FALSE(base::PathExists(test_dir.AppendASCII("renamed.ext")));
+  EXPECT_FALSE(
+      base::PathExists(test_dir.AppendASCII("dest").AppendASCII("moved.ext")));
+}
+
 // Verifies that creating `.git` or writing into non-allowlisted paths under
 // `.git` (such as `hooks` and `commondir`, including case variations) is
 // rejected, while reads and writes elsewhere are unaffected. See
@@ -1684,6 +1731,77 @@ IN_PROC_BROWSER_TEST_F(
 
   ui::SelectFileDialog::SetFactory(nullptr);
 }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+// A handle granted under another spelling of an overwritten destination must
+// not expose the contents of a source whose read permission was revoked.
+IN_PROC_BROWSER_TEST_F(
+    ChromeFileSystemAccessPermissionContextRevokeAndRestoreBrowserTest,
+    RenameRevokedSourceRevokesDestinationCaseAlias) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/empty.html")));
+  const base::FilePath source = CreateTestFile("original source");
+  const base::FilePath lower = temp_dir().GetPath().AppendASCII("decoy.txt");
+  const base::FilePath upper = temp_dir().GetPath().AppendASCII("DECOY.TXT");
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::WriteFile(lower, "decoy"));
+    // This regression exercises actual aliasing on a case-insensitive volume.
+    if (!base::PathExists(upper)) {
+      GTEST_SKIP() << "The test directory is case-sensitive";
+    }
+  }
+
+  SetUpAndGetHandleWithInitialPermissions("source", source);
+  RemoveFileAndVerifyPermissionsRevoked("source", GetOrigin(), source);
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::WriteFile(source, "replacement secret"));
+  }
+
+  ui::SelectFileDialog::SetFactory(
+      std::make_unique<content::FakeSelectFileDialogFactory>(
+          std::vector<base::FilePath>{lower}));
+  ASSERT_TRUE(content::ExecJs(GetWebContents(), R"(
+    (async () => {
+      [self.alias] = await self.showOpenFilePicker();
+    })()
+  )"));
+  ASSERT_EQ(content::EvalJs(GetWebContents(), "self.alias.queryPermission()"),
+            "granted");
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::DeleteFile(lower));
+  }
+  SetUpAndGetHandleWithInitialPermissions("destination", upper);
+  content::RunAllTasksUntilIdle();
+
+  // Confirm that the recreated source is unreadable before the overwrite.
+  ASSERT_EQ(content::EvalJs(GetWebContents(), R"(
+    self.source.getFile().then(() => 'readable', e => e.name)
+  )"),
+            "NotAllowedError");
+  ASSERT_TRUE(content::ExecJs(GetWebContents(), R"(
+    self.source.move('DECOY.TXT')
+  )"));
+  // The move really happened; a failure to move must not make this test pass.
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    std::string contents;
+    ASSERT_TRUE(base::ReadFileToString(upper, &contents));
+    EXPECT_EQ(contents, "replacement secret");
+    EXPECT_FALSE(base::PathExists(source));
+  }
+  EXPECT_EQ(content::EvalJs(GetWebContents(), "self.source.queryPermission()"),
+            "denied");
+  EXPECT_EQ(content::EvalJs(GetWebContents(), "self.alias.queryPermission()"),
+            "denied");
+  EXPECT_EQ(content::EvalJs(GetWebContents(), R"(
+    self.alias.getFile().then(file => file.text(), e => e.name)
+  )"),
+            "NotAllowedError");
+}
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 class ChromeFileSystemAccessPermissionContextPrerenderingBrowserTest
     : public InProcessBrowserTest {

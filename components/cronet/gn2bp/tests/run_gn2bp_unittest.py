@@ -22,6 +22,11 @@ import components.cronet.gn2bp.gn_utils as gn_utils  # noqa: E402
 import components.cronet.gn2bp.run_gn2bp as run_gn2bp  # noqa: E402
 import components.cronet.tools.breakages_constants as breakages_constants  # noqa: E402
 
+sys.path.insert(
+    0, os.path.join(REPOSITORY_ROOT, "components", "cronet", "license")
+)
+import create_android_metadata_license  # noqa: E402
+
 
 class TestRunGN2BPUnitTest(unittest.TestCase):
     def setUp(self):
@@ -357,6 +362,117 @@ class TestRunGN2BPUnitTest(unittest.TestCase):
         self.assertNotIn("out/tmp/gen/generated.h", generated_paths)
         self.assertNotIn("components/prefs/prefs.gni", generated_paths)
         self.assertNotIn(":tot_cronet_other_mod", generated_paths)
+
+    def test_extract_copybara_paths_rust_crate_with_license_of_other_crate(
+        self,
+    ):
+        # Like alloc-stdlib, which doesn't contain its LICENSE: it's the one of
+        # alloc-no-stdlib.
+        gn = gn_utils.GnParser({}, {})
+        rust_lib = gn_utils.GnParser.Target(
+            "//third_party/rust/alloc_stdlib/v0_3:lib", "rust_library"
+        )
+        rust_lib.build_file_path = "third_party/rust/alloc_stdlib/v0_3"
+        gn.all_targets[rust_lib.name] = rust_lib
+
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.object(
+                gen_android_bp, "REPOSITORY_ROOT", tmp_dir
+            ),
+        ):
+            readme_file = (
+                pathlib.Path(tmp_dir)
+                / "third_party/rust/alloc_stdlib/v0_3/README.chromium"
+            )
+            readme_file.parent.mkdir(parents=True, exist_ok=True)
+            readme_file.write_text(
+                "Name: alloc-stdlib\n"
+                "URL: https://crates.io/crates/alloc-stdlib\n"
+                "Version: 0.3.0\n"
+                "License: BSD-3-Clause\n"
+                "License File: //third_party/rust/chromium_crates_io/vendor/"
+                "alloc-stdlib-v0_3/../alloc-no-stdlib-v3/LICENSE\n"
+            )
+            generated_paths = set(gen_android_bp.extract_copybara_paths(gn))
+
+        # The license files of the crate are next to its Android.bp, in the
+        # directory of the crate, and its LICENSE links to the other crate's.
+        vendor = "third_party/rust/chromium_crates_io/vendor"
+        expected_subset = {
+            f"{vendor}/alloc-no-stdlib-v3/LICENSE",
+            f"{vendor}/alloc-stdlib-v0_3/LICENSE",
+            f"{vendor}/alloc-stdlib-v0_3/METADATA",
+            f"{vendor}/alloc-stdlib-v0_3/MODULE_LICENSE_BSD_3_CLAUSE",
+        }
+        self.assertTrue(expected_subset.issubset(generated_paths))
+        self.assertNotIn(
+            f"{vendor}/alloc-no-stdlib-v3/METADATA", generated_paths
+        )
+
+    def test_update_license_rust_crate_with_license_of_other_crate(self):
+        # Like alloc-stdlib, which doesn't contain its LICENSE: it's the one of
+        # alloc-no-stdlib.
+        with (
+            tempfile.TemporaryDirectory() as repo_dir,
+            tempfile.TemporaryDirectory() as dest_dir,
+        ):
+            vendor = "third_party/rust/chromium_crates_io/vendor"
+            repo_vendor = pathlib.Path(repo_dir) / vendor
+            (repo_vendor / "alloc-no-stdlib-v3").mkdir(parents=True)
+            (repo_vendor / "alloc-no-stdlib-v3/LICENSE").write_text("License")
+            (repo_vendor / "alloc-stdlib-v0_3").mkdir()
+            for readme_dir, name, license_file in (
+                ("alloc_no_stdlib/v3", "alloc-no-stdlib", "alloc-no-stdlib-v3"),
+                (
+                    "alloc_stdlib/v0_3",
+                    "alloc-stdlib",
+                    "alloc-stdlib-v0_3/../alloc-no-stdlib-v3",
+                ),
+            ):
+                readme_file = (
+                    pathlib.Path(repo_dir)
+                    / "third_party/rust"
+                    / readme_dir
+                    / "README.chromium"
+                )
+                readme_file.parent.mkdir(parents=True)
+                readme_file.write_text(
+                    f"Name: {name}\n"
+                    f"URL: https://crates.io/crates/{name}\n"
+                    "Version: 1.0.0\n"
+                    "License: BSD-3-Clause\n"
+                    f"License File: //{vendor}/{license_file}/LICENSE\n"
+                )
+
+            create_android_metadata_license.update_license(
+                repo_path=repo_dir,
+                reachable_through_dependencies=False,
+                dest_path=dest_dir,
+            )
+
+            # The license files of the crate are next to its Android.bp, in the
+            # directory of the crate, and its LICENSE links to the other
+            # crate's, whose METADATA stays the other crate's.
+            dest_vendor = pathlib.Path(dest_dir) / vendor
+            self.assertEqual(
+                os.readlink(dest_vendor / "alloc-stdlib-v0_3/LICENSE"),
+                "../alloc-no-stdlib-v3/LICENSE",
+            )
+            self.assertTrue(
+                (
+                    dest_vendor
+                    / "alloc-stdlib-v0_3/MODULE_LICENSE_BSD_3_CLAUSE"
+                ).exists()
+            )
+            self.assertIn(
+                'name: "alloc-stdlib"',
+                (dest_vendor / "alloc-stdlib-v0_3/METADATA").read_text(),
+            )
+            self.assertIn(
+                'name: "alloc-no-stdlib"',
+                (dest_vendor / "alloc-no-stdlib-v3/METADATA").read_text(),
+            )
 
     def test_write_copybara_paths_file(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -758,6 +874,194 @@ class TestRunGN2BPUnitTest(unittest.TestCase):
         self.assertIn(
             "tot_cronet_api_java",
             mods["tot_cronet_java_tests"].libs,
+        )
+
+    def test_get_cpp_std_ignores_c_standards(self):
+        get_cpp_std = gen_android_bp.translators._get_cpp_std
+        self.assertIsNone(get_cpp_std(["-O2", "-std=c11", "-std=gnu11"]))
+        self.assertIsNone(get_cpp_std(["-std=iso9899:2011"]))
+        self.assertEqual(
+            get_cpp_std(["-std=c11", "-std=c++23", "-std=gnu11"]), "c++23"
+        )
+        self.assertEqual(
+            get_cpp_std(["-std=c++20", "-fno-rtti", "-std=c++23"]), "c++23"
+        )
+        self.assertEqual(get_cpp_std(["-std=c++23", "-std=gnu++26"]), "gnu++26")
+
+    def test_make_cc_defaults_from_boringssl_propagates_cpp_std(self):
+        ctx = gen_android_bp.translation_context.TranslationContext(
+            "tot", default_cpp_std="c++23"
+        )
+        boringssl_mod = gen_android_bp.soong_ast.create_module(
+            "cc_library_static",
+            "tot_cronet_third_party_boringssl_boringssl",
+            "//third_party/boringssl:boringssl",
+            ctx,
+        )
+        boringssl_mod.cpp_std = "c++23"
+        boringssl_mod.cflags = ["-ffunction-sections", "-DFOO"]
+        boringssl_mod.ldflags = ["-Wl,--gc-sections", "-Wl,-z,relro"]
+
+        flags_mod, libcrypto_flags_mod = (
+            gen_android_bp.make_cc_defaults_from_boringssl(boringssl_mod, ctx)
+        )
+
+        self.assertEqual(flags_mod.cpp_std, "c++23")
+        self.assertEqual(libcrypto_flags_mod.cpp_std, "c++23")
+        self.assertEqual(flags_mod.cflags, ["-ffunction-sections", "-DFOO"])
+        self.assertEqual(libcrypto_flags_mod.cflags, ["-DFOO"])
+        self.assertEqual(libcrypto_flags_mod.ldflags, ["-Wl,-z,relro"])
+
+    def test_derive_default_cpp_std_and_create_cc_defaults(self):
+        gn = gn_utils.GnParser({}, {})
+        self.assertRaises(
+            ValueError, gen_android_bp._derive_default_cpp_std, gn
+        )
+
+        cronet = gn_utils.GnParser.Target(
+            "//components/cronet/android:cronet", "shared_library"
+        )
+        cronet.arch["android_arm64"] = gn_utils.GnParser.Target.Arch()
+        cronet.arch["android_arm64"].cflags.extend(["-fno-exceptions"])
+        gn.all_targets[cronet.name] = cronet
+        self.assertRaises(
+            ValueError, gen_android_bp._derive_default_cpp_std, gn
+        )
+
+        cronet.arch["android_arm64"].cflags.append("-std=c++23")
+        cronet.arch["android_x64"] = gn_utils.GnParser.Target.Arch()
+        cronet.arch["android_x64"].cflags.extend(["-msse3", "-std=c++23"])
+        cronet.is_finalized = False
+
+        derived_cpp_std = gen_android_bp._derive_default_cpp_std(gn)
+        self.assertEqual(derived_cpp_std, "c++23")
+
+        ctx = gen_android_bp.translation_context.TranslationContext(
+            "tot", default_cpp_std=derived_cpp_std
+        )
+        defaults = gen_android_bp.create_cc_defaults_module(ctx)
+        self.assertEqual(defaults.cpp_std, "c++23")
+
+    def test_create_bindgen_module_derives_cpp_std_from_gn(self):
+        tc = "//build/toolchain/android:android_clang_arm64"
+        gn_desc = {
+            "//foo:cpp_bindgen": {
+                "type": "action",
+                "script": "//build/rust/gni_impl/run_bindgen.py",
+                "toolchain": tc,
+                "inputs": ["//foo/header.h"],
+                "outputs": ["//out/Release/gen/foo/bindings.rs"],
+                "args": ["--", "-x", "c++", "{{cflags_cc}}"],
+                "deps": ["//foo:header_group"],
+            },
+            "//foo:header_group": {
+                "type": "group",
+                "toolchain": tc,
+                "deps": ["//foo:header_lib"],
+            },
+            "//foo:header_lib": {
+                "type": "source_set",
+                "toolchain": tc,
+                "cflags_cc": ["-std=c++23"],
+                "deps": ["//buildtools/third_party/libc++:libc++"],
+            },
+            "//buildtools/third_party/libc++:libc++": {
+                "type": "static_library",
+                "toolchain": tc,
+                "cflags_cc": ["-std=c++26"],
+                "deps": [],
+            },
+            "//foo:fallback_cpp_bindgen": {
+                "type": "action",
+                "script": "//build/rust/gni_impl/run_bindgen.py",
+                "toolchain": tc,
+                "inputs": ["//foo/standalone.h"],
+                "outputs": ["//out/Release/gen/foo/standalone_bindings.rs"],
+                "args": ["--", "-x", "c++", "{{cflags_cc}}"],
+                "deps": [],
+            },
+            "//foo:c_bindgen": {
+                "type": "action",
+                "script": "//build/rust/gni_impl/run_bindgen.py",
+                "toolchain": tc,
+                "inputs": ["//foo/c_header.h"],
+                "outputs": ["//out/Release/gen/foo/c_bindings.rs"],
+                "args": ["--", "{{cflags}}"],
+                "deps": ["//foo:header_lib"],
+            },
+            "//foo:conflicting_cpp_bindgen": {
+                "type": "action",
+                "script": "//build/rust/gni_impl/run_bindgen.py",
+                "toolchain": tc,
+                "inputs": ["//foo/conflict.h"],
+                "outputs": ["//out/Release/gen/foo/conflict_bindings.rs"],
+                "args": ["--", "-x", "c++", "{{cflags_cc}}"],
+                "deps": ["//foo:header_lib", "//foo:cpp20_lib"],
+            },
+            "//foo:cpp20_lib": {
+                "type": "source_set",
+                "toolchain": tc,
+                "cflags_cc": ["-std=c++20"],
+                "deps": [],
+            },
+        }
+        gn = gn_utils.GnParser({}, {})
+        for name in (
+            "//foo:cpp_bindgen",
+            "//foo:fallback_cpp_bindgen",
+            "//foo:c_bindgen",
+            "//foo:conflicting_cpp_bindgen",
+        ):
+            gn.parse_gn_desc(gn_desc, name)
+        gn.propagate_properties()
+
+        # Deliberately set default_cpp_std to "c++20" to prove direct C++ deps
+        # take precedence over the fallback, while transitive libc++ (c++26)
+        # does not interfere.
+        ctx = gen_android_bp.translation_context.TranslationContext(
+            "tot", default_cpp_std="c++20"
+        )
+        bp = gen_android_bp.soong_ast.Blueprint()
+
+        cpp_mod = gen_android_bp.translators.create_bindgen_module(
+            bp,
+            gn,
+            gn.get_target("//foo:cpp_bindgen"),
+            "tot_cronet_foo_cpp_bindgen",
+            is_test_target=False,
+            context=ctx,
+        )
+        self.assertEqual(cpp_mod.cpp_std, "c++23")
+
+        fallback_mod = gen_android_bp.translators.create_bindgen_module(
+            bp,
+            gn,
+            gn.get_target("//foo:fallback_cpp_bindgen"),
+            "tot_cronet_foo_fallback_cpp_bindgen",
+            is_test_target=False,
+            context=ctx,
+        )
+        self.assertEqual(fallback_mod.cpp_std, "c++20")
+
+        c_mod = gen_android_bp.translators.create_bindgen_module(
+            bp,
+            gn,
+            gn.get_target("//foo:c_bindgen"),
+            "tot_cronet_foo_c_bindgen",
+            is_test_target=False,
+            context=ctx,
+        )
+        self.assertIsNone(c_mod.cpp_std)
+
+        self.assertRaises(
+            AssertionError,
+            gen_android_bp.translators.create_bindgen_module,
+            bp,
+            gn,
+            gn.get_target("//foo:conflicting_cpp_bindgen"),
+            "tot_cronet_foo_conflicting_cpp_bindgen",
+            False,
+            ctx,
         )
 
 

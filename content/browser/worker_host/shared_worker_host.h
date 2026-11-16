@@ -35,10 +35,14 @@
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "net/base/network_isolation_key.h"
 #include "net/base/network_isolation_partition.h"
+#include "net/storage_access_api/status.h"
 #include "services/device/public/cpp/compute_pressure/buildflags.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/cross_origin_embedder_policy.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-forward.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/blob/blob_url_store.mojom-forward.h"
@@ -97,7 +101,8 @@ class CONTENT_EXPORT SharedWorkerHost
       scoped_refptr<SiteInstanceImpl> site_instance,
       std::vector<network::mojom::ContentSecurityPolicyPtr>
           content_security_policies,
-      scoped_refptr<PolicyContainerHost> creator_policy_container_host);
+      scoped_refptr<PolicyContainerHost> creator_policy_container_host,
+      net::StorageAccessApiStatus storage_access_api_status);
 
   SharedWorkerHost(const SharedWorkerHost&) = delete;
   SharedWorkerHost& operator=(const SharedWorkerHost&) = delete;
@@ -277,6 +282,12 @@ class CONTENT_EXPORT SharedWorkerHost
     return creator_policy_container_host_->policies();
   }
 
+  const network::PermissionsPolicy* GetPermissionsPolicy() const {
+    return permissions_policy_.get();
+  }
+
+  bool IsFeatureEnabled(network::mojom::PermissionsPolicyFeature feature) const;
+
   void ReportNoBinderForInterface(const std::string& error);
 
   void CreateCodeCacheHost(
@@ -336,6 +347,8 @@ class CONTENT_EXPORT SharedWorkerHost
   void OnReportException(
       blink::mojom::SharedWorkerExceptionDetailsPtr details) override;
   void OnFeatureUsed(blink::mojom::WebFeature feature) override;
+  void SetPermissionsPolicyHeader(const network::ParsedPermissionsPolicy&
+                                      permissions_policy_header) override;
 
   // RenderProcessHostObserver methods:
   void RenderProcessHostDestroyed(RenderProcessHost* host) override;
@@ -441,6 +454,13 @@ class CONTENT_EXPORT SharedWorkerHost
   std::unique_ptr<DocumentIsolationPolicyReporter> dip_reporter_;
 
   const base::UnguessableToken network_restrictions_id_;
+
+  // `kAccessViaAPI` if this worker was created via
+  // `StorageAccessHandle.SharedWorker()`. Sent to the renderer so that the
+  // worker's subresource requests are eligible to use the storage-access grant.
+  const net::StorageAccessApiStatus storage_access_api_status_;
+
+  std::unique_ptr<network::PermissionsPolicy> permissions_policy_;
 
   base::WeakPtrFactory<SharedWorkerHost> weak_factory_{this};
 };

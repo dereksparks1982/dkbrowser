@@ -95,18 +95,6 @@ const base::FeatureParam<bool> kGlicContextMenuWithOnboarding{
 
 BASE_FEATURE(kGlicContextMenuBelowSearch, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicTextSelectionContextMenu,
-#if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else
-             base::FEATURE_ENABLED_BY_DEFAULT
-#endif
-);
-const base::FeatureParam<bool> kGlicTextSelectionContextMenuMessageFirstFre{
-    &kGlicTextSelectionContextMenu, "message_first_fre", false};
-const base::FeatureParam<bool> kGlicTextSelectionContextMenuAutoSubmit{
-    &kGlicTextSelectionContextMenu, "auto_submit", false};
-
 BASE_FEATURE(kGlicTieredRolloutV2, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<std::string> kGlicTieredRolloutV2EligibleTiers{
     &kGlicTieredRolloutV2, "glic-tiered-rollout-v2-eligible-tiers", ""};
@@ -343,6 +331,10 @@ BASE_FEATURE(kGlicGuestInitialSize, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicShakeTrigger, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<bool> kGlicShakeTriggerOnlyOnSidePanel{
     &kGlicShakeTrigger, "only_on_side_panel", true};
+const base::FeatureParam<bool> kGlicShakeTriggerShouldTrigger{
+    &kGlicShakeTrigger, "should_trigger", true};
+const base::FeatureParam<bool> kGlicShakeTriggerShouldCount{
+    &kGlicShakeTrigger, "should_count", false};
 
 BASE_FEATURE(kGlicAndroidTablet, base::FEATURE_DISABLED_BY_DEFAULT);
 

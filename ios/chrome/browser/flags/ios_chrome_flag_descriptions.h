@@ -862,6 +862,11 @@ inline constexpr char kExplainGeminiEditMenuDescription[] =
     "When enabled, the explain Gemini edit menu will be available to eligible "
     "users when highlighting any text on a web page.";
 
+inline constexpr char kFREAblationName[] = "FRE ablation experiment";
+inline constexpr char kFREAblationDescription[] =
+    "When enabled, some of the First Run Experience screens are skipped, "
+    "depending on the selected arm.";
+
 inline constexpr char kFeedBackgroundRefreshName[] =
     "Enable feed background refresh";
 inline constexpr char kFeedBackgroundRefreshDescription[] =
@@ -923,11 +928,6 @@ inline constexpr char kFullscreenTransitionSpeedName[] =
 inline constexpr char kFullscreenTransitionSpeedDescription[] =
     "When enabled, the speed of the fullscreen' transition is "
     "increased-decreased.";
-
-inline constexpr char kGaiaAuthFetcherDontSendSIDCookiesName[] =
-    "GaiaAuthFetcher should not send SID and LSID cookie";
-inline constexpr char kGaiaAuthFetcherDontSendSIDCookiesDescription[] =
-    "When enabled, GaiaAuthFetcher should not send SID and LSID cookies";
 
 inline constexpr char kGeminiActorName[] = "Gemini Actor";
 inline constexpr char kGeminiActorDescription[] = "Enables the Gemini Actor.";

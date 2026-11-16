@@ -1,7 +1,7 @@
 Name: libprocinfo
 URL: https://android.googlesource.com/platform/system/libprocinfo
-Version: N/A
-Revision: 295ed0246f153f155b975acee119d7e3adecadec
+Version: android-17.0.0_r1
+Revision: b58259e79c58deb1132e11d74ea90a2dc441d84f
 Update Mechanism: Manual
 License: Apache-2.0
 License File: //third_party/libunwindstack/LICENSE
@@ -15,5 +15,10 @@ builds into its libunwindstack target.
 
 src/ holds that file from the upstream repository root, unchanged.
 
-To update, copy include/procinfo/process_map.h at the new revision into
-src/include/procinfo/ and update Revision above.
+Update instructions:
+Update commit hashes in crowbar.txtpb, then run from this directory:
+crowbar build --no-dry-run ./
+
+copy.bara.sky lists every file it imports. If the new upstream version
+adds a file Chromium needs, add it there and to
+//third_party/libunwindstack/BUILD.gn.

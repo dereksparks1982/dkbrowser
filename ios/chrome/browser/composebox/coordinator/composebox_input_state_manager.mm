@@ -76,8 +76,6 @@ std::optional<ComposeboxMode> ModeForToolMode(omnibox::ToolMode tool_mode) {
     case omnibox::ToolMode::TOOL_MODE_GEMINI_PRO:
       return kPTM;
     case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN:
-    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD:
-    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_SELFIE:
       return kImageGeneration;
     case omnibox::ToolMode::TOOL_MODE_AIM:
       return kAIM;
@@ -86,9 +84,8 @@ std::optional<ComposeboxMode> ModeForToolMode(omnibox::ToolMode tool_mode) {
   }
 }
 
-// Returns the tool mode for the given composebox mode.
-omnibox::ToolMode ToolModeForComposeboxMode(ComposeboxMode mode,
-                                            BOOL hasImage) {
+// Returns the tool mode for the given composebox `mode`.
+omnibox::ToolMode ToolModeForComposeboxMode(ComposeboxMode mode) {
   switch (mode) {
     case ComposeboxMode::kCanvas:
       return omnibox::ToolMode::TOOL_MODE_CANVAS;
@@ -97,9 +94,9 @@ omnibox::ToolMode ToolModeForComposeboxMode(ComposeboxMode mode,
     case ComposeboxMode::kPTM:
       return omnibox::ToolMode::TOOL_MODE_GEMINI_PRO;
     case ComposeboxMode::kImageGeneration:
-      return hasImage ? omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD
-                      : omnibox::ToolMode::TOOL_MODE_IMAGE_GEN;
+      return omnibox::ToolMode::TOOL_MODE_IMAGE_GEN;
     case ComposeboxMode::kAIM:
+      return omnibox::ToolMode::TOOL_MODE_AIM;
     case ComposeboxMode::kRegularSearch:
       return omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
   }
@@ -294,6 +291,19 @@ omnibox::InputType InputTypeForAttachmentOption(
   _metricsRecorder = nil;
 }
 
+- (void)setActiveToolMode:(omnibox::ToolMode)toolMode {
+  if (![self canSelectToolMode:toolMode]) {
+    return;
+  }
+  if (toolMode == omnibox::ToolMode::TOOL_MODE_UNSPECIFIED) {
+    _modeHolder.mode = [self defaultTool];
+    return;
+  }
+  if (std::optional<ComposeboxMode> mode = ModeForToolMode(toolMode)) {
+    _modeHolder.mode = *mode;
+  }
+}
+
 - (omnibox::ModelMode)activeModel {
   // `InputStateModel` keeps its default model active even in regular search,
   // where no model applies on the client.
@@ -329,7 +339,7 @@ omnibox::InputType InputTypeForAttachmentOption(
   // do the switch to AIM.
   BOOL switchToAIM = explicitUserAction && _modeHolder.isRegularSearch;
   if (switchToAIM) {
-    _modeHolder.mode = ComposeboxMode::kAIM;
+    [self setActiveToolMode:omnibox::ToolMode::TOOL_MODE_AIM];
     [self.metricsRecorder
         recordAiModeActivationSource:AiModeActivationSource::kImplicit];
     return;
@@ -350,19 +360,11 @@ omnibox::InputType InputTypeForAttachmentOption(
 }
 
 - (void)onItemsUpdated {
-  // Tool Mode has a different value depending on `items.hasImage`. Update if
-  // needed.
-  ComposeboxMode activeMode = [self activeMode];
-  if (activeMode == ComposeboxMode::kImageGeneration) {
-    [self setActiveToolInInputState:ToolModeForComposeboxMode(
-                                        activeMode, self.items.hasImage)];
-  }
-
   // AI mode is implicitly enabled by items attachment.
   BOOL shouldSwitchToAIM =
       self.items && !self.items.empty && _modeHolder.isRegularSearch;
   if (shouldSwitchToAIM) {
-    _modeHolder.mode = ComposeboxMode::kAIM;
+    [self setActiveToolMode:omnibox::ToolMode::TOOL_MODE_AIM];
     [self.metricsRecorder
         recordAiModeActivationSource:AiModeActivationSource::kImplicit];
   }
@@ -630,8 +632,7 @@ omnibox::InputType InputTypeForAttachmentOption(
   }
 
   // Set active tool mode triggers input state update.
-  omnibox::ToolMode toolMode =
-      ToolModeForComposeboxMode(mode, self.items.hasImage);
+  omnibox::ToolMode toolMode = ToolModeForComposeboxMode(mode);
   [self setActiveToolInInputState:toolMode];
 
   [self updateModelOnModeChange];
@@ -770,7 +771,7 @@ omnibox::InputType InputTypeForAttachmentOption(
       // Both RegularSearch and AIM map to TOOL_MODE_UNSPECIFIED.
       return tool == omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
     default:
-      return ToolModeForComposeboxMode(mode, self.items.hasImage) == tool;
+      return ToolModeForComposeboxMode(mode) == tool;
   }
 }
 
@@ -801,8 +802,7 @@ omnibox::InputType InputTypeForAttachmentOption(
     return;
   }
 
-  omnibox::ToolMode targetToolMode =
-      ToolModeForComposeboxMode(currentMode, self.items.hasImage);
+  omnibox::ToolMode targetToolMode = ToolModeForComposeboxMode(currentMode);
 
   BOOL localOptionValid = [self canSelectTool:currentMode];
   if (localOptionValid) {
@@ -888,6 +888,15 @@ omnibox::InputType InputTypeForAttachmentOption(
   return YES;
 }
 
+// Whether the given `toolMode` can be selected.
+- (BOOL)canSelectToolMode:(omnibox::ToolMode)toolMode {
+  if (toolMode == omnibox::ToolMode::TOOL_MODE_UNSPECIFIED) {
+    return YES;
+  }
+  std::optional<ComposeboxMode> mode = ModeForToolMode(toolMode);
+  return mode.has_value() && [self canSelectTool:*mode];
+}
+
 // Whether the given tool mode is allowed.
 - (BOOL)isToolAllowed:(ComposeboxMode)mode {
   if (mode == [self defaultTool]) {
@@ -930,10 +939,7 @@ omnibox::InputType InputTypeForAttachmentOption(
   switch (mode) {
     case kImageGeneration:
       return std::ranges::contains(_inputState->disabled_tools,
-                                   omnibox::ToolMode::TOOL_MODE_IMAGE_GEN) ||
-             std::ranges::contains(
-                 _inputState->disabled_tools,
-                 omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD);
+                                   omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
     case kCanvas:
       return std::ranges::contains(_inputState->disabled_tools,
                                    omnibox::ToolMode::TOOL_MODE_CANVAS);
@@ -1057,17 +1063,24 @@ omnibox::InputType InputTypeForAttachmentOption(
     return;
   }
 
-  if (_inputStateModel->GetInputState().active_tool == activeTool) {
+  // `InputStateModel` only models AIM state, where plain AI Mode is represented
+  // as `TOOL_MODE_UNSPECIFIED`.
+  omnibox::ToolMode inputStateTool =
+      activeTool == omnibox::ToolMode::TOOL_MODE_AIM
+          ? omnibox::ToolMode::TOOL_MODE_UNSPECIFIED
+          : activeTool;
+
+  if (_inputStateModel->GetInputState().active_tool == inputStateTool) {
     return;
   }
 
   contextual_search::ContextualSearchMetricsRecorder* recorder =
       _sessionHandle ? _sessionHandle->GetMetricsRecorder() : nullptr;
   if (recorder) {
-    recorder->RecordToolMode(activeTool);
+    recorder->RecordToolMode(inputStateTool);
   }
 
-  _inputStateModel->SetActiveTool(activeTool);
+  _inputStateModel->SetActiveTool(inputStateTool);
 }
 
 #pragma mark - Eligibility & Availability

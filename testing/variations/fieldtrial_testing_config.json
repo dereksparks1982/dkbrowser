@@ -2308,25 +2308,6 @@
             ]
         }
     ],
-    "AutofillGmailOtpPreLaunchMetrics": [
-        {
-            "platforms": [
-                "chromeos",
-                "linux",
-                "mac",
-                "windows"
-            ],
-            "experiments": [
-                {
-                    "name": "EnabledWithFieldDetection",
-                    "enable_features": [
-                        "AutofillGmailOtpPreLaunchMetrics",
-                        "PasswordFormClientsideClassifier"
-                    ]
-                }
-            ]
-        }
-    ],
     "AutofillHideSuggestionsOnFocusChange": [
         {
             "platforms": [
@@ -2471,27 +2452,6 @@
                     "name": "Enabled",
                     "enable_features": [
                         "AutofillMoveSmallFormLogicToClient"
-                    ]
-                }
-            ]
-        }
-    ],
-    "AutofillNewSuggestionGeneration": [
-        {
-            "platforms": [
-                "android",
-                "android_desktop",
-                "chromeos",
-                "ios",
-                "linux",
-                "mac",
-                "windows"
-            ],
-            "experiments": [
-                {
-                    "name": "Enabled",
-                    "enable_features": [
-                        "AutofillNewSuggestionGeneration"
                     ]
                 }
             ]
@@ -2820,6 +2780,27 @@
                     "name": "Enabled",
                     "enable_features": [
                         "AutofillPopupDontAcceptNonVisibleEnoughSuggestion"
+                    ]
+                }
+            ]
+        }
+    ],
+    "AutofillPostTaskAfterFillOrPreviewForm": [
+        {
+            "platforms": [
+                "android",
+                "android_desktop",
+                "chromeos",
+                "ios",
+                "linux",
+                "mac",
+                "windows"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled",
+                    "enable_features": [
+                        "AutofillPostTaskAfterFillOrPreviewForm"
                     ]
                 }
             ]
@@ -3974,6 +3955,26 @@
                     },
                     "enable_features": [
                         "CCTNavigationalPrefetch"
+                    ]
+                }
+            ]
+        }
+    ],
+    "CRLSetCompactSerials": [
+        {
+            "platforms": [
+                "android",
+                "android_desktop",
+                "chromeos",
+                "linux",
+                "mac",
+                "windows"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled",
+                    "enable_features": [
+                        "CRLSetCompactSerials"
                     ]
                 }
             ]
@@ -5376,6 +5377,26 @@
             ]
         }
     ],
+    "ClientSideDetectionIframeInnerText": [
+        {
+            "platforms": [
+                "android",
+                "android_desktop",
+                "chromeos",
+                "linux",
+                "mac",
+                "windows"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled_20261116",
+                    "enable_features": [
+                        "ClientSideDetectionIframeInnerText"
+                    ]
+                }
+            ]
+        }
+    ],
     "ClientSideDetectionImageEmbeddingMatch": [
         {
             "platforms": [
@@ -5392,6 +5413,26 @@
                     },
                     "enable_features": [
                         "ClientSideDetectionImageEmbeddingMatch"
+                    ]
+                }
+            ]
+        }
+    ],
+    "ClientSideDetectionIncludeTitleInInnerText": [
+        {
+            "platforms": [
+                "android",
+                "android_desktop",
+                "chromeos",
+                "linux",
+                "mac",
+                "windows"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled_20261116",
+                    "enable_features": [
+                        "ClientSideDetectionIncludeTitleInInnerText"
                     ]
                 }
             ]
@@ -7293,6 +7334,23 @@
             ]
         }
     ],
+    "DisallowLegacyPrefMacFallback": [
+        {
+            "platforms": [
+                "linux",
+                "mac",
+                "windows"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled",
+                    "enable_features": [
+                        "DisallowLegacyPrefMacFallback"
+                    ]
+                }
+            ]
+        }
+    ],
     "DiscardCompositionBackBuffersAndroid": [
         {
             "platforms": [
@@ -7486,6 +7544,28 @@
                     "name": "Enabled_20260203",
                     "enable_features": [
                         "DohProviderQuad9Secure"
+                    ]
+                }
+            ]
+        }
+    ],
+    "DnsTaskAllowPartialAddressResults": [
+        {
+            "platforms": [
+                "android",
+                "android_desktop",
+                "android_webview",
+                "chromeos",
+                "ios",
+                "linux",
+                "mac",
+                "windows"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled_20261105",
+                    "enable_features": [
+                        "DnsTaskAllowPartialAddressResults"
                     ]
                 }
             ]
@@ -9426,26 +9506,6 @@
                     "enable_features": [
                         "AutoOpenGlicForPdf",
                         "EnableAutoOpenGlicSidePanel"
-                    ]
-                }
-            ]
-        }
-    ],
-    "GlicBackgroundActuation": [
-        {
-            "platforms": [
-                "android",
-                "android_desktop"
-            ],
-            "experiments": [
-                {
-                    "name": "Enabled",
-                    "enable_features": [
-                        "ActorLiveNotification",
-                        "ActorNotificationIntentRouting",
-                        "ActorStepProgressNotification",
-                        "GlicBackgroundActuation",
-                        "GlicBackgroundActuationTabGroupSync"
                     ]
                 }
             ]
@@ -15200,8 +15260,8 @@
                 {
                     "name": "enabled_unlimited_20260420",
                     "params": {
-                        "PartitionAllocSchedulerLoopQuarantineConfig": "{\"*\":{\"amsc\":{\"branch-capacity-in-bytes\":524288,\"enable-quarantine\":true,\"enable-zapping\":true,\"leak-on-destruction\":true}},\"browser\":{\"main\":{\"branch-capacity-in-bytes\":2147483647,\"enable-quarantine\":true,\"enable-task-controlled-purge\":true,\"enable-zapping\":true,\"leak-on-destruction\":false,\"pause-in-between-tasks\":true}},\"gpu-process\":{\"*\":{\"branch-capacity-in-bytes\":2147483647,\"enable-quarantine\":true,\"enable-task-controlled-purge\":true,\"enable-zapping\":true,\"leak-on-destruction\":false,\"pause-in-between-tasks\":true}},\"renderer\":{\"main\":{\"branch-capacity-in-bytes\":2147483647,\"enable-quarantine\":true,\"enable-task-controlled-purge\":true,\"enable-zapping\":true,\"leak-on-destruction\":false,\"pause-in-between-tasks\":true}}}",
-                        "enabled-processes": "all-processes"
+                        "PartitionAllocSchedulerLoopQuarantineConfig": "{\"*\":{\"amsc\":{\"branch-capacity-in-bytes\":524288,\"enable-quarantine\":true,\"enable-zapping\":true,\"leak-on-destruction\":false}},\"browser\":{\"main\":{\"branch-capacity-in-bytes\":2147483647,\"enable-quarantine\":true,\"enable-task-controlled-purge\":true,\"enable-zapping\":true,\"leak-on-destruction\":false,\"pause-in-between-tasks\":true}}}",
+                        "enabled-processes": "browser-only"
                     },
                     "enable_features": [
                         "PartitionAllocSchedulerLoopQuarantine",
@@ -15210,8 +15270,7 @@
                     "disable_features": [
                         "ExcludeOopRasterizationFromSafetyChecks",
                         "PartitionAllocSchedulerLoopQuarantineTaskObserverForBrowserUIThread"
-                    ],
-                    "disable_benchmarking": true
+                    ]
                 }
             ]
         }
@@ -16785,6 +16844,27 @@
                     },
                     "enable_features": [
                         "QuicAlwaysCancelPreExistingProbingOnMigration"
+                    ]
+                }
+            ]
+        }
+    ],
+    "QuicEnablePortMigration": [
+        {
+            "platforms": [
+                "android",
+                "android_webview",
+                "chromeos",
+                "ios",
+                "linux",
+                "mac",
+                "windows"
+            ],
+            "experiments": [
+                {
+                    "name": "Disabled_20261105",
+                    "disable_features": [
+                        "QuicEnablePortMigration"
                     ]
                 }
             ]
@@ -19591,22 +19671,6 @@
             ]
         }
     ],
-    "ThrottleMainFrameTo60HzMacV3": [
-        {
-            "platforms": [
-                "mac"
-            ],
-            "experiments": [
-                {
-                    "name": "Enabled",
-                    "enable_features": [
-                        "ThrottleMainFrameTo60Hz",
-                        "UrgentMainFrameForInput"
-                    ]
-                }
-            ]
-        }
-    ],
     "ThrottleMainFrameTo60HzWebView": [
         {
             "platforms": [
@@ -22108,9 +22172,9 @@
             ],
             "experiments": [
                 {
-                    "name": "Enabled_EventsOnly_20261007",
+                    "name": "Enabled_TimerOnly_20261116",
                     "params": {
-                        "CleanupMode": "events_only"
+                        "CleanupMode": "timer_only"
                     },
                     "enable_features": [
                         "WebViewPrewarmDictionaryOnPreconnect"
@@ -22379,6 +22443,21 @@
                     "name": "Disabled_M140",
                     "disable_features": [
                         "WidevinePersistentLicenseSupport"
+                    ]
+                }
+            ]
+        }
+    ],
+    "Win10TaskbarPinFallback": [
+        {
+            "platforms": [
+                "windows"
+            ],
+            "experiments": [
+                {
+                    "name": "Enabled_20261114",
+                    "enable_features": [
+                        "Win10TaskbarPinFallback"
                     ]
                 }
             ]

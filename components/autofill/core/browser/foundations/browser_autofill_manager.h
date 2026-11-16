@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
@@ -292,6 +293,15 @@ class BrowserAutofillManager : public AutofillManager {
       AutofillTriggerSource trigger_source,
       std::optional<RefillTriggerReason> refill_trigger_reason);
 
+  // Notifies observers that the values of a form fill or preview of `form_id`
+  // have been sent to the renderer. See
+  // `Observer::OnFillOrPreviewFormSentToRenderer()`.
+  void OnFillOrPreviewFormSentToRenderer(
+      mojom::ActionPersistence action_persistence,
+      FormGlobalId form_id,
+      FieldGlobalId trigger_field_id,
+      const base::flat_set<FieldGlobalId>& sent_field_ids);
+
   // Handles post-filling logic of `field_type_used`, like logging field
   // metrics.
   void OnDidFillOrPreviewField(mojom::ActionPersistence action_persistence,
@@ -538,6 +548,8 @@ class BrowserAutofillManager : public AutofillManager {
       std::vector<SuggestionGenerator::ReturnedSuggestions>
           returned_suggestions);
 
+  void CancelSuggestionGenerator(FillingProduct product);
+
   // Returns true if TouchToFill is already showing, otherwise checks whether or
   // not to show it and returns true if it was shown and false otherwise.
   bool TryToShowTouchToFillSuggestions(
@@ -747,12 +759,13 @@ class BrowserAutofillManager : public AutofillManager {
 
   std::u16string last_unlocked_credit_card_cvc_;
 
-  // Contains a list of suggestion generators. This must be declared near the
-  // bottom of the class (after members like `bnpl_manager_` and
-  // `amount_extraction_manager_`) to ensure it is destroyed first, as some
-  // generators take class members from BrowserAutofillManager into their
-  // constructors to set as class members.
-  std::vector<std::unique_ptr<SuggestionGenerator>> suggestion_generators_;
+  // Maps each active `FillingProduct` to its `SuggestionGenerator`. This must
+  // be declared near the bottom of the class (after members like
+  // `bnpl_manager_` and `amount_extraction_manager_`) to ensure it is destroyed
+  // first, as some generators take class members from BrowserAutofillManager
+  // into their constructors to set as class members.
+  base::flat_map<FillingProduct, std::unique_ptr<SuggestionGenerator>>
+      suggestion_generators_;
 
   // Handles general Address on typing feature management, mainly the logic
   // behind its strike database.
@@ -765,6 +778,11 @@ class BrowserAutofillManager : public AutofillManager {
   // kAutofillNewSuggestionGeneration.
   base::WeakPtrFactory<BrowserAutofillManager>
       generate_suggestions_and_maybe_show_ui_phase2_weak_ptr_factory_{this};
+
+  // Invalidated whenever a suggestion generation cycle starts, completes, or
+  // resets so callbacks from a superseded cycle cannot mutate a newer cycle.
+  base::WeakPtrFactory<BrowserAutofillManager>
+      suggestion_generation_weak_ptr_factory_{this};
 
   base::WeakPtrFactory<BrowserAutofillManager> weak_ptr_factory_{this};
 };

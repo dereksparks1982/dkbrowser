@@ -94,6 +94,7 @@
 #include "chrome/browser/ui/browser_window_state.h"
 #include "chrome/browser/ui/browser_window_theme_observer/browser_window_theme_observer.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/color/chrome_color_provider_utils.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
@@ -130,7 +131,6 @@
 #include "chrome/browser/ui/tabs/organizer/organizer_panel_utils.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
-#include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_feature.h"
@@ -1445,7 +1445,6 @@ bool BrowserView::ShouldDrawTabStrokes() const {
   // enough contrast, fall back to a stroke.  Always compute the contrast ratio
   // against the active frame color, to avoid toggling the stroke on and off as
   // the window activation state changes.
-  constexpr float kMinimumContrastRatioForOutlines = 1.3f;
   const SkColor background_color = TabStyle::Get()->GetTabBackgroundColor(
       TabStyle::TabSelectionState::kActive, /*hovered=*/false,
       /*frame_active=*/true, GetColorProvider());
@@ -1453,7 +1452,7 @@ bool BrowserView::ShouldDrawTabStrokes() const {
       GetFrameView()->GetFrameColor(BrowserFrameActiveState::kActive);
   const float contrast_ratio =
       color_utils::GetContrastRatio(background_color, frame_color);
-  return contrast_ratio < kMinimumContrastRatioForOutlines;
+  return contrast_ratio < kMinimumActiveTabContrastRatio;
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 }
 
@@ -1720,9 +1719,19 @@ void BrowserView::Show() {
 }
 
 void BrowserView::ShowInactive() {
-  if (!browser_widget_->IsVisible()) {
-    browser_widget_->ShowInactive();
+  // Attempts to show closed windows should no-op.
+  if (browser_widget_->IsClosed() || browser_widget_->IsVisible()) {
+    return;
   }
+
+  if (auto* manager = InitialWebUIManager::From(browser())) {
+    if (manager->RequestDeferShow(base::BindOnce(
+            &BrowserView::ShowInactive, weak_ptr_factory_.GetWeakPtr()))) {
+      return;
+    }
+  }
+
+  browser_widget_->ShowInactive();
 }
 
 void BrowserView::Hide() {
@@ -3085,6 +3094,12 @@ void BrowserView::DidFinishNavigation(
   }
 }
 
+void BrowserView::DidStopLoading() {
+  if (content::WebContents* contents = GetActiveWebContents()) {
+    UpdateAccessibleURLForRootView(contents->GetURL());
+  }
+}
+
 void BrowserView::TouchModeChanged() {
 #if BUILDFLAG(IS_CHROMEOS)
   if (ui::TouchUiController::Get()->touch_ui()) {
@@ -3638,21 +3653,6 @@ void BrowserView::OnSplitTabChanged(const SplitTabChange& change) {
   if (change.type != SplitTabChange::Type::kVisualsChanged) {
     UpdateTabModalDialogHost();
   }
-}
-
-void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
-                                 TabChangeType change_type) {
-  content::WebContents* contents = tab->GetContents();
-
-  if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
-    return;
-  }
-
-  if (contents != GetActiveWebContents()) {
-    return;
-  }
-
-  UpdateAccessibleURLForRootView(contents->GetURL());
 }
 
 void BrowserView::OnTabBlockedStateChanged(tabs::TabInterface* tab) {

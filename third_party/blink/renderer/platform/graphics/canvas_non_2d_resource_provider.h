@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_NON_2D_RESOURCE_PROVIDER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_NON_2D_RESOURCE_PROVIDER_H_
 
-#include <cstdint>
 #include <memory>
 
 #include "base/byte_size.h"
@@ -58,7 +57,7 @@ class WebGraphicsSharedImageInterfaceProvider;
 
 class PLATFORM_EXPORT CanvasNon2DResourceProvider
     : public CanvasMemoryDumpClient,
-      public CanvasResourceSharedImage::Client,
+      public CanvasResource::Client,
       public FlushForImageObserver,
       public WebGraphicsContext3DProviderWrapper::DestructionObserver,
       public viz::ContextLostObserver,
@@ -158,8 +157,7 @@ class PLATFORM_EXPORT CanvasNon2DResourceProvider
   // WebGraphicsContext3DProviderWrapper::DestructionObserver implementation.
   void OnContextDestroyed() override;
 
-  void OnResourceRefReturned(
-      scoped_refptr<CanvasResourceSharedImage> resource) override;
+  void OnResourceRefReturned(scoped_refptr<CanvasResource> resource) override;
   void OnDestroyResource() override { --num_inflight_resources_; }
   void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd) override;
   size_t GetSize() const override;
@@ -167,7 +165,7 @@ class PLATFORM_EXPORT CanvasNon2DResourceProvider
 
   SkSurfaceProps GetSkSurfaceProps() const;
 
-  scoped_refptr<CanvasResourceSharedImage> NewOrRecycledResource();
+  scoped_refptr<CanvasResource> NewOrRecycledResource();
 
   // FlushForImageObserver implementation:
   void OnFlushForImage(cc::PaintImage::ContentId content_id) override;
@@ -195,7 +193,7 @@ class PLATFORM_EXPORT CanvasNon2DResourceProvider
   void EnsureResourceReadyForDraw();
 
   scoped_refptr<ExportedCanvasResource> CreateExportedResource(
-      scoped_refptr<CanvasResourceSharedImage> resource);
+      scoped_refptr<CanvasResource> resource);
 
   const gfx::Size size_;
   const viz::SharedImageFormat format_;
@@ -217,9 +215,9 @@ class PLATFORM_EXPORT CanvasNon2DResourceProvider
 
   // If this instance is single-buffered or |resource_recycling_enabled_| is
   // false, |image_pool_| will not recycle resources.
-  std::unique_ptr<gpu::SharedImagePool<CanvasResourceSharedImage>> image_pool_;
+  std::unique_ptr<gpu::SharedImagePool<CanvasResource>> image_pool_;
 
-  scoped_refptr<CanvasResourceSharedImage> resource_;
+  scoped_refptr<CanvasResource> resource_;
 
   cc::PaintImage::ContentId cached_content_id_ =
       cc::PaintImage::kInvalidContentId;

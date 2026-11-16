@@ -2454,7 +2454,6 @@ crbug.com/362556327 [ Mac ] external/wpt/pointerevents/coalesced_events_attribut
 crbug.com/383880384 [ Mac ] external/wpt/css/css-properties-values-api/registered-property-change-style-002.html [ Failure Pass ]
 crbug.com/383880384 [ Win ] external/wpt/css/css-properties-values-api/registered-property-change-style-002.html [ Failure Pass ]
 
-crbug.com/424798906 external/wpt/pointerevents/pointerevent_element_haspointercapture.html?touch [ Failure ]
 
 crbug.com/433565190 external/wpt/css/css-counter-styles/japanese-formal/counter-japanese-formal-extended.html [ Failure ]
 crbug.com/433565190 external/wpt/css/css-counter-styles/japanese-informal/counter-japanese-informal-extended.html [ Failure ]
@@ -2530,7 +2529,6 @@ crbug.com/488071544 external/wpt/webrtc/RTCDataChannel-GC.html?rest [ Failure Sk
 crbug.com/488071544 external/wpt/webrtc/RTCIceTransport.html?rest [ Failure Skip Timeout ]
 crbug.com/488071544 external/wpt/webrtc/RTCPeerConnection-createDataChannel.html?interop-2026 [ Failure Skip Timeout ]
 crbug.com/488071544 external/wpt/webrtc/RTCPeerConnection-createDataChannel.html?rest [ Failure Skip Timeout ]
-crbug.com/488071544 external/wpt/webrtc/RTCPeerConnection-setRemoteDescription-offer.html?interop-2026 [ Failure Timeout ]
 crbug.com/488071544 external/wpt/webrtc/RTCPeerConnection-setRemoteDescription-offer.html?rest [ Failure Timeout ]
 crbug.com/488071544 external/wpt/webrtc/RTCRtpReceiver-getStats.https.html?interop-2026 [ Failure Skip Timeout ]
 crbug.com/488071544 external/wpt/webrtc/RTCRtpReceiver-getStats.https.html?rest [ Failure Skip Timeout ]
@@ -6580,9 +6578,6 @@ crbug.com/1459304 [ Linux ] css2.1/t090501-c414-flt-02-d-g.html [ Failure Pass ]
 crbug.com/1459347 [ Fuchsia ] virtual/text-antialias/stroking-decorations.html [ Failure Pass ]
 crbug.com/1459347 [ Fuchsia ] paint/invalidation/shadow-multiple.html [ Failure Pass ]
 
-# Temporarily disable test to land frontend color and margin changes
-crbug.com/40273210 http/tests/devtools/console/console-viewport-control.js [ Failure Pass ]
-
 # Sheriff 2023-07-04
 crbug.com/391068 http/tests/websocket/close-code-and-reason.html [ Failure Pass ]
 
@@ -7480,6 +7475,9 @@ crbug.com/371033184 external/wpt/css/css-writing-modes/wm-propagation-body-047.h
 crbug.com/371033184 external/wpt/css/css-writing-modes/wm-propagation-body-049.html [ Failure ]
 crbug.com/371033184 external/wpt/css/css-writing-modes/wm-propagation-body-054.html [ Failure ]
 
+# css-display
+crbug.com/549426929 external/wpt/css/css-display/invisibility/visibility-collapse-invalidation-001.html [ Failure ]
+
 # line-clamp
 crbug.com/568010387 external/wpt/css/css-overflow/line-clamp/line-clamp-auto-045.html [ Failure ]
 crbug.com/40336192 external/wpt/css/css-overflow/line-clamp/line-clamp-balance-003.html [ Failure ]
@@ -7606,6 +7604,11 @@ crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/
 crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-041.html [ Failure ]
 crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-042.html [ Failure ]
 crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-043.html [ Failure ]
+crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-044.html [ Failure ]
+crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-045.html [ Failure ]
+crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-046.html [ Failure ]
+crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-047.html [ Failure ]
+crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-050.html [ Failure ]
 crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-auto-001.html [ Failure ]
 crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-auto-002.tentative.html [ Failure ]
 crbug.com/40336192 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-auto-003.tentative.html [ Failure ]
@@ -8018,10 +8021,6 @@ crbug.com/378566920 [ Debug Mac14 ] external/wpt/speculation-rules/prefetch/no-v
 
 # Gardener 2024-11-13
 crbug.com/378566925 [ Mac ] virtual/gpu-rasterization/external/wpt/css/css-images/object-view-box-fit-cover-img.html [ Failure Pass ]
-
-# Temporarily disabled to land https://crrev.com/c/7531559
-crbug.com/465879478 http/tests/devtools/sources/debugger-ui/call-stack-show-more.js [ Failure Pass Timeout ]
-crbug.com/465879478 http/tests/devtools/sources/debugger-ui/async-call-stack-worker.js [ Failure Pass Timeout ]
 
 # Gardener 2024-11-18
 crbug.com/379516106 [ Debug Mac14 ] external/wpt/css/css-overflow/scrollbar-large-scale-in-iframe.html [ Pass Timeout ]

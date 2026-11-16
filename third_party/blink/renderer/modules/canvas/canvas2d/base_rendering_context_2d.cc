@@ -31,11 +31,13 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
+#include "cc/base/math_util.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_image.h"
@@ -131,6 +133,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/renderer/platform/text/layout_locale.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/text/text_run.h"
@@ -308,15 +311,14 @@ void BaseRenderingContext2D::ClearUnusedResources() {
 }
 
 void BaseRenderingContext2D::OnResourceRefReturned(
-    scoped_refptr<CanvasResourceSharedImage> resource) {
+    scoped_refptr<CanvasResource> resource) {
   if (!resource->IsLost() && resource->HasOneRef() &&
       resource_recycling_enabled_ && image_pool_) {
     image_pool_->ReleaseImage(std::move(resource));
   }
 }
 
-scoped_refptr<CanvasResourceSharedImage>
-BaseRenderingContext2D::NewOrRecycledResource() {
+scoped_refptr<CanvasResource> BaseRenderingContext2D::NewOrRecycledResource() {
   if (!image_pool_) {
     return nullptr;
   }
@@ -332,11 +334,9 @@ BaseRenderingContext2D::NewOrRecycledResource() {
     if (image_pool_->GetImageInfo().is_software) {
       resource->InitializeSoftware(
           resource_client_weak_ptr_factory_.GetWeakPtr(),
-          shared_image_interface_provider_, color_params_.GetGfxHdrMetadata());
+          shared_image_interface_provider_);
     } else {
-      resource->Initialize(resource_client_weak_ptr_factory_.GetWeakPtr(),
-                           context_provider_wrapper_,
-                           color_params_.GetGfxHdrMetadata(), is_accelerated_);
+      resource->Initialize(resource_client_weak_ptr_factory_.GetWeakPtr());
     }
     ++num_inflight_resources_;
     if (num_inflight_resources_ > max_inflight_resources_) {
@@ -553,7 +553,7 @@ void BaseRenderingContext2D::CreateSharedImagePool(
   bool is_single_buffered = shared_image_usage_flags.Has(
       gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE);
 
-  image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
+  image_pool_ = gpu::SharedImagePool<CanvasResource>::Create(
       image_info, sii,
       is_accelerated_ ? "CanvasResourceRaster" : "CanvasResourceRasterGmb",
       is_single_buffered ? 0 : kMaxRecycledCanvasResources, expiration_time);
@@ -626,7 +626,7 @@ void BaseRenderingContext2D::CreateSharedImagePoolForSoftwareCompositor() {
       color_params_.GetGfxColorSpace(), kTopLeft_GrSurfaceOrigin,
       color_params_.GetAlphaType(), /*buffer_usage=*/std::nullopt,
       /*is_software=*/true);
-  image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
+  image_pool_ = gpu::SharedImagePool<CanvasResource>::Create(
       image_info, sii, "CanvasResourceSharedImage",
       kMaxRecycledCanvasResources);
   CreateSoftwareSurface();
@@ -976,6 +976,8 @@ void BaseRenderingContext2D::RasterRecordToSoftwareSurface(
   // Invalidate the remembered SkImage ID so a 32-bit SkNextID::ImageID()
   // wraparound cannot match an old snapshot ID after modifying `surface_`.
   sw_snapshot_sk_image_id_ = 0u;
+  // Disable subnormal floats for performance and security reasons.
+  cc::ScopedSubnormalFloatDisabler disabler;
   cc::SkiaPaintCanvas skia_canvas(surface_->getCanvas(),
                                   GetOrCreateCanvasImageProvider());
   cc::PlaybackCallbacks::CustomDataRasterCallback custom_callback =
@@ -1040,11 +1042,11 @@ scoped_refptr<StaticBitmapImage> BaseRenderingContext2D::Snapshot() {
 
       // The |release_callback| keeps a ref on this resource to ensure the
       // backing shared image is kept alive until the lifetime of the image.
-      // Note that the code in CanvasResourceProvider::RecycleResource also uses
+      // Note that the code in OnResourceRefReturned() also uses
       // the ref-count on the resource as a proxy for a read lock to allow
       // recycling the resource once all refs have been released.
       auto release_callback = blink::BindOnce(
-          [](scoped_refptr<CanvasResourceSharedImage> resource,
+          [](scoped_refptr<CanvasResource> resource,
              const gpu::SyncToken& sync_token, bool lost_resource) {
             CHECK(resource);
 
@@ -1062,10 +1064,10 @@ scoped_refptr<StaticBitmapImage> BaseRenderingContext2D::Snapshot() {
       cached_snapshot_ =
           AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
               client_shared_image, resource_->sync_token(),
-              client_shared_image->alpha_type(), resource_->hdr_metadata_,
-              resource_->context_provider_wrapper_,
-              resource_->owning_thread_ref_,
-              resource_->owning_thread_task_runner_,
+              client_shared_image->alpha_type(),
+              color_params_.GetGfxHdrMetadata(), context_provider_wrapper_,
+              base::PlatformThread::CurrentRef(),
+              ThreadScheduler::Current()->CleanupTaskRunner(),
               std::move(release_callback));
 
       if (cached_snapshot_ && IsSingleBuffered()) {
@@ -1098,7 +1100,7 @@ scoped_refptr<StaticBitmapImage> BaseRenderingContext2D::Snapshot() {
     cached_snapshot_->SetOriginClean(OriginClean());
     return cached_snapshot_;
   }
-  // When using CPU raster with a SharedImage provider, we do not need to end
+  // When using CPU raster with a SharedImage pool, we do not need to end
   // write access (which uploads the CPU rendering results to the SharedImage
   // for compositing) because we are simply returning the CPU-side results to
   // the client.
@@ -1118,11 +1120,14 @@ bool BaseRenderingContext2D::WritePixelsToBacking(const SkImageInfo& orig_info,
     EnsureResourceReadyForDraw();
 
     // The below write to the resource's SharedImage will need to be preserved
-    // in the case of a subsequent CopyOnWrite.
-    // TODO(crbug.com/352263194): Logically this bool must already be true
-    // (see discussion here:
-    // https://chromium-review.googlesource.com/c/chromium/src/+/7557841/comment/bb38e497_ef1efdbc/).
-    // Verify that this is the case and update the code here.
+    // in the case of a subsequent CopyOnWrite. Note that a full-canvas
+    // WritePixels() in CanvasRenderingContext2D calls RestartRecording()
+    // (which sets `must_preserve_content_on_copy_on_write_ = false` in
+    // RecordingCleared()) before calling WritePixelsToBacking(); if
+    // `ShouldReplaceTargetBuffer()` was false in `EnsureResourceReadyForDraw()`
+    // (e.g., `resource_->HasOneRef()`),
+    // `must_preserve_content_on_copy_on_write_` is still false at this point
+    // and must be reset to true here.
     must_preserve_content_on_copy_on_write_ = true;
 
     gpu::SyncToken sync_token = RasterInterface()->WritePixels(
@@ -1165,19 +1170,19 @@ BaseRenderingContext2D::PaintRenderingResultsToSnapshot(
 
 scoped_refptr<ExportedCanvasResource>
 BaseRenderingContext2D::CreateExportedResource(
-    scoped_refptr<CanvasResourceSharedImage> resource) {
+    scoped_refptr<CanvasResource> resource) {
   // Callbacks below never run on the different thread, but could be destroyed
   // on different thread if current thread is gone (and so PostTask will fail) .
   auto wait_sync_token =
       ConvertToBaseRepeatingCallback(CrossThreadBindRepeating(
-          [](scoped_refptr<CanvasResourceSharedImage> resource,
+          [](scoped_refptr<CanvasResource> resource,
              gpu::SyncToken sync_token) {
             resource->WaitSyncToken(sync_token);
           },
           resource));
 
   auto release_callback = ConvertToBaseOnceCallback(CrossThreadBindOnce(
-      [](scoped_refptr<CanvasResourceSharedImage> resource,
+      [](scoped_refptr<CanvasResource> resource,
          const gpu::SyncToken& sync_token, bool is_lost) {
         if (is_lost) {
           resource->NotifyResourceLost();
@@ -1206,8 +1211,7 @@ BaseRenderingContext2D::PaintRenderingResultsToResource(
   FlushCanvas(reason);
   if (image_pool_->GetImageInfo().is_software) {
     DCHECK(surface_);
-    scoped_refptr<CanvasResourceSharedImage> output_resource =
-        NewOrRecycledResource();
+    scoped_refptr<CanvasResource> output_resource = NewOrRecycledResource();
     if (!output_resource) {
       return nullptr;
     }

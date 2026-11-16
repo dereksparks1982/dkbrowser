@@ -776,9 +776,14 @@ void PasswordAutofillAgent::PasswordValueGatekeeper::Reset() {
 
 void PasswordAutofillAgent::PasswordValueGatekeeper::ShowValue(
     WebInputElement element) {
-  if (element && !element.SuggestedValue().IsEmpty()) {
-    element.SetAutofillValue(element.SuggestedValue());
+  if (!element || element.SuggestedValue().IsEmpty() ||
+      element.GetAutofillState() != WebAutofillState::kAutofilled) {
+    // If the element does not have WebAutofillState::kAutofilled, the suggested
+    // value may be a previewed value (e.g., a credit card number), rather than
+    // a username or password that has been made inaccessible to JavaScript.
+    return;
   }
+  element.SetAutofillValue(element.SuggestedValue());
   // WARNING: SetAutofillValue can trigger JS that detaches the frame.
   // Do not add code here that assumes the frame is still valid without
   // checking.
@@ -2362,6 +2367,7 @@ void PasswordAutofillAgent::TryFixAutofilledForm(
     // state if JavaScript modifies the field's value.
     if (*cached_value != control_element.SuggestedValue()) {
       control_element.SetSuggestedValue(*cached_value);
+      control_element.SetAutofillState(WebAutofillState::kAutofilled);
     }
   }
 }

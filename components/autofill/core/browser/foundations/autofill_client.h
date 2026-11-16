@@ -59,6 +59,10 @@ class DeviceAuthAvailabilityChecker;
 class DeviceAuthenticator;
 }  // namespace device_reauth
 
+namespace gfx {
+class Image;
+}  // namespace gfx
+
 namespace network {
 class SharedURLLoaderFactory;
 }
@@ -287,6 +291,9 @@ class AutofillClient {
   // LINT.ThenChange(//tools/metrics/histograms/metadata/blink/enums.xml:EvpPermissionUiStatus)
 
   // Decisions that can be returned by the in-context SPII verification UI.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(AutofillAiVerificationDecision)
   enum class AutofillAiVerificationDecision {
     // The user asked to hide the entity; the fill is undone and the entity is
     // suppressed.
@@ -297,7 +304,9 @@ class AutofillClient {
     kConfirm = 2,
     // The user undid the fill without suppressing the entity.
     kUndo = 3,
+    kMaxValue = kUndo,
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAiVerificationDecision)
   using AutofillAiVerificationDecisionCallback =
       base::OnceCallback<void(AutofillAiVerificationDecision)>;
 
@@ -1025,12 +1034,14 @@ class AutofillClient {
 
   // Shows a yes/no prompt asking the user to confirm that they want to verify
   // their email. The prompt is anchored on the field at `element_bounds`.
-  // `issuer_origin` is the origin that issued the assertion.
+  // `issuer_origin` is the origin that issued the assertion. `issuer_logo` is
+  // the logo the issuer advertises, or empty if it has none.
   // `callback` is called with the permission UI status
   // (`EmailVerificationPermissionUiStatus`).
   virtual void ShowEmailVerificationPopup(
       const gfx::RectF& element_bounds,
       const url::Origin& issuer_origin,
+      const gfx::Image& issuer_logo,
       const std::u16string& email,
       base::OnceCallback<void(EmailVerificationPermissionUiStatus)> callback);
 
@@ -1091,11 +1102,6 @@ class AutofillClient {
 
   // May return null on platforms where no GmailOtpBackend is supported.
   virtual one_time_tokens::GmailOtpBackend* GetGmailOtpBackend() const;
-
-  // Returns true if the primary main frame's document used the WebOTP API. This
-  // exists only for the main frame because only the main frame has the
-  // permission to call the WeOTP API.
-  virtual bool DocumentUsedWebOTP();
 
   // Returns the helper for Password Manager integrations.
   virtual PasswordManagerAutofillHelperDelegate*

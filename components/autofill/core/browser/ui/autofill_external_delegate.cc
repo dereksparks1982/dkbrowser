@@ -27,6 +27,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/not_fatal_until.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
@@ -696,10 +697,14 @@ void AutofillExternalDelegate::OnAutofillAvailabilityEvent(
 void AutofillExternalDelegate::OnSuggestionsShown(
     base::span<const Suggestion> suggestions,
     const SuggestionUiMetadata& metadata) {
-  // Popups are expected to be Autofill or Autocomplete.
-  DCHECK(suggestions.empty() ||
-         GetFillingProductFromSuggestionType(suggestions[0].type) !=
-             FillingProduct::kPassword);
+  // Popups are expected to be Autofill or Autocomplete (or a standalone
+  // Trusted Vault unlock item merged on a username field).
+  CHECK(suggestions.empty() ||
+            suggestions[0].type ==
+                SuggestionType::kPendingStateTrustedVaultError ||
+            GetFillingProductFromSuggestionType(suggestions[0].type) !=
+                FillingProduct::kPassword,
+        base::NotFatalUntil::M163);
 
   const DenseSet<SuggestionType> shown_suggestion_types(suggestions,
                                                         &Suggestion::type);
@@ -1976,6 +1981,7 @@ void AutofillExternalDelegate::OnAutofillAiSuppressionUndone(
 }
 
 struct AutofillExternalDelegate::PendingVerification {
+  EntityInstance::EntityId entity_id;
   FormGlobalId form;
   FieldGlobalId field;
 };
@@ -1986,7 +1992,9 @@ void AutofillExternalDelegate::ShowAttributionVerification(
     const gfx::RectF& field_bounds,
     const GURL& source_url,
     const EntityInstance& filled_entity) {
-  PendingVerification verified{.form = form_id, .field = field_id};
+  PendingVerification verified{
+      .entity_id = filled_entity.guid(), .form = form_id, .field = field_id};
+  LogSpiiVerificationShown();
   manager_->client().ShowAutofillAiAttributionVerification(
       filled_entity, source_url, field_bounds,
       base::BindOnce(&AutofillExternalDelegate::ApplyVerificationDecision,
@@ -1996,14 +2004,30 @@ void AutofillExternalDelegate::ShowAttributionVerification(
 void AutofillExternalDelegate::ApplyVerificationDecision(
     const PendingVerification& v,
     Decision decision) {
+  LogSpiiVerificationDecision(decision);
   switch (decision) {
     case Decision::kConfirm:
+      // TODO(crbug.com/583800808): Record verification confirmation via
+      // `PersonalContextEntityMetadataManager`.
+      break;
     case Decision::kDismiss:
       break;
     case Decision::kUndo:
-    case Decision::kHide:
       manager_->UndoAutofill(mojom::ActionPersistence::kFill, v.form, v.field);
       break;
+    case Decision::kHide: {
+      manager_->UndoAutofill(mojom::ActionPersistence::kFill, v.form, v.field);
+      EntityDataManager* edm = manager_->client().GetEntityDataManager();
+      base::optional_ref<const EntityInstance> stored =
+          edm ? edm->GetEntityInstance(v.entity_id) : std::nullopt;
+      if (stored && base::FeatureList::IsEnabled(
+                        features::kAutofillAmbientAutofillSuppression)) {
+        // `UndoAutofill` above reverts the filled form values; the undo action
+        // offered here shows a notification to revert the entity suppression.
+        SuppressEntityAndOfferUndo(*stored, v.field);
+      }
+      break;
+    }
   }
 }
 

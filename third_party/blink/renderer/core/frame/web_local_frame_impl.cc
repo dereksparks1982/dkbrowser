@@ -1901,9 +1901,7 @@ void WebLocalFrameImpl::ExtendSelectionAndReplace(
   // EditContext and WebPlugin do not support atomic replacement.
   if (EditContext* edit_context =
           GetFrame()->GetInputMethodController().GetActiveEditContext()) {
-    edit_context->ExtendSelectionAndDelete(before, after);
-    edit_context->CommitText(replacement_text, std::vector<ui::ImeTextSpan>(),
-                             blink::WebRange(), 0);
+    edit_context->ExtendSelectionAndReplace(before, after, replacement_text);
     return;
   }
 
@@ -3601,6 +3599,97 @@ void WebLocalFrameImpl::RemoveObserver(WebLocalFrameObserver* observer) {
 void WebLocalFrameImpl::WillSendSubmitEvent(const WebFormElement& form) {
   for (auto& observer : observers_)
     observer.WillSendSubmitEvent(form);
+}
+
+void WebLocalFrameImpl::DidSetPageLifecycleState(
+    BFCacheStateChange bfcache_change) {
+  for (auto& observer : observers_) {
+    observer.DidSetPageLifecycleState(bfcache_change);
+  }
+}
+
+void WebLocalFrameImpl::OnMainFrameAdRectangleChanged(
+    int element_id,
+    const gfx::Rect& ad_rect) {
+  for (auto& observer : observers_) {
+    observer.OnMainFrameAdRectangleChanged(element_id, ad_rect);
+  }
+}
+
+void WebLocalFrameImpl::DidChangePerformanceTiming() {
+  for (auto& observer : observers_) {
+    observer.DidChangePerformanceTiming();
+  }
+}
+
+void WebLocalFrameImpl::DidObserveUserInteraction(
+    base::TimeTicks max_event_start,
+    base::TimeTicks max_event_queued_main_thread,
+    base::TimeTicks max_event_processing_start,
+    base::TimeTicks max_event_commit_finish,
+    base::TimeTicks max_event_end,
+    uint64_t interaction_offset,
+    uint64_t performance_timeline_navigation_id) {
+  for (auto& observer : observers_) {
+    observer.DidObserveUserInteraction(
+        max_event_start, max_event_queued_main_thread,
+        max_event_processing_start, max_event_commit_finish, max_event_end,
+        interaction_offset, performance_timeline_navigation_id);
+  }
+}
+
+void WebLocalFrameImpl::DidChangeCpuTiming(base::TimeDelta time,
+                                           base::TimeDelta ad_time) {
+  for (auto& observer : observers_) {
+    observer.DidChangeCpuTiming(time, ad_time);
+  }
+}
+
+void WebLocalFrameImpl::DidObserveLoadingBehavior(
+    LoadingBehaviorFlag behavior) {
+  for (auto& observer : observers_) {
+    observer.DidObserveLoadingBehavior(behavior);
+  }
+}
+
+void WebLocalFrameImpl::DidObserveJavaScriptFrameworks(
+    const JavaScriptFrameworkDetectionResult& result) {
+  for (auto& observer : observers_) {
+    observer.DidObserveJavaScriptFrameworks(result);
+  }
+}
+
+void WebLocalFrameImpl::DidObserveSoftNavigation(
+    SoftNavigationMetricsForReporting metrics) {
+  for (auto& observer : observers_) {
+    observer.DidObserveSoftNavigation(metrics);
+  }
+}
+
+void WebLocalFrameImpl::DidObserveSoftNavigationFirstContentfulPaint(
+    uint64_t performance_timeline_navigation_id,
+    base::TimeDelta first_contentful_paint) {
+  for (auto& observer : observers_) {
+    observer.DidObserveSoftNavigationFirstContentfulPaint(
+        performance_timeline_navigation_id, first_contentful_paint);
+  }
+}
+
+void WebLocalFrameImpl::DidObserveSoftLargestContentfulPaint(
+    const LargestContentfulPaintDetailsForReporting& lcp) {
+  for (auto& observer : observers_) {
+    observer.DidObserveSoftLargestContentfulPaint(lcp);
+  }
+}
+
+void WebLocalFrameImpl::DidObserveLayoutShift(
+    double score,
+    bool after_input_or_scroll,
+    uint64_t performance_timeline_navigation_id) {
+  for (auto& observer : observers_) {
+    observer.DidObserveLayoutShift(score, after_input_or_scroll,
+                                   performance_timeline_navigation_id);
+  }
 }
 
 bool WebLocalFrameImpl::AllowStorageAccessSyncAndNotify(

@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -77,12 +78,15 @@ ChromeFeatureListCreator* StartupData::chrome_feature_list_creator() {
 
 void StartupData::RecordCoreSystemProfile() {
   metrics::SystemProfileProto system_profile;
+  // This is a fallback system profile for UMA, so include the UMA session
+  // identifiers.
   metrics::MetricsLog::RecordCoreSystemProfile(
       metrics::GetVersionString(),
       metrics::AsProtobufChannel(chrome::GetChannel()),
       chrome::IsExtendedStableChannel(),
       chrome_feature_list_creator()->actual_locale(),
-      metrics::GetAppPackageName(), &system_profile);
+      metrics::GetAppPackageName(), &system_profile,
+      metrics::MetricsLog::SessionIdentifiers::kInclude);
 
   {
     // ========================================================================
@@ -149,8 +153,8 @@ void StartupData::InitProfileKey() {
   CHECK(local_state);
   base::FilePath user_data_dir;
   base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
-  profile_path_ =
-      user_data_dir.Append(GetProfileBaseNameForStartup(*local_state));
+  profile_path_ = user_data_dir.Append(GetProfileBaseNameForStartup(
+      *local_state, *base::CommandLine::ForCurrentProcess(), user_data_dir));
   key_ = std::make_unique<ProfileKey>(profile_path_);
   // Record the profile that Chrome starts with, for Java code that runs before
   // native next time. This also covers reduced mode, which never sets the last
@@ -182,11 +186,19 @@ const base::FilePath& StartupData::GetProfilePath() const {
 
 // static
 base::FilePath StartupData::GetProfileBaseNameForStartup(
-    const PrefService& local_state) {
+    const PrefService& local_state,
+    const base::CommandLine& command_line,
+    const base::FilePath& user_data_dir) {
   // Only the flag may start a non-Default profile, the same as
   // ProfileManager::GetInitialProfileDir(), which opens this profile first.
   if (!profiles::IsAndroidMultiprofileStartupDataEnabled()) {
     return base::FilePath::FromASCII(chrome::kInitialProfile);
+  }
+
+  base::FilePath command_line_profile = profiles::GetProfileDirFromCommandLine(
+      command_line, user_data_dir, local_state);
+  if (!command_line_profile.empty()) {
+    return command_line_profile;
   }
 
   return profiles::GetLastUsedProfileBaseName(local_state);

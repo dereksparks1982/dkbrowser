@@ -254,6 +254,7 @@
 #include "chrome/browser/extensions/extension_management_constants.h"
 #include "chrome/browser/extensions/policy_handlers.h"
 #include "chrome/browser/policy/extension_developer_mode_policy_handler.h"
+#include "extensions/browser/isolated_mode_extension_settings.h"
 #include "extensions/browser/pref_names.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
@@ -300,6 +301,10 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/indigo/indigo_prefs.h"
+#endif
+
+#if BUILDFLAG(IS_LINUX)
+#include "chrome/browser/policy/system_title_bar_enabled_policy_handler.h"
 #endif
 
 namespace policy {
@@ -3538,6 +3543,17 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kExtensionUnpublishedAvailability,
       extensions::pref_names::kExtensionUnpublishedAvailability,
       /*min=*/0, /*max=*/1, /*clamp=*/false));
+  handlers->AddHandler(std::make_unique<IntRangePolicyHandler>(
+      key::kIsolatedModeUserInstalledExtensionsSettings,
+      extensions::pref_names::kIsolatedModeUserInstalledExtensionsSettings,
+      /*min=*/
+      std::to_underlying(
+          extensions::IsolatedModeUserInstalledExtensionsSetting::
+              kEnabledByDefault),
+      /*max=*/
+      std::to_underlying(
+          extensions::IsolatedModeUserInstalledExtensionsSetting::kMaxValue),
+      /*clamp=*/false));
   handlers->AddHandler(std::make_unique<ExtensionDeveloperModePolicyHandler>());
   handlers->AddHandler(
       std::make_unique<enterprise_reporting::ExtensionRequestPolicyHandler>());
@@ -3561,6 +3577,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
 #endif  // BUILDFLAG(ENABLE_SPELLCHECK)
 
 #if BUILDFLAG(IS_LINUX)
+  handlers->AddHandler(std::make_unique<SystemTitleBarEnabledPolicyHandler>());
   handlers->AddHandler(std::make_unique<SimplePolicyHandler>(
       key::kAllowSystemNotifications, prefs::kAllowSystemNotifications,
       base::Value::Type::BOOLEAN));

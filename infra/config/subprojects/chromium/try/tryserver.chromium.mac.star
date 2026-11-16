@@ -214,6 +214,7 @@ try_.orchestrator_builder(
         "chromium_rts.filter_file_analysis": 100,
         # crbug.com/40280175
         "chromium_checkout.expand_submodules": 100,
+        "luci.buildbucket.run_in_turboci.grpc_client": 5,
         "luci.buildbucket.run_in_turboci": 100,
     },
     main_list_view = "try",
@@ -269,8 +270,7 @@ try_.orchestrator_builder(
     mirrors = [
         "ci/GPU Mac Builder",
         "ci/Mac Release (Intel)",
-        # Temporarily removed for PAO-EM25 (SFO36) power shutdown (b/577217410).
-        # "ci/Mac Retina Release (AMD)",
+        "ci/Mac Retina Release (AMD)",
     ],
     gn_args = gn_args.config(
         configs = [
@@ -302,7 +302,7 @@ try_.orchestrator_builder(
         "chromium_rts.filter_file_analysis": 100,
         # crbug.com/40280175
         "chromium_checkout.expand_submodules": 100,
-        "luci.buildbucket.run_in_turboci": 2,
+        "luci.buildbucket.run_in_turboci": 10,
     },
     main_list_view = "try",
     use_clang_coverage = True,
@@ -811,7 +811,7 @@ try_.orchestrator_builder(
         "chromium_rts.filter_file_analysis": 100,
         # crbug.com/40280175
         "chromium_checkout.expand_submodules": 100,
-        "luci.buildbucket.run_in_turboci": 2,
+        "luci.buildbucket.run_in_turboci": 10,
     },
     main_list_view = "try",
     use_clang_coverage = True,
@@ -1009,8 +1009,7 @@ shared_gpu.try_.mac_optional_builder(
     mirrors = [
         "ci/GPU FYI Mac Builder",
         "ci/Mac FYI Release (Intel)",
-        # Temporarily removed for PAO-EM25 (SFO36) power shutdown (b/577217410).
-        # "ci/Mac FYI Retina Release (AMD)",
+        "ci/Mac FYI Retina Release (AMD)",
     ],
     gn_args = "ci/GPU FYI Mac Builder",
     alerts_enabled = False,

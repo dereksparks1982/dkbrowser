@@ -4,11 +4,9 @@
 
 package org.chromium.chrome.browser.toolbar.top;
 
-import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
-import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -24,6 +22,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.base.test.transit.ViewFinder.waitForView;
 import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 
 import android.content.res.Resources;
@@ -98,9 +97,9 @@ import org.chromium.chrome.browser.ui.theme.ChromeSemanticColorUtils;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.BottomBarTestUtils;
-import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.NewTabPageTestUtils;
 import org.chromium.chrome.test.util.OmniboxTestUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -109,7 +108,6 @@ import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.util.NightModeTestUtils.NightModeParams;
-import org.chromium.ui.test.util.ViewUtils;
 
 /** Instrumentation tests for {@link ToolbarPhone}. */
 @RunWith(ParameterizedRunner.class)
@@ -210,17 +208,13 @@ public class ToolbarPhoneTest {
                 () -> {
                     mToolbar.onUrlFocusChange(true);
                 });
-        ViewUtils.onViewWaiting(
-                allOf(withId(R.id.menu_button_wrapper), withEffectiveVisibility(Visibility.GONE)));
+        waitForView(withId(R.id.menu_button_wrapper), withEffectiveVisibility(Visibility.GONE));
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mToolbar.onUrlFocusChange(false);
                 });
-        ViewUtils.onViewWaiting(
-                allOf(
-                        withId(R.id.menu_button_wrapper),
-                        withEffectiveVisibility(Visibility.VISIBLE)));
+        waitForView(withId(R.id.menu_button_wrapper), withEffectiveVisibility(Visibility.VISIBLE));
     }
 
     @Test
@@ -544,12 +538,8 @@ public class ToolbarPhoneTest {
                 () ->
                         BottomBarTestUtils.findOptionalButton(mActivityTestRule.getActivity())
                                 != null);
-        ViewUtils.onViewWaiting(
-                allOf(
-                        equalTo(
-                                BottomBarTestUtils.findOptionalButton(
-                                        mActivityTestRule.getActivity())),
-                        isDisplayed()));
+        waitForView(
+                equalTo(BottomBarTestUtils.findOptionalButton(mActivityTestRule.getActivity())));
 
         // Replace the coordinator with a mock, and set the button to visible with regular width.
         View optionalButtonView =
@@ -723,11 +713,9 @@ public class ToolbarPhoneTest {
         assertNotEquals(homeSurfaceToolbarBackgroundColor, toolbarBackgroundDrawable.getColor());
 
         // Load the new tab page.
-        mActivityTestRule.loadUrl(getOriginalNativeNtpUrl());
-        Tab tab = mActivityTestRule.getActivityTab();
-        // TODO(crbug.com/428022848): Hop on once RegularNewTabPageStation can model an NTP
-        // without a search provider logo.
-        ChromeTabUtils.waitForNtpLoaded(tab);
+        mPage.loadPageProgrammatically(
+                getOriginalNativeNtpUrl(),
+                RegularNewTabPageStation.newNativeNtpWithoutLogoBuilder());
         ViewGroup fakeSearchBox = mActivityTestRule.getActivity().findViewById(R.id.search_box);
         assertEquals(true, mToolbar.isLocationBarShownInGeneralNtp());
         assertEquals(View.VISIBLE, fakeSearchBox.getVisibility());

@@ -27,6 +27,7 @@
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/browser_process.h"
@@ -1215,8 +1216,17 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase, FeatureFlagDisablesAnchoring) {
               testing::IsEmpty());
 }
 
+// TODO(crbug.com/585643966): Fails in batched runs on Android (leaked
+// global state makes the profile ineligible).
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_AnchoredButtonForIneligibleAccount \
+  DISABLED_AnchoredButtonForIneligibleAccount
+#else
+#define MAYBE_AnchoredButtonForIneligibleAccount \
+  AnchoredButtonForIneligibleAccount
+#endif
 TEST_F(GlicEnablingAnchorEntryPointTestBase,
-       AnchoredButtonForIneligibleAccount) {
+       MAYBE_AnchoredButtonForIneligibleAccount) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
       static_cast<int>(glic::prefs::FreStatus::kCompleted));
@@ -1356,8 +1366,17 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
       GlicEnabling::EnablementForProfile(profile()).ShouldShowGlicButton());
 }
 
+// TODO(crbug.com/585643966): Fails in batched runs on Android (leaked
+// global state makes the profile ineligible).
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_PrimaryAccountNotCapable_ReturnsIneligibleAccountWhenAnchored \
+  DISABLED_PrimaryAccountNotCapable_ReturnsIneligibleAccountWhenAnchored
+#else
+#define MAYBE_PrimaryAccountNotCapable_ReturnsIneligibleAccountWhenAnchored \
+  PrimaryAccountNotCapable_ReturnsIneligibleAccountWhenAnchored
+#endif
 TEST_F(GlicEnablingAnchorEntryPointTestBase,
-       PrimaryAccountNotCapable_ReturnsIneligibleAccountWhenAnchored) {
+       MAYBE_PrimaryAccountNotCapable_ReturnsIneligibleAccountWhenAnchored) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
       std::to_underlying(glic::prefs::FreStatus::kCompleted));
@@ -3575,8 +3594,16 @@ class GlicEnablingAnchorEntryPointCountryTest
   std::unique_ptr<variations::TestVariationsService> variations_service_;
 };
 
+// TODO(crbug.com/585643966): Fails in batched runs on Android (leaked
+// global state makes the profile ineligible).
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_AnchoredButtonForCountryDisabled \
+  DISABLED_AnchoredButtonForCountryDisabled
+#else
+#define MAYBE_AnchoredButtonForCountryDisabled AnchoredButtonForCountryDisabled
+#endif
 TEST_F(GlicEnablingAnchorEntryPointCountryTest,
-       AnchoredButtonForCountryDisabled) {
+       MAYBE_AnchoredButtonForCountryDisabled) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
       static_cast<int>(glic::prefs::FreStatus::kCompleted));
@@ -3614,8 +3641,17 @@ TEST_F(GlicEnablingAnchorEntryPointCountryTest,
               base::BucketsAre(base::Bucket(Reason::kCountryDisabled, 1)))));
 }
 
+// TODO(crbug.com/585643966): Fails in batched runs on Android (leaked
+// global state makes the profile ineligible).
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_AnchoredButtonForMultipleIneligibilityReasons \
+  DISABLED_AnchoredButtonForMultipleIneligibilityReasons
+#else
+#define MAYBE_AnchoredButtonForMultipleIneligibilityReasons \
+  AnchoredButtonForMultipleIneligibilityReasons
+#endif
 TEST_F(GlicEnablingAnchorEntryPointCountryTest,
-       AnchoredButtonForMultipleIneligibilityReasons) {
+       MAYBE_AnchoredButtonForMultipleIneligibilityReasons) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
       static_cast<int>(glic::prefs::FreStatus::kCompleted));
@@ -4461,8 +4497,11 @@ TEST_F(GlicEnablingGeicPolicyTest,
 // profile, even with their features enabled.
 TEST_F(GlicEnablingGeicPolicyTest, ConsumerOnlyEntryPointsDisabledForGeic) {
   std::vector<base::test::FeatureRef> enabled_features = {
-      features::kAutoOpenGlicForPdf, features::kGlicSelectionPrompt,
-      features::kGlicCaptureRegion,  features::kGlicExperimentalTriggering,
+      features::kAutoOpenGlicForPdf,
+      features::kGlicSelectionPrompt,
+      features::kGlicCaptureRegion,
+      features::kGlicExperimentalTriggering,
+      features::kGlicTextSelectionContextMenu,
 #if BUILDFLAG(ENABLE_PDF)
       features::kPdfGlicSummarize,
 #endif
@@ -4477,6 +4516,7 @@ TEST_F(GlicEnablingGeicPolicyTest, ConsumerOnlyEntryPointsDisabledForGeic) {
   EXPECT_FALSE(GlicEnabling::IsPdfSummarizeEnabled(profile()));
   EXPECT_FALSE(GlicEnabling::IsAutoOpenForPdfEnabled(profile()));
   EXPECT_FALSE(GlicEnabling::IsInlineCueEnabledForProfile(profile()));
+  EXPECT_FALSE(GlicEnabling::IsTextSelectionContextMenuEnabled(profile()));
   EXPECT_FALSE(GetGlicProviderSpec(profile()).SupportsFeature(
       GlicFeature::kCaptureRegion));
 
@@ -4485,6 +4525,41 @@ TEST_F(GlicEnablingGeicPolicyTest, ConsumerOnlyEntryPointsDisabledForGeic) {
   EXPECT_EQ(service->enabling().GetExperimentalTriggeringState(),
             syncer::DeviceInfo::GlicExperimentalTriggeringState::kUnavailable);
   EXPECT_FALSE(service->enabling().ShouldShowExperimentalTriggeringToggle());
+}
+
+// Text selection context menu entry point stays off for Gemini Enterprise,
+// even when enabled by feature flags.
+TEST_F(GlicEnablingGeicPolicyTest, TextSelectionContextMenuDisabledForGeic) {
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kGlicTextSelectionContextMenu},
+        /*disabled_features=*/{features::kGlicContextMenu});
+    ASSERT_TRUE(GlicEnabling::IsEnabledForProfile(profile()));
+
+    EXPECT_FALSE(GlicEnabling::IsTextSelectionContextMenuEnabled(profile()));
+    // With kGlicContextMenu disabled, text selection context menu does not
+    // enable the item for GEiC.
+    EXPECT_FALSE(
+        GlicEnabling::IsContextualMenuItemEnabled(profile(), u"selected text"));
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kGlicTextSelectionContextMenu,
+                              features::kGlicContextMenu},
+        /*disabled_features=*/{});
+    ASSERT_TRUE(GlicEnabling::IsEnabledForProfile(profile()));
+
+    // Even with kGlicContextMenu enabled, the text selection specific entry
+    // point stays disabled for GEiC.
+    EXPECT_FALSE(GlicEnabling::IsTextSelectionContextMenuEnabled(profile()));
+    // The general context menu item respects kGlicContextMenu.
+    EXPECT_TRUE(
+        GlicEnabling::IsContextualMenuItemEnabled(profile(), u"selected text"));
+    EXPECT_TRUE(GlicEnabling::IsContextualMenuItemEnabled(profile(), u""));
+    EXPECT_TRUE(GlicEnabling::IsContextualMenuItemEnabled(profile(), u"   "));
+  }
 }
 
 // Contextual cueing and zero state suggestions stay off for a Gemini Enterprise

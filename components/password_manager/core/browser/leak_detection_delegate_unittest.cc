@@ -4,6 +4,7 @@
 
 #include "components/password_manager/core/browser/leak_detection_delegate.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
@@ -119,7 +120,7 @@ class MockPasswordChangeService : public PasswordChangeServiceInterface {
   MOCK_METHOD(bool, IsPasswordChangeAvailable, (), (const, override));
   MOCK_METHOD(bool,
               IsPasswordChangeSupported,
-              (const PasswordForm&, bool),
+              (const LeakedPasswordDetails&, bool),
               (const, override));
   MOCK_METHOD(void,
               RecordLoginAttemptQuality,
@@ -740,7 +741,7 @@ TEST_F(LeakDetectionDelegateTest, StartCheckTriggersChangePwdUrlPrefetch) {
   const PasswordForm form = CreateTestForm();
   EXPECT_CALL(mock_affiliation_service,
               FetchChangePasswordURL(form.url, testing::_))
-      .WillOnce(base::test::RunOnceCallback<1>(GURL()));
+      .WillOnce(base::test::RunOnceCallback<1>(std::nullopt));
 
   ExpectPasswords({});
   EXPECT_CALL(client(), GetProfilePasswordStore())
@@ -770,7 +771,8 @@ TEST_F(LeakDetectionDelegateTest, LeakNotifiedAfterChangePwdUrlIsFetched) {
   EXPECT_CALL(client(), GetAffiliationService)
       .WillOnce(Return(&mock_affiliation_service));
   const PasswordForm form = CreateTestForm();
-  base::OnceCallback<void(GURL)> change_pwd_url_fetch_callback;
+  affiliations::AffiliationService::ChangePasswordUrlCallback
+      change_pwd_url_fetch_callback;
   EXPECT_CALL(mock_affiliation_service,
               FetchChangePasswordURL(form.url, testing::_))
       .WillOnce(MoveArg<1>(&change_pwd_url_fetch_callback));
@@ -793,19 +795,25 @@ TEST_F(LeakDetectionDelegateTest, LeakNotifiedAfterChangePwdUrlIsFetched) {
   MockPasswordChangeService mock_password_change_service;
   EXPECT_CALL(client(), GetPasswordChangeService())
       .WillRepeatedly(Return(&mock_password_change_service));
-  PasswordForm expected_form = form;
-  expected_form.change_password_url = GURL("https://example.com/change");
+  const affiliations::AffiliationService::ChangePasswordUrlMatch expected_match(
+      GURL("https://example.com/change"),
+      {affiliations::FacetURI::FromCanonicalSpec("https://example.com"),
+       affiliations::FacetURI::FromCanonicalSpec("https://affiliated.com")});
   EXPECT_CALL(mock_password_change_service,
               IsPasswordChangeSupported(
-                  expected_form, /*is_non_password_login_detected=*/false))
+                  LeakedPasswordDetails(
+                      password_manager::CreateLeakType(
+                          IsSaved(false), IsReused(false), IsSyncing(false),
+                          HasChangePasswordUrl(false)),
+                      form, /*in_account_store=*/false, expected_match),
+                  /*is_non_password_login_detected=*/false))
       .WillOnce(Return(true));
   EXPECT_CALL(client(), NotifyUserCredentialsWereLeaked(LeakedPasswordDetails(
                             password_manager::CreateLeakType(
                                 IsSaved(false), IsReused(false),
                                 IsSyncing(false), HasChangePasswordUrl(true)),
-                            expected_form, /* in_account_store = */ false)));
-  std::move(change_pwd_url_fetch_callback)
-      .Run(GURL("https://example.com/change"));
+                            form, /*in_account_store=*/false, expected_match)));
+  std::move(change_pwd_url_fetch_callback).Run(expected_match);
 }
 
 TEST_F(LeakDetectionDelegateTest, LeakDetectionDoneWithChangePwdFlag) {
@@ -818,9 +826,14 @@ TEST_F(LeakDetectionDelegateTest, LeakDetectionDoneWithChangePwdFlag) {
       .WillRepeatedly(Return(profile_store()));
   EXPECT_CALL(client(), GetPasswordChangeService())
       .WillRepeatedly(Return(&mock_password_change_service));
-  EXPECT_CALL(
-      mock_password_change_service,
-      IsPasswordChangeSupported(form, /*is_non_password_login_detected=*/false))
+  EXPECT_CALL(mock_password_change_service,
+              IsPasswordChangeSupported(
+                  LeakedPasswordDetails(
+                      password_manager::CreateLeakType(
+                          IsSaved(false), IsReused(false), IsSyncing(false),
+                          HasChangePasswordUrl(false)),
+                      form, /*in_account_store=*/false),
+                  /*is_non_password_login_detected=*/false))
       .WillOnce(Return(true));
 
   ExpectPasswords({});
@@ -851,9 +864,14 @@ TEST_F(LeakDetectionDelegateTest, ApcNotSuggestedWhenFederatedLoginDetected) {
       .WillRepeatedly(Return(profile_store()));
   EXPECT_CALL(client(), GetPasswordChangeService())
       .WillRepeatedly(Return(&mock_password_change_service));
-  EXPECT_CALL(
-      mock_password_change_service,
-      IsPasswordChangeSupported(form, /*is_non_password_login_detected=*/true))
+  EXPECT_CALL(mock_password_change_service,
+              IsPasswordChangeSupported(
+                  LeakedPasswordDetails(
+                      password_manager::CreateLeakType(
+                          IsSaved(false), IsReused(false), IsSyncing(false),
+                          HasChangePasswordUrl(false)),
+                      form, /*in_account_store=*/false),
+                  /*is_non_password_login_detected=*/true))
       .WillRepeatedly(Return(false));
 
   ExpectPasswords({});
@@ -895,7 +913,7 @@ TEST_F(LeakDetectionDelegateTest,
       .WillOnce(Return(&mock_affiliation_service));
   EXPECT_CALL(mock_affiliation_service,
               FetchChangePasswordURL(form.url, testing::_))
-      .WillOnce(base::test::RunOnceCallback<1>(GURL()));
+      .WillOnce(base::test::RunOnceCallback<1>(std::nullopt));
   EXPECT_CALL(client(), GetProfilePasswordStore())
       .WillRepeatedly(Return(profile_store()));
 

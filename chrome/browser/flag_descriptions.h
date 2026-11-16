@@ -2811,10 +2811,12 @@ inline constexpr char kFedCmIdpLinksDescription[] =
     "When FedCM asks for permission to share data with a site, shows links to "
     "the identity provider's account management page, privacy policy and "
     "terms of service, from the account_management_url, privacy_policy_url and "
-    "terms_of_service_url keys of its well-known file. In passive mode, FedCM "
-    "then asks for this permission in a modal dialog instead of the bubble, so "
-    "that the links are shown. With multiple identity providers, this also "
-    "requires #fedcm-active-mode-multiple-identity-providers.";
+    "terms_of_service_url keys of its well-known file. On desktop, in passive "
+    "mode, FedCM then asks for this permission in a modal dialog instead of "
+    "the bubble, so that the links are shown. With multiple identity "
+    "providers, this also requires "
+    "#fedcm-active-mode-multiple-identity-providers. On Android, the links "
+    "are shown in the active mode sheet, and passive mode is unchanged.";
 
 inline constexpr char kFedCmIdPRegistrationName[] =
     "FedCM with IdP Registration support";
@@ -4442,10 +4444,6 @@ inline constexpr char kRecordWebAppDebugInfoDescription[] =
     "Enables recording additional web app related debugging data to be "
     "displayed in: chrome://web-app-internals";
 
-inline constexpr char kUnoPhase2FollowUpName[] = "Uno phase 2 follow-up";
-inline constexpr char kUnoPhase2FollowUpDescription[] =
-    "UI tweaks for signin surfaces";
-
 inline constexpr char kResetShortcutCustomizationsName[] =
     "Reset all shortcut customizations";
 inline constexpr char kResetShortcutCustomizationsDescription[] =
@@ -4908,23 +4906,11 @@ inline constexpr char kNotificationOneTapUnsubscribeOnDesktopDescription[] =
     "Enables an experimental UX  on Desktop that replaces the [Site settings]"
     "button on web push notifications with an [Unsubscribe] button.";
 
-inline constexpr char kVcRelightingInferenceBackendName[] =
-    "Select relighting backend for video conferencing";
-inline constexpr char kVcRelightingInferenceBackendDescription[] =
-    "Select relighting backend to be used for running model inference during "
-    "video conferencing, which may offload work from GPU.";
-
 inline constexpr char kVcRetouchInferenceBackendName[] =
     "Select retouch backend for video conferencing";
 inline constexpr char kVcRetouchInferenceBackendDescription[] =
     "Select retouch backend to be used for running model inference during "
     "video conferencing, which may offload work from GPU.";
-
-inline constexpr char kVcSegmentationInferenceBackendName[] =
-    "Select segmentation backend for video conferencing";
-inline constexpr char kVcSegmentationInferenceBackendDescription[] =
-    "Select segmentation backend to be used for running model inference "
-    "during video conferencing, which may offload work from GPU.";
 
 inline constexpr char kVcSegmentationModelName[] =
     "Use a different segmentation model";
@@ -8150,11 +8136,6 @@ inline constexpr char kAudioFlexibleLoopbackForSystemLoopbackName[] =
 inline constexpr char kAudioFlexibleLoopbackForSystemLoopbackDescription[] =
     "Request a FLEXIBLE_LOOPBACK instead of POST_MIX_LOOPBACK for system "
     "loopback";
-
-inline constexpr char kSingleCaCertVerificationPhase2Name[] =
-    "Use single CA cert for EAP networks if provided phase 2";
-inline constexpr char kSingleCaCertVerificationPhase2Description[] =
-    "Use a single CA cert for server's cert verification, no fallback.";
 
 inline constexpr char kCrosCachedLocationProviderName[] =
     "Use Caching in System Location Provider to optimize GCP utilization";

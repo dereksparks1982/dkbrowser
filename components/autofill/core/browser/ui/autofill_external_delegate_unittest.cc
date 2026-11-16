@@ -328,6 +328,9 @@ class MockAutofillClient : public TestAutofillClient {
   GetPersonalContextEntityMetadataManager() override {
     return entity_metadata_manager_.get();
   }
+  void ResetPersonalContextEntityMetadataManager() {
+    entity_metadata_manager_.reset();
+  }
   MOCK_METHOD(IdentityCredentialDelegate*,
               GetIdentityCredentialDelegate,
               (),
@@ -4722,6 +4725,13 @@ class AutofillExternalDelegateAttributionVerificationTest
     return fetched;
   }
 
+  // Returns whether `entity` is currently marked as suppressed.
+  bool IsEntitySuppressed(const EntityInstance& entity) {
+    return autofill_client()
+        .GetPersonalContextEntityMetadataManager()
+        ->IsSuppressed(entity);
+  }
+
   MockAutofillAiPersonalContextAccessManager& personal_context_manager() {
     return *personal_context_manager_;
   }
@@ -4737,6 +4747,7 @@ class AutofillExternalDelegateAttributionVerificationTest
 // show attribution verification with the filled entity and URL.
 TEST_F(AutofillExternalDelegateAttributionVerificationTest,
        AcceptFillShowsVerificationAfterFillingForm) {
+  base::HistogramTester histograms;
   const GURL source_url("https://mail.google.com/mail/mu/0/#cv/Inbox/abc");
   EntityInstance passport =
       AddPassportWithSources({GURL("http://insecure.example"), source_url});
@@ -4752,11 +4763,13 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
   EXPECT_CALL(autofill_client(), ShowAutofillAiAttributionVerification(
                                      Eq(passport), source_url, _, _));
   AcceptFillSuggestion(passport);
+  histograms.ExpectUniqueSample("Autofill.Ai.SpiiVerification.Shown", true, 1);
 }
 
 // Tests that no verification is requested when the entity has no HTTPS source.
 TEST_F(AutofillExternalDelegateAttributionVerificationTest,
        AcceptFillWithoutHttpsSourceShowsNoVerification) {
+  base::HistogramTester histograms;
   EntityInstance passport =
       AddPassportWithSources({GURL("http://insecure.example")});
 
@@ -4764,11 +4777,13 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
   EXPECT_CALL(autofill_client(), ShowAutofillAiAttributionVerification)
       .Times(0);
   AcceptFillSuggestion(passport);
+  histograms.ExpectTotalCount("Autofill.Ai.SpiiVerification.Shown", 0);
 }
 
 // Tests that no verification is requested when the feature is disabled.
 TEST_F(AutofillExternalDelegateAttributionVerificationTest,
        AcceptFillWithFeatureDisabledShowsNoVerification) {
+  base::HistogramTester histograms;
   base::test::ScopedFeatureList disabled;
   disabled.InitAndDisableFeature(features::kAutofillAiSpiiVerification);
   EntityInstance passport =
@@ -4778,11 +4793,13 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
   EXPECT_CALL(autofill_client(), ShowAutofillAiAttributionVerification)
       .Times(0);
   AcceptFillSuggestion(passport);
+  histograms.ExpectTotalCount("Autofill.Ai.SpiiVerification.Shown", 0);
 }
 
 // Tests that no verification is requested for a non-SPII entity.
 TEST_F(AutofillExternalDelegateAttributionVerificationTest,
        AcceptFillForNonSpiiShowsNoVerification) {
+  base::HistogramTester histograms;
   EntityInstance vehicle =
       AddVehicleWithSources({GURL("https://mail.google.com/")});
 
@@ -4790,6 +4807,7 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
   EXPECT_CALL(autofill_client(), ShowAutofillAiAttributionVerification)
       .Times(0);
   AcceptFillSuggestion(vehicle);
+  histograms.ExpectTotalCount("Autofill.Ai.SpiiVerification.Shown", 0);
 }
 
 // Tests that verification uses the most recent HTTPS source.
@@ -4834,9 +4852,10 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
   AcceptFillSuggestion(passport);
 }
 
-// Tests that choosing Confirm keeps the fill.
+// Tests that choosing Confirm keeps the fill and logs metrics.
 TEST_F(AutofillExternalDelegateAttributionVerificationTest,
        DecisionConfirmKeepsFill) {
+  base::HistogramTester histograms;
   EntityInstance passport =
       AddPassportWithSources({GURL("https://mail.google.com/")});
   AutofillClient::AutofillAiVerificationDecisionCallback decision_cb =
@@ -4846,11 +4865,16 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
   EXPECT_CALL(autofill_manager(), UndoAutofill).Times(0);
   std::move(decision_cb)
       .Run(AutofillClient::AutofillAiVerificationDecision::kConfirm);
+  EXPECT_FALSE(IsEntitySuppressed(passport));
+  histograms.ExpectUniqueSample(
+      "Autofill.Ai.SpiiVerification.Decision",
+      AutofillClient::AutofillAiVerificationDecision::kConfirm, 1);
 }
 
-// Tests that dismissing the verification keeps the fill.
+// Tests that dismissing the verification keeps the fill and logs metrics.
 TEST_F(AutofillExternalDelegateAttributionVerificationTest,
        DecisionDismissKeepsFill) {
+  base::HistogramTester histograms;
   EntityInstance passport =
       AddPassportWithSources({GURL("https://mail.google.com/")});
   AutofillClient::AutofillAiVerificationDecisionCallback decision_cb =
@@ -4860,11 +4884,16 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
   EXPECT_CALL(autofill_manager(), UndoAutofill).Times(0);
   std::move(decision_cb)
       .Run(AutofillClient::AutofillAiVerificationDecision::kDismiss);
+  EXPECT_FALSE(IsEntitySuppressed(passport));
+  histograms.ExpectUniqueSample(
+      "Autofill.Ai.SpiiVerification.Decision",
+      AutofillClient::AutofillAiVerificationDecision::kDismiss, 1);
 }
 
 // Tests that choosing Undo undoes the fill without suppressing the entity.
 TEST_F(AutofillExternalDelegateAttributionVerificationTest,
        DecisionUndoClearsFilledFormWithoutSuppressing) {
+  base::HistogramTester histograms;
   EntityInstance passport =
       AddPassportWithSources({GURL("https://mail.google.com/")});
   AutofillClient::AutofillAiVerificationDecisionCallback decision_cb =
@@ -4878,6 +4907,97 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
       .Times(0);
   std::move(decision_cb)
       .Run(AutofillClient::AutofillAiVerificationDecision::kUndo);
+  EXPECT_FALSE(IsEntitySuppressed(passport));
+  histograms.ExpectUniqueSample(
+      "Autofill.Ai.SpiiVerification.Decision",
+      AutofillClient::AutofillAiVerificationDecision::kUndo, 1);
+}
+
+// Tests that choosing Hide undoes the fill and suppresses the entity.
+TEST_F(AutofillExternalDelegateAttributionVerificationTest,
+       DecisionHideClearsFillAndSuppressesEntity) {
+  base::HistogramTester histograms;
+  EntityInstance passport =
+      AddPassportWithSources({GURL("https://mail.google.com/")});
+  AutofillClient::AutofillAiVerificationDecisionCallback decision_cb =
+      AcceptAndCaptureDecisionCallback(passport);
+  ASSERT_FALSE(decision_cb.is_null());
+
+  EXPECT_CALL(autofill_manager(),
+              UndoAutofill(mojom::ActionPersistence::kFill, HasQueriedFormId(),
+                           IsQueriedFieldId()));
+  EXPECT_CALL(autofill_client(),
+              ShowAutofillAiSuggestionRemovedNotification(Eq(passport), _));
+  std::move(decision_cb)
+      .Run(AutofillClient::AutofillAiVerificationDecision::kHide);
+  EXPECT_TRUE(IsEntitySuppressed(passport));
+  histograms.ExpectUniqueSample(
+      "Autofill.Ai.SpiiVerification.Decision",
+      AutofillClient::AutofillAiVerificationDecision::kHide, 1);
+}
+
+// Tests that choosing Hide when suppression is disabled only undoes the fill.
+TEST_F(AutofillExternalDelegateAttributionVerificationTest,
+       DecisionHideWithSuppressionDisabledOnlyClearsFill) {
+  base::test::ScopedFeatureList disabled;
+  disabled.InitAndDisableFeature(features::kAutofillAmbientAutofillSuppression);
+  EntityInstance passport =
+      AddPassportWithSources({GURL("https://mail.google.com/")});
+  AutofillClient::AutofillAiVerificationDecisionCallback decision_cb =
+      AcceptAndCaptureDecisionCallback(passport);
+  ASSERT_FALSE(decision_cb.is_null());
+
+  EXPECT_CALL(autofill_manager(),
+              UndoAutofill(mojom::ActionPersistence::kFill, HasQueriedFormId(),
+                           IsQueriedFieldId()));
+  EXPECT_CALL(autofill_client(), ShowAutofillAiSuggestionRemovedNotification)
+      .Times(0);
+  std::move(decision_cb)
+      .Run(AutofillClient::AutofillAiVerificationDecision::kHide);
+  EXPECT_FALSE(IsEntitySuppressed(passport));
+}
+
+// Tests that choosing Hide when suppression manager is null only undoes the
+// fill.
+TEST_F(AutofillExternalDelegateAttributionVerificationTest,
+       DecisionHideWithoutSuppressionManagerOnlyClearsFill) {
+  autofill_client().ResetPersonalContextEntityMetadataManager();
+  EntityInstance passport =
+      AddPassportWithSources({GURL("https://mail.google.com/")});
+  AutofillClient::AutofillAiVerificationDecisionCallback decision_cb =
+      AcceptAndCaptureDecisionCallback(passport);
+  ASSERT_FALSE(decision_cb.is_null());
+
+  EXPECT_CALL(autofill_manager(),
+              UndoAutofill(mojom::ActionPersistence::kFill, HasQueriedFormId(),
+                           IsQueriedFieldId()));
+  EXPECT_CALL(autofill_client(), ShowAutofillAiSuggestionRemovedNotification)
+      .Times(0);
+  std::move(decision_cb)
+      .Run(AutofillClient::AutofillAiVerificationDecision::kHide);
+}
+
+// Tests that choosing Hide when the entity is no longer in the
+// `EntityDataManager` still undoes the fill, but does not suppress the
+// entity.
+TEST_F(AutofillExternalDelegateAttributionVerificationTest,
+       DecisionHideWhenEntityMissingFromDataManagerUndoesWithoutSuppressing) {
+  EntityInstance passport =
+      AddPassportWithSources({GURL("https://mail.google.com/")});
+  AutofillClient::AutofillAiVerificationDecisionCallback decision_cb =
+      AcceptAndCaptureDecisionCallback(passport);
+  ASSERT_FALSE(decision_cb.is_null());
+
+  autofill_client().GetEntityDataManager()->OnMaskedEntityTypeEvicted(
+      personal_context_manager(), passport.type());
+  EXPECT_CALL(autofill_manager(),
+              UndoAutofill(mojom::ActionPersistence::kFill, HasQueriedFormId(),
+                           IsQueriedFieldId()));
+  EXPECT_CALL(autofill_client(), ShowAutofillAiSuggestionRemovedNotification)
+      .Times(0);
+  std::move(decision_cb)
+      .Run(AutofillClient::AutofillAiVerificationDecision::kHide);
+  EXPECT_FALSE(IsEntitySuppressed(passport));
 }
 
 // Tests that running the decision callback after the delegate was destroyed
@@ -4896,6 +5016,7 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
   EXPECT_CALL(autofill_manager(), UndoAutofill).Times(0);
   std::move(decision_cb)
       .Run(AutofillClient::AutofillAiVerificationDecision::kHide);
+  EXPECT_FALSE(IsEntitySuppressed(passport));
 }
 
 // Tests that for an entity fetched asynchronously, the entity is filled,
@@ -4926,6 +5047,7 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
 // notification is shown and no verification is requested.
 TEST_F(AutofillExternalDelegateAttributionVerificationTest,
        AsyncFetchFailureShowsFailureNotificationAndNoVerification) {
+  base::HistogramTester histograms;
   EntityInstance full_passport =
       MakePassportWithSources({GURL("https://mail.google.com/")});
   EntityInstance masked_passport = MaskEntityInstance(full_passport);
@@ -4938,6 +5060,7 @@ TEST_F(AutofillExternalDelegateAttributionVerificationTest,
   EXPECT_CALL(autofill_client(), ShowAutofillAiAttributionVerification)
       .Times(0);
   std::move(fetched).Run(std::nullopt);
+  histograms.ExpectTotalCount("Autofill.Ai.SpiiVerification.Shown", 0);
 }
 
 // Tests that the verification URL is captured from the accepted entity at
@@ -6256,6 +6379,18 @@ TEST_F(AutofillExternalDelegateTest,
   unfocusable_field.set_is_focusable(false);
   OnSuggestionsReturned(unfocusable_field,
                         {Suggestion(SuggestionType::kAddressEntry)});
+}
+
+// Regression test verifying that showing a standalone
+// `kPendingStateTrustedVaultError` suggestion does not trip the non-password
+// `CHECK` in `OnSuggestionsShown`.
+TEST_F(AutofillExternalDelegateTest,
+       OnSuggestionsShown_StandaloneTrustedVaultErrorDoesNotCrash) {
+  IssueOnQuery();
+  std::vector<Suggestion> suggestions = {
+      Suggestion(SuggestionType::kPendingStateTrustedVaultError)};
+  OnSuggestionsReturned(queried_field(), suggestions);
+  external_delegate().OnSuggestionsShown(suggestions, /*metadata=*/{});
 }
 
 }  // namespace

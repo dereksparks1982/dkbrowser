@@ -548,6 +548,18 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/common/navigation/commit_url.cc',
+            'third_party/blink/public/common/navigation/commit_url.h',
+        ],
+        'allowed': [
+            # Shared between content/ and Blink to validate commit URLs.
+            'GURL',
+            'url::kAboutScheme',
+            'url::kMaxURLChars',
+        ],
+    },
+    {
+        'paths': [
             'third_party/blink/common/navigation/navigation_params.cc',
         ],
         'allowed': [
@@ -610,6 +622,7 @@ _CONFIG = [
             'cc::PathEffect',
             'cc::RecordPaintCanvas',
             'cc::RefCountedBuffer',
+            'cc::ScopedSubnormalFloatDisabler',
             'cc::UsePaintCache',
             # Chromium geometry types.
             'gfx::DecomposedTransform',

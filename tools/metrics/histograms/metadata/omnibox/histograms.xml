@@ -2280,18 +2280,6 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
-<histogram name="Omnibox.GroupId.ToggledOff" enum="GroupId"
-    expires_after="2025-11-02">
-  <owner>mahmadi@google.com</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Counts the number of times a suggestion group ID is prevented form appearing
-    in the results. This is recorded when the user hides a set of grouped
-    suggestions, such as trending zero-suggest, in the omnibox UI using the
-    control in the grouped suggestions' header.
-  </summary>
-</histogram>
-
 <histogram name="Omnibox.GroupId.ToggledOn" enum="GroupId"
     expires_after="2025-04-29">
   <owner>mahmadi@google.com</owner>
@@ -3914,7 +3902,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.Popup.Aim.ConstructionToFirstShownDuration" units="ms"
-    expires_after="2026-12-22">
+    expires_after="2027-05-08">
   <owner>mahmadi@chromium.org</owner>
   <owner>kylixrd@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -5969,7 +5957,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.WebUI.ResultChangedToRepaintLatency.ToPaint"
-    units="ms" expires_after="2026-12-22">
+    units="ms" expires_after="2027-05-08">
   <owner>mahmadi@chromium.org</owner>
   <owner>kylixrd@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>

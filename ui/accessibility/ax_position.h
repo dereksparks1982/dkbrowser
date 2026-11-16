@@ -4321,6 +4321,13 @@ class AXPosition {
     if (IsIgnored() || other.IsIgnored())
       return SlowCompareTo(other);
 
+    // Check for ancestor anchors before the normalization below, which can
+    // move a position into another subtree.
+    if (GetAnchor()->IsDescendantOfCrossingTreeBoundary(other.GetAnchor()) ||
+        other.GetAnchor()->IsDescendantOfCrossingTreeBoundary(GetAnchor())) {
+      return SlowCompareTo(other);
+    }
+
     // Normalize any text positions at the end of an anchor to equivalent
     // positions at the start of the next anchor. This will potentially make the
     // two positions not be ancestors of one another, if they originally were.
@@ -4336,25 +4343,12 @@ class AXPosition {
           normalized_other_position->AsLeafTextPositionBeforeCharacter();
     }
 
-    if (normalized_this_position->IsNullPosition()) {
-      if (normalized_other_position->IsNullPosition()) {
-        // CHECK-exclusion: since the slot path is not required (see the comment
-        // below), keep DCHECK_EQ() for fast path.
-        // Both positions normalized to a position past the end of the whole
-        // content. There is no way that they could be ancestors of one another,
-        // so using the slow path is not required.
-        DCHECK_EQ(SlowCompareTo(other).value(), 0);
-        return 0;
-      }
-      // |this| normalized to a position past the end of the whole content.
-      // Since we don't know if one position is the ancestor of the other, we
-      // need to use the slow path.
-      return SlowCompareTo(other);
-    }
-    if (normalized_other_position->IsNullPosition()) {
-      // |other| normalized to a position past the end of the whole content.
-      // Since we don't know if one position is the ancestor of the other, we
-      // need to use the slow path.
+    if (normalized_this_position->IsNullPosition() ||
+        normalized_other_position->IsNullPosition()) {
+      // One or both positions normalized to a position past the end of the
+      // whole content. Since we don't know if one position is the ancestor of
+      // the other, or if the two positions have different text offsets at
+      // their common ancestor, we need to use the slow path.
       return SlowCompareTo(other);
     }
 
@@ -4719,21 +4713,33 @@ class AXPosition {
         // anchor_id=4 would create a kUpstream position, while anchor_id=7
         // would create a kDownstream position.
 
-        AXPositionInstance this_text_position_ancestor =
-            LowestCommonAncestorPosition(other,
-                                         ax::mojom::MoveDirection::kBackward);
+        AXPositionInstance this_text_position_ancestor = CreateAncestorPosition(
+            common_anchor, ax::mojom::MoveDirection::kBackward);
         AXPositionInstance other_text_position_ancestor =
-            other.LowestCommonAncestorPosition(
-                *this, ax::mojom::MoveDirection::kBackward);
+            other.CreateAncestorPosition(common_anchor,
+                                         ax::mojom::MoveDirection::kBackward);
         CHECK(this_text_position_ancestor->IsTextPosition(),
               base::NotFatalUntil::M163);
         CHECK(other_text_position_ancestor->IsTextPosition(),
               base::NotFatalUntil::M163);
 
-        this_affinity = this_text_position_ancestor->affinity();
-        other_affinity = other_text_position_ancestor->affinity();
         optional_result = this_text_position_ancestor->text_offset() -
                           other_text_position_ancestor->text_offset();
+
+        // If the offsets are equal, compute ancestor positions using a forward
+        // direction so that a position inside an "object replacement character"
+        // compares after a position before the character.
+        if (*optional_result == 0) {
+          this_text_position_ancestor = CreateAncestorPosition(
+              common_anchor, ax::mojom::MoveDirection::kForward);
+          other_text_position_ancestor = other.CreateAncestorPosition(
+              common_anchor, ax::mojom::MoveDirection::kForward);
+          optional_result = this_text_position_ancestor->text_offset() -
+                            other_text_position_ancestor->text_offset();
+        }
+
+        this_affinity = this_text_position_ancestor->affinity();
+        other_affinity = other_text_position_ancestor->affinity();
       }
 
       if (optional_result) {
@@ -5143,7 +5149,9 @@ class AXPosition {
     int offset_in_parent = 0;
     for (int i = 0; i < parent_position->child_index(); ++i) {
       AXPositionInstance child = parent_position->CreateChildPositionAt(i);
-      CHECK(!child->IsNullPosition(), base::NotFatalUntil::M163);
+      // TODO(crbug.com/585314230): CHECK-exclusion: Convert to a CHECK once we
+      // are confident it won't be triggered.
+      DCHECK(!child->IsNullPosition());
       offset_in_parent += child->MaxTextOffsetInParent();
     }
     return offset_in_parent;
