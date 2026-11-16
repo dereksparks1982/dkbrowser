@@ -4,10 +4,14 @@
 
 #include "chrome/common/media/cdm_registration.h"
 
+#include <memory>
 #include <optional>
+#include <string>
 
+#include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/logging.h"
 #include "base/native_library.h"
@@ -35,6 +39,29 @@
 #endif
 
 namespace {
+
+constexpr char kDKWidevineDir[] = "DK_BROWSER_WIDEVINE_DIR";
+
+// Keep the tests independent of a developer's environment.
+class ScopedDKWidevineDirectory {
+ public:
+  explicit ScopedDKWidevineDirectory(const std::string& directory)
+      : environment_(base::Environment::Create()),
+        previous_(environment_->GetVar(kDKWidevineDir)) {
+    EXPECT_TRUE(environment_->SetVar(kDKWidevineDir, directory));
+  }
+  ~ScopedDKWidevineDirectory() {
+    if (previous_) {
+      EXPECT_TRUE(environment_->SetVar(kDKWidevineDir, *previous_));
+    } else {
+      EXPECT_TRUE(environment_->UnSetVar(kDKWidevineDir));
+    }
+  }
+
+ private:
+  std::unique_ptr<base::Environment> environment_;
+  std::optional<std::string> previous_;
+};
 
 // Version numbers for the version that can be returned by Component Update.
 // The bundled CDM is expected to have version 4.10..., so using values far
@@ -120,6 +147,45 @@ void CreateFakeComponentUpdatedWidevine(
 }
 
 }  // namespace
+
+TEST(CdmRegistrationTest, DKBrowserUsesSelectedLocalWidevine) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath cdm_dir = temp_dir.GetPath();
+
+  base::DictValue manifest;
+  manifest.Set("version", "4.10.1234.0");
+  manifest.Set("x-cdm-codecs", "vp8,vp09,av01");
+  manifest.Set("x-cdm-module-versions", "4");
+  manifest.Set("x-cdm-interface-versions", "10");
+  manifest.Set("x-cdm-host-versions", "10");
+  JSONFileValueSerializer manifest_writer(
+      cdm_dir.Append(FILE_PATH_LITERAL("manifest.json")));
+  ASSERT_TRUE(manifest_writer.Serialize(manifest));
+
+  const base::FilePath platform_dir =
+      media::GetPlatformSpecificDirectory(cdm_dir);
+  ASSERT_TRUE(base::CreateDirectory(platform_dir));
+  const base::FilePath library_path =
+      platform_dir.Append(base::GetNativeLibraryName(kWidevineCdmLibraryName));
+  ASSERT_GE(base::WriteFile(library_path, "test fixture"), 0);
+
+  ScopedDKWidevineDirectory selected(cdm_dir.AsUTF8Unsafe());
+  const auto cdms = GetSoftwareSecureWidevine();
+  ASSERT_EQ(cdms.size(), 1u);
+  EXPECT_EQ(cdms.front().path, library_path);
+  EXPECT_EQ(cdms.front().capability->version,
+            base::Version("4.10.1234.0"));
+}
+
+TEST(CdmRegistrationTest, DKBrowserRejectsRelativeWidevineDirectory) {
+  // A relative path cannot be used as a privileged CDM search location.
+  ScopedDKWidevineDirectory selected("relative/widevine");
+  const auto cdms = GetSoftwareSecureWidevine();
+  for (const auto& cdm : cdms) {
+    EXPECT_NE(cdm.path, base::FilePath("relative/widevine"));
+  }
+}
 
 TEST(CdmRegistrationTest, ChooseBundledCdm) {
   const base::ScopedPathOverride path_override(chrome::DIR_USER_DATA);

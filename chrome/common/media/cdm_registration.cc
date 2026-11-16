@@ -31,6 +31,9 @@
 #endif
 
 #if BUILDFLAG(ENABLE_WIDEVINE)
+#if BUILDFLAG(IS_LINUX)
+#include "base/environment.h"
+#endif
 #include "components/cdm/common/cdm_manifest.h"
 #include "third_party/widevine/cdm/widevine_cdm_common.h"  // nogncheck
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -60,9 +63,10 @@ namespace {
 using Robustness = content::CdmInfo::Robustness;
 
 #if BUILDFLAG(ENABLE_WIDEVINE)
-#if (BUILDFLAG(BUNDLE_WIDEVINE_CDM) ||            \
-     BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)) && \
-    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+#if BUILDFLAG(IS_LINUX) ||                             \
+    ((BUILDFLAG(BUNDLE_WIDEVINE_CDM) ||                \
+      BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)) &&    \
+     BUILDFLAG(IS_CHROMEOS))
 // Create a CdmInfo for a Widevine CDM, using |version|, |cdm_library_path|, and
 // |capability|.
 std::unique_ptr<content::CdmInfo> CreateWidevineCdmInfo(
@@ -99,9 +103,8 @@ std::unique_ptr<content::CdmInfo> CreateCdmInfoFromWidevineDirectory(
 
   return CreateWidevineCdmInfo(cdm_library_path, std::move(capability));
 }
-#endif  // (BUILDFLAG(BUNDLE_WIDEVINE_CDM) ||
-        // BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)) && (BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS))
+#endif  // BUILDFLAG(IS_LINUX) || ((BUNDLE_WIDEVINE_CDM ||
+        // ENABLE_WIDEVINE_CDM_COMPONENT) && BUILDFLAG(IS_CHROMEOS))
 
 #if BUILDFLAG(BUNDLE_WIDEVINE_CDM) && \
     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
@@ -158,6 +161,33 @@ std::unique_ptr<content::CdmInfo> GetHintedWidevine() {
 #endif  // (BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT) && (BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)))
 
+#if BUILDFLAG(IS_LINUX)
+// DK Browser: allow the user to point at a locally installed Widevine CDM.
+// The path is deliberately opt-in and must contain Chromium's expected
+// manifest.json and platform-specific CDM library. Nothing is downloaded or
+// copied from another application by this code.
+std::unique_ptr<content::CdmInfo> GetDKBrowserWidevine() {
+  auto environment = base::Environment::Create();
+  const std::optional<std::string> directory =
+      environment->GetVar("DK_BROWSER_WIDEVINE_DIR");
+  if (!directory || directory->empty()) {
+    return nullptr;
+  }
+
+  const base::FilePath path = base::FilePath::FromUTF8Unsafe(*directory);
+  if (!path.IsAbsolute()) {
+    LOG(WARNING) << "DK_BROWSER_WIDEVINE_DIR must be an absolute path.";
+    return nullptr;
+  }
+
+  auto cdm = CreateCdmInfoFromWidevineDirectory(path);
+  if (!cdm) {
+    LOG(WARNING) << "No valid Widevine CDM found under " << path;
+  }
+  return cdm;
+}
+#endif  // BUILDFLAG(IS_LINUX)
+
 void AddSoftwareSecureWidevine(std::vector<content::CdmInfo>* cdms) {
   DVLOG(1) << __func__;
 
@@ -171,6 +201,15 @@ void AddSoftwareSecureWidevine(std::vector<content::CdmInfo>* cdms) {
       kWidevineCdmType, base::FilePath());
 
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX)
+  if (auto dk_cdm = GetDKBrowserWidevine()) {
+    VLOG(1) << "Registering DK Browser local Widevine "
+            << dk_cdm->capability->version;
+    cdms->push_back(std::move(*dk_cdm));
+    return;
+  }
+#endif
+
   // The Widevine CDM on Linux/ChromeOS needs to be registered (and loaded)
   // before the zygote is locked down. The CDM can be found from the version
   // bundled with Chrome (if BUNDLE_WIDEVINE_CDM = true) and/or the version

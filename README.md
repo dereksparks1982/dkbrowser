@@ -8,7 +8,7 @@ This repository **contains Chromium's actual browser source code**, not a launch
 
 The first DK Browser source changes introduce DK Softworks branding, updated browser product and window titles, and DK Media Player as the default page when launching a fresh browsing session (while retaining Chromium's session restore and user-selected startup URL behavior).
 
-A separate DK Browser Linux build configuration enables Chromium's available proprietary media/HEVC parser pathways for investigation. **Actual H.265 decoding depends on decoder support and has not been built or tested yet**. Native MKV/HEVC playback, persistent file access and mouse-wheel media controls remain engineering milestones, not completed features. See [DK_BROWSER.md](DK_BROWSER.md).
+A separate DK Browser Linux build configuration enables Chromium's available proprietary media/HEVC parser pathways for investigation. DK Browser also enables Widevine key-system registration and can use a previously installed CDM directory on Linux through `DK_BROWSER_WIDEVINE_DIR`. **Actual H.265 decoding depends on decoder support and has not been built or tested yet**. Native MKV/HEVC playback, persistent file access and mouse-wheel media controls remain engineering milestones, not completed features. See [DK_BROWSER.md](DK_BROWSER.md).
 
 ## Relationship to DK Media Player
 
@@ -27,5 +27,11 @@ For upstream build prerequisites and commands, follow [Chromium's Linux build in
 Chromium is open source under a [BSD-style license](LICENSE) and numerous [third-party licenses](third_party). DK Browser retains these licenses and Chromium author attribution. DK Softworks is responsible for DK Browser-specific modifications. Some media codecs may involve additional patent or redistribution obligations and require separate review before distributing builds.
 
 This is a development source fork; **there is no DK Browser executable released yet**.
+
+### Widevine on Linux
+
+The build configuration sets `enable_widevine = true`. If a Widevine CDM is already installed, point `DK_BROWSER_WIDEVINE_DIR` to the *directory containing* its `manifest.json`, not directly to the `.so` library. DK Browser then checks the manifest and platform library using Chromium's own CDM registration pathway. If that directory is invalid or not set, Chromium's existing component discovery remains in place.
+
+This does **not** install Google's CDM, defeat DRM, certify DK Browser for streaming services, or guarantee that a site will accept it. Actual playback requires a compatible local CDM and runtime testing. See [DK_BROWSER.md](DK_BROWSER.md) for implementation status.
 
 **No custom GitHub Actions or automatic builds are added to this project.**

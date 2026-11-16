@@ -11,3 +11,8 @@ proprietary_codecs = true
 ffmpeg_branding = "Chrome"
 enable_hevc_parser_and_hw_decoder = true
 enable_platform_hevc = true
+
+# Compile support for loading Widevine. A valid separately installed module
+# is needed for actual DRM playback.
+enable_widevine = true
+bundle_widevine_cdm = false
