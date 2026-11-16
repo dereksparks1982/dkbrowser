@@ -1,0 +1,30 @@
+:root { color-scheme:dark; font: 16px/1.5 system-ui,-apple-system,sans-serif; background:#0d0908; color:#fff5e7; }
+* { box-sizing:border-box; }
+body { margin:0; min-height:100vh; background:radial-gradient(circle at top,#4d1415 0%,#1b1111 45%,#0d0908 100%); }
+button,select,textarea { font:inherit; }
+button,select { border:1px solid #cc9456; border-radius:8px; color:#f6e9d6; background:#422322; padding:8px 13px; cursor:pointer; }
+button:hover,select:hover { background:#6a2b2b; }
+button:focus-visible,select:focus-visible,textarea:focus-visible { outline:3px solid #e3ba71; outline-offset:2px; }
+button:disabled { opacity:.48; cursor:wait; }
+.shell { max-width:980px; margin:0 auto; padding:22px; }
+.top { display:flex; align-items:center; justify-content:space-between; gap:20px; border-bottom:1px solid #92552f; padding-bottom:15px; }
+.brand { display:flex; align-items:center; gap:14px; font-size:24px; }
+.brand span { display:grid; place-items:center; width:56px; height:56px; border:2px solid #dbad63; border-radius:12px; background:#710d19; color:#efc683; font-weight:800; }
+.settings { display:flex; align-items:center; gap:10px; }
+.panel { background:#1b1313e8; border:1px solid #92552f; border-radius:15px; margin-top:24px; padding:24px; }
+h1 { font-size:clamp(24px,4vw,35px); margin:0 0 4px; }
+p { margin:8px 0 18px; color:#e8d5c5; }
+.modelbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.modelbar select { min-width:180px; flex:1; max-width:430px; }
+.status { font-size:14px; min-height:22px; color:#f2c87e; }
+.chat { display:flex; flex-direction:column; gap:12px; min-height:280px; max-height:50vh; overflow-y:auto; padding:20px; background:#120e0e; border:1px solid #493030; border-radius:10px; }
+.message { white-space:pre-wrap; overflow-wrap:anywhere; max-width:min(90%,680px); padding:12px 16px; border-radius:12px; }
+.message.user { background:#633025; align-self:flex-end; }
+.message.assistant { background:#292428; border:1px solid #7c5f48; align-self:flex-start; }
+#composer { margin-top:16px; }
+#composer label { display:block; margin-bottom:8px; }
+textarea { width:100%; padding:12px; border:1px solid #ae865b; border-radius:8px; background:#130f11; color:#fff; resize:vertical; }
+.actions { display:flex; justify-content:flex-end; gap:10px; margin-top:10px; }
+#send { background:#9a301e; font-weight:700; }
+footer { text-align:center; padding:24px; font-size:14px; color:#d6bda9; }
+@media(max-width:600px) { .shell { padding:10px; } .panel { padding:14px; } .top { align-items:flex-start; } }

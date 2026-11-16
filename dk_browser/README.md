@@ -41,3 +41,11 @@ and .rpm maintenance scripts must not register Google's apt/yum repositories
 or signing keys. Packaging still requires building Chromium, preparing
 native icon sizes with `dk_browser/tools/prepare_icons.py` and testing actual
 install/uninstall lifecycle.
+
+## DK AI experimental local service
+
+`python3 -m dk_browser.ai --open` starts a localhost-only text chat UI
+that forwards requests to an already-running Ollama local model.
+See `dk_browser/ai/README.md` for installation and privacy constraints.
+This is a separately launched development tool, not yet a compiled native
+browser sidebar or a shipped model.

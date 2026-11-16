@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>DK AI | ДК ИИ</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+<main class="shell">
+  <header class="top">
+    <div class="brand"><span aria-hidden="true">ДК</span><strong id="title">DK AI</strong></div>
+    <div class="settings">
+      <label for="locale" id="localeLabel">Language</label>
+      <select id="locale" aria-label="Language"><option value="en">English</option><option value="ru">Русский</option></select>
+    </div>
+  </header>
+  <section class="panel" aria-labelledby="subtitle">
+    <h1 id="subtitle">Private local AI assistant</h1>
+    <p id="intro">Chats stay on your computer and are sent only to the AI service running on your machine. No account is required.</p>
+    <div class="modelbar">
+      <label for="model" id="modelLabel">Installed model</label>
+      <select id="model"></select>
+      <button id="refresh" type="button">Refresh models</button>
+    </div>
+    <p class="status" id="status" aria-live="polite"></p>
+    <div id="chat" class="chat" role="log" aria-live="polite" aria-relevant="additions"></div>
+    <form id="composer">
+      <label for="input" id="inputLabel">Your message</label>
+      <textarea id="input" rows="3" maxlength="10000" placeholder="Ask a question…"></textarea>
+      <div class="actions">
+        <button type="button" id="clear">Clear chat</button>
+        <button type="submit" id="send">Send</button>
+      </div>
+    </form>
+  </section>
+  <footer id="privacy">No cloud account • No hidden browsing access • No automatic model downloads</footer>
+</main>
+</body>
+</html>

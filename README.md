@@ -42,6 +42,12 @@ The Linux packaging source now uses a separate **`dk-browser`** application/pack
 
 The normal upstream `chrome` executable remains internal to the package, while `dk-browser` is the launcher and installed icon name. The approved icon source files and preparer are under `assets/images` and `dk_browser/tools`. **Linux packages have not been built or verified yet.**
 
+## Optional local AI prototype
+
+An experimental bilingual **DK AI** interface now lives in [dk_browser/ai](dk_browser/ai). It connects only to a local [Ollama](https://ollama.com) server, lists already installed models, and supports an English/Russian text chat without an account or automatic model download. The assistant runs as a **separate local development page**, not as a native Chromium sidebar yet.
+
+After starting Ollama and installing your own compatible model, run `python3 -m dk_browser.ai --open` from the repository root. This starts a local-only web page at `http://127.0.0.1:8766`. No third-party Python modules are required to serve it. See [AI instructions](dk_browser/ai/README.md) for security limits, including the fact that a local service is accessible to other programs running as your user.
+
 ## Build groundwork
 
 Chromium uses `depot_tools`, `gclient`, `gn` and `autoninja`. Forking the source provides Chromium's main tree, but a local checkout must also synchronize dependencies from `DEPS` before compiling. Do not treat GitHub's ZIP download as a complete build environment.
