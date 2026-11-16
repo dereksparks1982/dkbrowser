@@ -3,7 +3,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 require("./runtime/rules.js"); // The original DK Live Block parser, unmodified.
-const {compile,translate,MAX_DYNAMIC,create}=require("./chromium-dnr.js");
+const {compile,translate,MAX_DYNAMIC,create,compileTabPauses}=require("./chromium-dnr.js");
 test("native and subscribed ABP rules become scoped DNR, no global widening",()=>{
  const text=[
   "||tracker.example^",
@@ -127,4 +127,30 @@ test("manual rules survive quota pressure and cannot be displaced by subscriptio
  assert.ok(x.rules.some(r=>r.priority===30));
  assert.ok(x.rules.some(r=>r.action.type==="allowAllRequests"));
  assert.equal(new Set(x.rules.map(r=>r.id)).size,x.rules.length);
+});
+
+test("per-tab DNR pause has higher priority and never becomes global",()=>{
+ const list=compileTabPauses([12,13,12,-1,"12",14],true);
+ assert.equal(list.length,3);
+ assert.deepEqual(list.map(x=>x.condition.tabIds[0]),[12,13,14]);
+ assert.ok(list.every(x=>x.action.type==="allowAllRequests"&&x.priority>30));
+ assert.deepEqual(compileTabPauses([12],false),[]);
+});
+test("tab pauses are session-scoped and removed when no longer requested",async()=>{
+ let sessions=[{id:99,priority:40}];
+ const api={
+  getSessionRules:async()=>sessions,
+  updateSessionRules:async ({removeRuleIds,addRules})=>{
+   assert.deepEqual(removeRuleIds,sessions.map(x=>x.id));
+   sessions=addRules;
+  }
+ };
+ const adapter=create(api);
+ const on=await adapter.syncTabPauses([42],{enabled:true});
+ assert.equal(on.error,"");
+ assert.equal(on.paused,1);
+ assert.deepEqual(sessions[0].condition.tabIds,[42]);
+ const off=await adapter.syncTabPauses([42],{enabled:false});
+ assert.equal(off.paused,0);
+ assert.deepEqual(sessions,[]);
 });
