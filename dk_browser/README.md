@@ -8,6 +8,11 @@ Before building, follow Chromium's normal Linux instructions and fetch the depen
 
 The parent README and `DK_BROWSER.md` track implemented vs planned features.
 
+## Native Matroska groundwork
+
+The source fork now separates EBML `DocType=matroska` from `DocType=webm` in `media/base/container_names.cc` and its metrics enum. This lets native media diagnostics distinguish full Matroska containers from WebM without relying on `.mkv` filenames. The Chromium C++ test suite includes valid, malformed and truncated EBML header examples. FFmpeg already has a Matroska demuxer allowed by `media/filters/ffmpeg_glue.cc` and the MIME utility already advertises Matroska types; actual playback, track switching and embedded subtitles remain pending native Linux compilation and validation.
+
+
 Widevine support is enabled in the GN config. A local CDM may be selected at startup with `DK_BROWSER_WIDEVINE_DIR` pointing to the installation's Widevine directory. This is implemented in `chrome/common/media/cdm_registration.cc` and tested in `cdm_registration_unittest.cc`. This configuration does not ship the CDM binary.
 
 ## English and Russian assets

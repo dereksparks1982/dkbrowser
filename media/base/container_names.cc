@@ -1293,8 +1293,12 @@ static uint64_t GetVint(BitReader* reader) {
   return (reader->bits_available() / 8) + 2;
 }
 
-// Additional checks for a WEBM container.
-static bool CheckWebm(base::span<const uint8_t> buffer) {
+// Distinguish the WebM subset from general Matroska via the EBML DocType.
+// Both share the same EBML magic bytes; a filename extension is not evidence
+// of either format. The caller uses this result for native media diagnostics.
+// This does not by itself imply support for a particular audio/video codec.
+static bool CheckEbmlContainer(base::span<const uint8_t> buffer,
+                               bool* is_matroska) {
   // Reference: http://www.matroska.org/technical/specs/index.html
   RCHECK(buffer.size() > 12);
 
@@ -1331,10 +1335,14 @@ static bool CheckWebm(base::span<const uint8_t> buffer) {
         RCHECK(reader.bits_available() >= 32);
         switch (ReadBits(&reader, 32)) {
           case TAG('w', 'e', 'b', 'm'):
+            RCHECK(tagsize == 4);
+            *is_matroska = false;
             return true;
           case TAG('m', 'a', 't', 'r'):
+            RCHECK(tagsize == 8);
             RCHECK(reader.bits_available() >= 32);
-            return (ReadBits(&reader, 32) == TAG('o', 's', 'k', 'a'));
+            *is_matroska = (ReadBits(&reader, 32) == TAG('o', 's', 'k', 'a'));
+            return *is_matroska;
         }
         return false;
 
@@ -1484,11 +1492,14 @@ static MediaContainerName LookupContainerByFirst4(
 
   uint32_t first4 = base::U32FromBigEndian(buffer.first<4u>());
   switch (first4) {
-    case 0x1a45dfa3:
-      if (CheckWebm(buffer)) {
-        return MediaContainerName::kContainerWEBM;
+    case 0x1a45dfa3: {
+      bool is_matroska = false;
+      if (CheckEbmlContainer(buffer, &is_matroska)) {
+        return is_matroska ? MediaContainerName::kContainerMatroska
+                           : MediaContainerName::kContainerWEBM;
       }
       break;
+    }
 
     case 0x3026b275:
       if (StartsWith(buffer, kAsfSignature)) {

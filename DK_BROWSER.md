@@ -86,7 +86,44 @@ Models are candidates, not embedded distributions. Check upstream license files 
 - It checks Linux profile/package isolation and that the local AI service stays loopback-bound with same-origin write restrictions.
 - **This is a source validation gate only**, not evidence of a successful full Chromium compilation, secure package lifecycle or real-world media/AI capability.
 
-## Outstanding before a usable DK Browser release
+## Outstanding before a usable DK Browser release## Native Matroska path: first source integration (November 2026)
+
+The Chromium fork **already** has `audio/matroska`, `video/matroska`
+and their `x-matroska` aliases in `media/base/mime_util_internal.cc`.
+`media/filters/ffmpeg_glue.cc` already includes `matroska` in its FFmpeg
+demuxer allow-list. These are existing upstream pathways, not new decoder
+implementations.
+
+This change improves **native container identification**, without
+guessing from filename extensions. EBML `DocType=matroska` now maps to its
+own `kContainerMatroska` classification; `DocType=webm` remains WebM.
+The existing telemetry IDs 0–39 stay fixed and Matroska receives ID 40.
+C++ regression cases cover exact positive, malformed and truncated EBML headers.
+
+What remains (in implementation priority order):
+
+1. **Native Linux runtime proof:** compile a complete Chromium checkout with
+   `dk_browser/args.linux.gn`. Test a local MKV containing H.264, H.265, AV1,
+   AAC, Opus and/or FLAC independently. Record whether demuxing works, what
+   decoder is selected and why anything fails.
+2. **Native track enumeration:** add a secure way to expose and switch embedded
+   audio languages, subtitle tracks and chapters. Chromium's current
+   FFmpegDemuxer does not expose general MKV subtitles as browser text tracks.
+3. **Native subtitle rendering:** implement or integrate safe text-subtitle
+   handling for SRT/ASS/SSA (libass is a candidate) and a separate bitmap
+   pipeline for PGS. Simply recognizing EBML metadata is insufficient.
+4. **Codec availability:** confirm the compiled FFmpeg build and platform
+   decoders support each advertised codec. No codec, CDM, or conversion
+   download is required or automatically performed by this source change.
+5. **Security and legal gate:** retain Chromium's demuxer whitelist, reject
+   malformed EBML, fuzz untrusted inputs, and check codec/renderer
+   licensing before distributing a binary.
+
+**Status:** code and unit-test sources are committed; no full Chromium
+compilation, live playback, or subtitle rendering was performed. Local
+source-only tests are not a substitute for runtime tests.
+
+
 
 1. **Compile** on Linux using a synchronized upstream DEPS checkout and check build errors. Widevine is currently source-integrated, not proven working at runtime. A compatible CDM must already be present on the machine or supplied through a supported component flow. Some streaming services additionally enforce client authorization.
 2. **Validate native MKV** playback and H.265 decoding on target Linux hardware. Chromium's HEVC parser/build flags alone are not a guarantee of a working video decoder. Implement a real FFmpeg/libavcodec decode path or suitable supported platform decoder and test codec support before claiming this works. Check legal redistribution requirements.

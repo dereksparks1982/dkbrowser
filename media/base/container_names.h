@@ -60,11 +60,12 @@ enum class MediaContainerName {
   kContainerSWF,           // SWF (ShockWave Flash)
   kContainerVC1,           // VC-1
   kContainerWAV,           // WAV / WAVE (Waveform Audio)
-  kContainerWEBM,          // Matroska / WebM
+  kContainerWEBM,          // WebM subset of Matroska
   kContainerWTV,           // WTV (Windows Television)
   kContainerDASH,          // DASH (MPEG-DASH)
   kContainerSmoothStream,  // SmoothStreaming
-  kMaxValue = kContainerSmoothStream,  // Must be last
+  kContainerMatroska,      // Matroska (non-WebM)
+  kMaxValue = kContainerMatroska,  // Must be last
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/media/enums.xml:MediaContainers)
 

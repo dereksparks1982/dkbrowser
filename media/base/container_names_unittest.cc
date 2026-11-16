@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <array>
 #include <optional>
 
 #include "base/containers/span.h"
@@ -290,6 +291,31 @@ TEST(ContainerNamesTest, FileCheckWEBM) {
            GetTestDataFilePath("no_streams.webm"));
   TestFile(MediaContainerName::kContainerWEBM,
            GetTestDataFilePath("webm_ebml_element"));
+}
+
+// DK Browser: Matroska and WebM share EBML magic but must be identified by
+// the exact DocType. Detection is not a claim that every contained codec or
+// subtitle format can be decoded.
+TEST(ContainerNamesTest, DistinguishMatroskaAndWebmHeaders) {
+  constexpr std::array<uint8_t, 16> kWebm = {
+      0x1a, 0x45, 0xdf, 0xa3, 0x87, 0x42, 0x82, 0x84,
+      'w',  'e',  'b',  'm',  0x18, 0x53, 0x80, 0x67};
+  constexpr std::array<uint8_t, 16> kMatroska = {
+      0x1a, 0x45, 0xdf, 0xa3, 0x8b, 0x42, 0x82, 0x88,
+      'm',  'a',  't',  'r',  'o',  's',  'k',  'a'};
+  VERIFY(kWebm, MediaContainerName::kContainerWEBM);
+  VERIFY(kMatroska, MediaContainerName::kContainerMatroska);
+
+  auto invalid = kMatroska;
+  invalid[14] = 'x';  // Not an authentic EBML DocType.
+  VERIFY(invalid, MediaContainerName::kContainerUnknown);
+  VERIFY(base::span(kMatroska).first(11u),
+         MediaContainerName::kContainerUnknown);
+
+  // The WebM DocType cannot claim the length of a Matroska DocType.
+  auto invalid_size = kWebm;
+  invalid_size[7] = 0x88;
+  VERIFY(invalid_size, MediaContainerName::kContainerUnknown);
 }
 
 TEST(ContainerNamesTest, FileCheckMP3) {

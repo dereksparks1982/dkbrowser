@@ -1704,6 +1704,7 @@ chromium-metrics-reviews@google.com.
   <int value="37" label="WTV (Windows Television)"/>
   <int value="38" label="DASH"/>
   <int value="39" label="SmoothStream"/>
+  <int value="40" label="Matroska"/>
 </enum>
 
 <!-- LINT.ThenChange(//media/base/container_names.h:MediaContainerName) -->
