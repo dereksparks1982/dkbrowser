@@ -72,9 +72,11 @@ controls are currently guaranteed operational on Chromium.
 blocks, remembered request allowances, and tab-restricted session DNR
 allowances for “Pause this tab” are wired to the original DK Live Block
 control flow. The tab-pause state uses Chromium session storage to survive
-MV3 worker suspension and clears after browser restart. Browser-owned
-network response replacement, Firefox DNS/proxy controls and some
-short-lived per-request approvals remain separate engineering tasks.
+MV3 worker suspension and clears after browser restart. Network Monitor
+session and ten-minute tab-restricted request approvals now have their
+own DNR session rules, session-storage restoration, expiry alarms and tab
+cleanup. Browser-owned network response replacement, Firefox DNS/proxy
+controls and arbitrary per-request decisions remain separate tasks.
 
 **Validation still required:** Incremental native Linux Chromium build,
 component registration/startup inspection, update/list rules quotas,
@@ -287,15 +289,15 @@ DK Live Block Chromium port:
   updates and attempt rollback on failure.
 - Unsupported precise request types are declined rather than accepted by the
   UI when the DNR compiler cannot represent them.
-- The older Network Monitor's session/temporary per-request allowances are
-  explicitly marked unavailable on Chromium until appropriate session rules
-  and lifetime management are implemented. This does not affect the separate
-  tab-wide session pause.
+- The Network Monitor's supported session-wide and ten-minute tab-restricted
+  request allowances now compile to Chromium session DNR rules with
+  suspension restoration and scheduled expiration. Unsupported precise
+  request types are still rejected. The separate tab-wide pause is retained.
 - Initial service-worker startup waits for the DNR operation to settle
   before completing its boot sequence.
 - Regression fixtures were committed, **not executed**.
 
 This is not a claim of functional Chromium parity. The legacy Firefox
 response-body modification, browser-level interception, per-request
-telemetry, session request exceptions, and unsupported privileged APIs
-remain open development tasks. No browser binary was compiled or tested.
+telemetry, unrepresentable request semantics, and unsupported privileged
+APIs remain open development tasks. No browser binary was compiled or tested.
