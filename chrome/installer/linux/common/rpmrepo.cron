@@ -20,7 +20,7 @@
 
 ## MAIN ##
 # Independent DK Browser packages do not import Google's RPM signing key.
-if [ "@@package_orig" = "dk-browser" ]; then
+if [ "@@package_orig" = "dk-netnav" ]; then
   exit 0
 fi
 if [ -r "$DEFAULTS_FILE" ]; then

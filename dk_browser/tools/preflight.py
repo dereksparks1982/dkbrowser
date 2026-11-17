@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run DK Browser's CI-free source checks locally.
+"""Run DK NetNav's CI-free source checks locally.
 
 No downloads, package installations, network calls, background work, or GitHub
 Actions. Requires Python 3.10+; optional Node for JavaScript syntax checking.
@@ -19,8 +19,8 @@ ASSETS = ROOT / "assets" / "images"
 # SHA-1 here verifies the known Git blob identities of the two approved
 # image masters; it is not used as a cryptographic security signature.
 APPROVED_ICONS = {
-    "DK Browser Imperial Icon.png": "cdf18df0ab941faccb539026cdf1203749ee8a1e",
-    "DK Browser Russian Imperial Icon.png": "d67437ac56aa6ae930ea2b632758237f827568aa",
+    "DK NetNav Imperial Icon.png": "cdf18df0ab941faccb539026cdf1203749ee8a1e",
+    "DK NetNav Russian Imperial Icon.png": "d67437ac56aa6ae930ea2b632758237f827568aa",
 }
 
 
@@ -69,8 +69,8 @@ def validate():
     for resource in ("IDR_DK_BROWSER_ICON_EN", "IDR_DK_BROWSER_ICON_RU"):
         check(resource in theme, f"Missing native image resource: {resource}")
     for suffix, master in (
-        ("en", "DK Browser Imperial Icon.png"),
-        ("ru", "DK Browser Russian Imperial Icon.png"),
+        ("en", "DK NetNav Imperial Icon.png"),
+        ("ru", "DK NetNav Russian Imperial Icon.png"),
     ):
         icon = (ROOT / "chrome/app/theme/default_100_percent/chromium" /
                 f"dk_browser_icon_{suffix}.png")
@@ -80,18 +80,18 @@ def validate():
                   f"Native {suffix} resource does not match its approved master.")
 
     profile = (ROOT / "chrome/common/chrome_paths_linux.cc").read_text()
-    check('data_dir_basename = "dk-browser"' in profile,
+    check('data_dir_basename = "dk-netnav"' in profile,
           "Linux default profile is not isolated from Chromium.")
     package = (ROOT / "chrome/installer/linux/common/chromium-browser.info").read_text()
-    check('PACKAGE="dk-browser"' in package,
-          "Linux package identity was changed from DK Browser.")
+    check('PACKAGE="dk-netnav"' in package,
+          "Linux package identity must remain DK NetNav.")
     for path in (
         "chrome/installer/linux/debian/postinst",
         "chrome/installer/linux/common/repo.cron",
         "chrome/installer/linux/common/rpmrepo.cron",
     ):
         text = (ROOT / path).read_text()
-        check('"@@package_orig" ' in text and '"dk-browser"' in text,
+        check('"@@package_orig" ' in text and '"dk-netnav"' in text,
               f"Missing DK-specific upstream repository safety check: {path}")
 
     toolbar = (ROOT / "chrome/browser/ui/views/toolbar/toolbar_view.cc").read_text()
@@ -120,7 +120,7 @@ def validate():
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="DK Browser local source checks")
+    parser = argparse.ArgumentParser(description="DK NetNav local source checks")
     parser.add_argument("--no-tests", action="store_true",
                         help="Skip local Python tests and JavaScript parser check")
     args = parser.parse_args()
@@ -161,7 +161,7 @@ def main() -> int:
             print("PASS: DK Live Block Chromium adapter syntax and regression tests")
         else:
             print("SKIP: Node is unavailable; JavaScript syntax check skipped.")
-    print("PASS: DK Browser local source preflight")
+    print("PASS: DK NetNav local source preflight")
     return 0
 
 

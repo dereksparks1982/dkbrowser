@@ -76,15 +76,15 @@ The script does not compile Chromium or run GitHub Actions. It creates default E
 
 ## Linux data separation
 
-The fork's non-Google Linux profile defaults to `~/.config/dk-browser`. Google-branded source paths remain untouched. The snap helper uses the matching directory basename and `dk-browser-config` plug so an unrelated Chromium profile is not imported automatically.
+The fork's non-Google Linux profile defaults to `~/.config/dk-netnav`. Google-branded source paths remain untouched. The snap helper uses the matching directory basename and `dk-netnav-config` plug so an unrelated Chromium profile is not imported automatically.
 
 To check the source invariants without compiling Chromium:
 `python3 -m unittest discover -s dk_browser/tests`.
 
 ## Linux package identity
 
-Non-Google Linux packages are named `dk-browser`, install under
-`/opt/dksoftworks/dk-browser`, and register a `dk-browser` desktop/icon
+Non-Google Linux packages are named `dk-netnav`, install under
+`/opt/dksoftworks/dk-netnav`, and register a `dk-netnav` desktop/icon
 identity. The internal Chromium executable remains named `chrome`.
 `Name[ru]=DK NetNav` selects Russian application-menu labeling.
 

@@ -143,15 +143,24 @@ Models are candidates, not embedded distributions. Check upstream license files 
 
 ## Linux profile isolation
 
-- The non-Google Linux browser uses `~/.config/dk-browser` rather than Chromium's default `~/.config/chromium` profile. Existing explicit profile overrides are preserved.
-- The snap helper's profile-basename logic remains synchronized with `chrome_paths_linux.cc`, with a separate `dk-browser-config` personal-files plug rather than silently targeting the Chromium snap.
+- The non-Google Linux browser uses `~/.config/dk-netnav` rather than Chromium's default `~/.config/chromium` profile. Existing explicit profile overrides are preserved.
+- The snap helper's profile-basename logic remains synchronized with `chrome_paths_linux.cc`, with a separate `dk-netnav-config` personal-files plug rather than silently targeting the Chromium snap.
 - The Google-branded code paths and their profile directory names remain unchanged.
 - Static source checks are recorded in `dk_browser/tests/test_linux_profile_identity.py`. This has not been validated in a compiled browser, and snap packaging remains disabled by the normal GN configuration.
 
 ## DK NetNav Linux packaging identity
 
-- Separate non-Google Linux package name (`dk-browser`), installation directory (`/opt/dksoftworks/dk-browser`), desktop icon identifier and protocol scheme. Include `Name[ru]=DK NetNav` in the desktop file.
-- Keep Chromium's binary `chrome` as an internal executable, launched by the `dk-browser` package wrapper. Do not assume the binary has been renamed.
+The active package and installation identifier is `dk-netnav` and the
+Linux profile directory is `~/.config/dk-netnav`. This change is intentional
+for the newly named browser. The former development profile
+`~/.config/dk-browser` is not silently deleted or migrated. Branding source,
+GN arguments, install templates, desktop entries and repository-safety guards
+use the new identity; upstream Chromium internal symbols retain their own names.
+
+## Linux packaging implementation details
+
+- Separate non-Google Linux package name (`dk-netnav`), installation directory (`/opt/dksoftworks/dk-netnav`), desktop icon identifier and protocol scheme. Include `Name[ru]=DK NetNav` in the desktop file.
+- Keep Chromium's binary `chrome` as an internal executable, launched by the `dk-netnav` package wrapper. Do not assume the binary has been renamed.
 - No DK signed package repository exists. The DK-specific Debian and RPM paths skip Google's updater and key installation; the default Linux group excludes Chromium's Google-hosted repository installer for DK. Google-branded source paths remain available when building that brand.
 - The publisher contact in package metadata is currently a GitHub no-reply address used as a *development placeholder*. Confirm a real support/maintainer address before public binary packages.
 - The icon preparer must be run before Linux package generation, and the DK package must be tested for safe install/uninstall and correct launch behavior. No .deb, .rpm, Snap or Flatpak was actually generated.
@@ -242,7 +251,7 @@ A **separate, opt-in Linux development helper** now lives at
 Matroska **video/audio/subtitle** tracks, indices, language tags, codec IDs,
 default/forced dispositions, and chapter boundaries. It does not demux or
 decode video in Chromium. The machine-readable `--json` output has stable
-schema ID `dk-browser.matroska-tracks.v1`. A `--lang ru` option translates
+schema ID `dk-netnav.matroska-tracks.v1`. A `--lang ru` option translates
 the human-readable report; track titles remain in their original language.
 
 Example (no conversion, file modification or upload):

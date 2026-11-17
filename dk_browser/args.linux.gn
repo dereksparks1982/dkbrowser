@@ -1,4 +1,4 @@
-# DK Browser Linux development-build GN arguments.
+# DK NetNav Linux development-build GN arguments.
 # These enable Chromium's HEVC parsing/demuxing code paths but are NOT
 # equivalent to shipping a complete working HEVC software decoder.
 # Codec availability must be tested on target machines before release.
