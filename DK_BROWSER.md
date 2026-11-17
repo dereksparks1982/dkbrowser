@@ -167,6 +167,29 @@ Models are candidates, not embedded distributions. Check upstream license files 
 - Native **DK AI / ДК ИИ** toolbar button now navigates to a fixed loopback URL in a foreground tab. The local Python server must already be running, and no active-tab context, site content, credentials or automatic model download is passed to it. This is a native launch *entry point*, **not** a Chromium-native sidebar, an integrated model engine, or a compiled/tested application.
 - Future: build a permissioned native sidebar, local-model lifecycle management, page permissions, rich translation and Russian performance benchmarks. Do not claim feature parity with Alice AI.
 
+
+## Built-in UPnP/DLNA network media support (planned)
+
+**Status: roadmap only. No implementation, compilation or runtime testing yet.**
+DK Browser will provide its own integrated UPnP/DLNA **client/controller** for home-network media. No third-party app, browser plugin, separately installed helper, background daemon, account or additional server software is required *on the browser side*. Browsed media must already be shared by a compatible device on the local network; DK Browser does not become a media server.
+
+### Implementation milestones
+
+1. **Native LAN discovery:** implement Chromium-side SSDP/UPnP discovery and device-description handling, including bounded discovery, service identification, timeout/disconnect handling and a list of compatible DLNA media servers and renderers.
+2. **Browse shared files:** implement the DLNA ContentDirectory browse flow, showing folders, movies, music and photographs with available media URLs and metadata. Keep the network-device browser separate from DK Media's local-file picker.
+3. **Play directly:** hand a user-selected media resource to DK Browser's media pipeline and support streaming/range requests where the device provides them, without first downloading an entire movie. Supported formats still depend on actual container, codec and subtitle support; this does not claim universal playback.
+4. **Play to a device:** discover compatible DLNA renderers and, where supported, provide play, pause, seek, stop and volume controls using the appropriate UPnP services. Expose device-specific limitations clearly; not every television or speaker supports every action or format.
+5. **Optional DK Media integration:** DK Media remains a separate, standalone web player. When opened in DK Browser, a specifically approved browser-owned bridge or explicit media handoff may let it use selected DLNA resources. Ordinary websites must not receive unrestricted device discovery or private-network access.
+6. **English/Russian UI and resilience:** localized device picker and clear states for permissions, no devices found, unsupported media, device disconnects and network changes.
+
+### Privacy, security and acceptance requirements
+
+- Require an explicit user action and appropriately scoped permission for discovering or controlling devices. Allow revocation and do not expose device lists to arbitrary sites.
+- Treat SSDP announcements, XML device descriptions, SOAP replies, URLs and media metadata as untrusted. Bound parsing and response sizes; defend against local-network request forgery, redirect/rebinding tricks and attempts to reach sensitive private services.
+- Do not silently run a background server or open inbound media-sharing endpoints. Keep the functionality inside DK Browser, not as an externally installed dependency.
+- Validate discovery, browsing, local-network permission behavior, direct playback and remote controls on real devices before describing the feature as working. **No builds or tests are authorized at this stage.**
+
+
 ## Offline release preflight
 
 - `python3 dk_browser/tools/preflight.py` performs local source invariants and invokes all Python unit tests without using GitHub Actions. When Node is present it also parses the JavaScript.
