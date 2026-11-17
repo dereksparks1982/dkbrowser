@@ -187,7 +187,7 @@ function create(api=root.chrome?.declarativeNetRequest){
    const wantSeed=settings?.enabled!==false;
    // Never remove dynamic rules when the caller expects protection to turn
    // fully off but Chromium cannot control our always-on static seed.
-   if(!wantSeed&&(!api.getEnabledRulesets||!api.updateEnabledRulesets)){
+   if(!api.getEnabledRulesets||!api.updateEnabledRulesets){
     stats={...stats,error:"Static ruleset toggle unavailable",updated:Date.now()};
     return {...stats};
    }
