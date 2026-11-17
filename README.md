@@ -27,8 +27,10 @@ Mozilla approval or Firefox installation.**
 The Chromium Manifest V3 port loads the original source modules with a
 compatibility layer. A new `declarativeNetRequest` adapter translates
 supported ABP list rules using DK Live Block's own parser, with explicit
-exceptions, scoped rules and site pauses. The existing static ten-rule baseline remains enabled while the
-DNR adapter adds compatible dynamic subscription rules. The existing CSS
+exceptions, scoped rules and site pauses. The bundled static baseline and dynamic rules follow the global protection
+switch together. Failed Chromium rule updates are reported to the popup;
+the adapter attempts to restore the previous rules and the switch rejects
+unconfirmed transitions. The existing CSS
 and page-side protection modules are bundled. The Linux companion is included only as
 reference source, never installed or started.
 
