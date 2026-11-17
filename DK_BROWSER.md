@@ -14,6 +14,15 @@ DK NetNav is a full Chromium source fork developed as its own general-purpose, o
 - Widevine key-system support is enabled by the DK NetNav Linux GN configuration. On Linux, `DK_BROWSER_WIDEVINE_DIR` selects a previously installed CDM directory with `manifest.json` and `_platform_specific/linux_x64/libwidevinecdm.so` (or the corresponding CPU architecture). The code validates the manifest using Chromium's own CDM parser and falls back to Chromium's existing component/bundled discovery when no valid selection is provided.
 - Unit-test fixtures cover the local Widevine directory registration and rejection of a relative directory. These tests are committed but have not run on a compiled Chromium checkout.
 
+## November 17, 2026: selected upstream video updates
+
+Two actual Chromium video changes have been ported to DK NetNav's existing `main` history without replacing or discarding its browser-specific commits:
+
+- **H.265/HEVC alpha decoding validation.** Incorporates Chromium upstream commit [ab364755d6d8](https://github.com/chromium/chromium/commit/ab364755d6d888eb7ccdcf61ebca9d0bcde2060b). The H.265 decoder validates auxiliary alpha-layer SPS/PPS geometry and format against the base layer, adjusts VideoToolbox accelerator initialization to the configured alpha mode, and does not expose unsupported HEVC alpha decoding through WebCodecs. This principally hardens alpha-layer handling, rather than adding H.265 decoder availability on Linux.
+- **Live-video frame timestamps.** Incorporates Chromium upstream commit [f04a8d8e16e8](https://github.com/chromium/chromium/commit/f04a8d8e16e86e5e1a3a17134f4dbd85c7797472). `requestVideoFrameCallback()` now clamps `mediaTime` from `MediaStream` sources consistently with other time metadata for non-isolated contexts, while leaving file and Media Source Extensions frame timestamps exact.
+
+Only the affected upstream media, GPU and Blink source files and their corresponding source-side coverage were changed. Chromium's upstream legal headers are retained. Upstream dependency rolls, unrelated Android/WebView and Windows-specific changes, and reversed upstream updates have not been swept into DK NetNav.
+
 ## DK Live Block protection-state reliability (source changes)
 
 The Chromium adapter now treats protection switching as an acknowledged
