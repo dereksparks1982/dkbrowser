@@ -173,9 +173,49 @@ function compileTabPauses(tabIds,enabled=true){
   condition:{tabIds:[tabId],resourceTypes:["main_frame","sub_frame"]}
  }));
 }
+// Session rules can be scoped to a specific tab and can disappear at browser
+// restart. Keep a conservative bounded subset below Chrome's session quota.
+const MAX_SESSION_RULES=2500;
+function compileSessionAllowances(settings,now=Date.now()){
+ const rules=[],seen=new Set();let rejected=0;
+ function append(rows,scope){
+  if(!Array.isArray(rows))return;
+  for(const row of rows){
+   if(rules.length>=MAX_SESSION_RULES-MAX_PAUSED_TABS)break;
+   if(row?.scope!==scope){rejected++;continue;}
+   if(scope==="temporary"&&(!Number.isSafeInteger(row.tabId)||
+      row.tabId<0||!Number.isSafeInteger(row.expires)||row.expires<=now)){
+    rejected++;continue;
+   }
+   const rule=explicitRule(row,1000+rules.length,true);
+   if(!rule){rejected++;continue;}
+   const key=[scope,row.site,row.host,row.type,
+    scope==="temporary"?row.tabId:""].join("|");
+   if(seen.has(key))continue;
+   seen.add(key);
+   // Explicit manual blocks (priority 30) still take precedence.
+   rule.priority=25;
+   if(scope==="temporary")rule.condition.tabIds=[row.tabId];
+   rules.push(rule);
+  }
+ }
+ append(settings?.sessionAllowances,"session");
+ append(settings?.temporaryAllowances,"temporary");
+ return {rules,rejected};
+}
+function compileSessionRules(tabIds,settings,now=Date.now()){
+ const pauses=compileTabPauses(tabIds,settings?.enabled!==false);
+ if(settings?.enabled===false)
+  return {rules:[],paused:0,allowances:0,rejected:0};
+ const extras=compileSessionAllowances(settings,now);
+ const allowances=extras.rules.slice(0,MAX_SESSION_RULES-pauses.length);
+ return {rules:[...pauses,...allowances],paused:pauses.length,
+  allowances:allowances.length,rejected:extras.rejected+
+   extras.rules.length-allowances.length};
+}
 function create(api=root.chrome?.declarativeNetRequest){
  let queue=Promise.resolve(),stats={accepted:0,rejected:0,limited:false,error:"",updated:0};
- let tabsStatus={paused:0,error:"",updated:0};
+ let tabsStatus={paused:0,allowances:0,rejected:0,error:"",updated:0};
  const seed="dk_live_block_seed";
  function sync(source,settings){
   const compiled=compile(source,settings);
@@ -248,24 +288,28 @@ function create(api=root.chrome?.declarativeNetRequest){
   queue=operation;return operation;
  }
  function syncTabPauses(tabIds,settings){
-  const rules=compileTabPauses(tabIds,settings?.enabled!==false);
+  const compiled=compileSessionRules(tabIds,settings);
   const operation=queue.catch(()=>{}).then(async()=>{
    if(!api?.getSessionRules||!api?.updateSessionRules){
     tabsStatus={...tabsStatus,
      error:"Chromium DNR session rules unavailable",updated:Date.now()};
     return {...tabsStatus};
    }
-   let previousCount=tabsStatus.paused;
+   let previousPaused=tabsStatus.paused;
+   let previousAllowances=tabsStatus.allowances;
    try{
     const current=await api.getSessionRules();
-    previousCount=current.length;
+    previousPaused=current.filter(rule=>rule.action?.type==="allowAllRequests").length;
+    previousAllowances=current.filter(rule=>rule.action?.type==="allow").length;
     await api.updateSessionRules({
-     removeRuleIds:current.map(rule=>rule.id),addRules:rules
+     removeRuleIds:current.map(rule=>rule.id),addRules:compiled.rules
     });
-    tabsStatus={paused:rules.length,error:"",updated:Date.now()};
+    tabsStatus={paused:compiled.paused,allowances:compiled.allowances,
+     rejected:compiled.rejected,error:"",updated:Date.now()};
    }catch(error){
     // A rejected batch does not erase the previously installed rules.
-    tabsStatus={paused:previousCount,
+    tabsStatus={...tabsStatus,paused:previousPaused,
+     allowances:previousAllowances,
      error:String(error?.message||error).slice(0,180),updated:Date.now()};
    }
    return {...tabsStatus};
@@ -274,6 +318,8 @@ function create(api=root.chrome?.declarativeNetRequest){
  }
  return {sync,syncTabPauses,status:()=>({...stats,tabPauses:{...tabsStatus}})};
 }
-root.DKChromiumRules={compile,translate,create,MAX_DYNAMIC,domainList,explicitRule,extraRules,compileTabPauses};
+root.DKChromiumRules={compile,translate,create,MAX_DYNAMIC,MAX_SESSION_RULES,
+ domainList,explicitRule,extraRules,compileTabPauses,compileSessionAllowances,
+ compileSessionRules};
 if(typeof module!=="undefined")module.exports=root.DKChromiumRules;
 })(typeof globalThis!=="undefined"?globalThis:this);
