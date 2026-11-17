@@ -1007,7 +1007,13 @@ browser.tabs.onUpdated.addListener((id,info,tab)=>{
  if(info.url||info.status==="loading"){
   if(info.url&&host(info.url)!==(data.hosts.get(id)||"")){
    if(!acceptedVideo)DKOriginalTabGuard.clear(data.originalTabGuard,id);
+   const droppedTemporary=data.requestControls.temporary.has(id);
    DKRequestControls.dropTab(data.requestControls,id);
+   if(droppedTemporary&&globalThis.DKChromiumDNR){
+    void refreshChromiumSession();
+    void saveChromiumSessionAllowances().catch(()=>{});
+    scheduleChromiumAllowanceExpiry();
+   }
    data.youtubeExperiment.delete(id);
    DKAdaptiveYouTube.clear(data.youtubeAdaptive,id);
    DKPopupHistory.clear(data.popupHistory,id);
@@ -1023,6 +1029,7 @@ browser.tabs.onUpdated.addListener((id,info,tab)=>{
   autoVideoTimes.delete(id);DKAllowedActivity.clear(data.allowedActivity,id);pendingAllowedDecisions.delete(id);toolbarIcons?.reset(id);data.hosts.set(id,host(info.url||tab.url));data.counts.set(id,0);data.logs.delete(id);data.networkIssues.delete(id);data.streamingIssues.delete(id);data.popupCounts.delete(id);badge(id);}
 });
 browser.tabs.onRemoved.addListener(id=>{
+ const hadTemporary=data.requestControls.temporary.has(id);
  DKOriginalTabGuard.clear(data.originalTabGuard,id);
  DKPopupTrap.nestyClear(data.nestyPopupLinks,id);
  data.youtubeExperiment.delete(id);
@@ -1031,10 +1038,12 @@ browser.tabs.onRemoved.addListener(id=>{
  DKRequestControls.dropTab(data.requestControls,id);
  DKPopupTrap.revoke(data.popupTrapPermits,id);data.popupTrapClaims.delete(id);data.popupTrapAllowed.delete(id);data.popupTrapCounts.delete(id);
  DKThreatWarning.clear(data.threatWarnings,id);data.threatWarningPending.delete(id);DKNetworkMonitor.remove(data.networkMonitors,id);DKAllowedActivity.clear(data.allowedActivity,id);pendingAllowedDecisions.delete(id);DKPlaybackHealth.clear(data.playbackHealth,id);DKYouTubeResponse.clear(id);DKMetaGraphQL.clear(id);autoVideoTimes.delete(id);data.hosts.delete(id);data.counts.delete(id);data.logs.delete(id);data.networkIssues.delete(id);data.streamingIssues.delete(id);DKStreamingRepair.clear(data.streamingAllowances,id);data.popupCounts.delete(id);const wasPaused=data.tempPaused.delete(id);
- if(wasPaused&&globalThis.DKChromiumDNR){
+ if((wasPaused||hadTemporary)&&globalThis.DKChromiumDNR){
   void refreshChromiumSession();
-  void browser.storage.session?.set({dkChromiumPausedTabs:[...data.tempPaused]}).catch(()=>{});
+  if(wasPaused)void browser.storage.session?.set(
+   {dkChromiumPausedTabs:[...data.tempPaused]}).catch(()=>{});
   void saveChromiumSessionAllowances().catch(()=>{});
+  scheduleChromiumAllowanceExpiry();
  }
  toolbarIcons?.reset(id);});
 browser.alarms.onAlarm.addListener(a=>{
