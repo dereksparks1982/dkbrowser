@@ -1415,10 +1415,24 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
    if(oldTemp.length)data.requestControls.temporary.set(id,oldTemp);
    else data.requestControls.temporary.delete(id);
   };
-  const failure=await acceptRuleChange(restore,
-   ()=>browser.storage.local.set({
-    requestAllowances:data.requestControls.remember
-   }),"Remembered request allowance was not applied");
+  const failure=await acceptRuleChange(restore,async()=>{
+   if(globalThis.DKChromiumDNR){
+    const session=await refreshChromiumSession();
+    if(session?.error)throw Error(session.error);
+    await saveChromiumSessionAllowances();
+   }
+   try{
+    await browser.storage.local.set({
+     requestAllowances:data.requestControls.remember
+    });
+   }catch(error){
+    // Session storage was written first; restore it if the local write fails.
+    restore();
+    try{await saveChromiumSessionAllowances();}catch(_){}
+    throw error;
+   }
+   scheduleChromiumAllowanceExpiry();
+  },"Remembered request allowance was not applied");
   if(failure)return failure;
   return {ok:true,allowed:msg.allow,changed:true,scope:"site+hostname+type"};
  }
