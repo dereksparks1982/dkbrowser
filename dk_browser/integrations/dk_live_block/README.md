@@ -54,6 +54,11 @@ specific compatibility boundaries.
   ten-minute tab-specific request allowances now use distinct session DNR
   rules, with saved worker-session state, expiry alarms and tab cleanup.
   Firefox's exact per-request telemetry is not available on Chromium.
+  During MV3 worker startup, tab changes cannot overwrite session storage
+  before it has been read. Restored short-lived allowances are discarded
+  when their tab has closed, changed first-party hostname, or expired.
+  After the initial DNR update, a second live-tab query reconciles any
+  further changes. These source protections require browser testing.
 - **Page-side protection:** Original cosmetic and procedural, Facebook,
   YouTube, Nesty, popup and cookie modules remain registered. Their
   runtime behavior and feature compatibility require real-browser testing.

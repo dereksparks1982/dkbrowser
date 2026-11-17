@@ -190,6 +190,27 @@ function chromiumSessionSettings(){
  return {...data.settings,sessionAllowances:data.requestControls.session,
   temporaryAllowances};
 }
+// MV3 startup restores saved tab-scoped settings before any tab events
+// can modify them. Verify those permissions against the currently open tabs.
+function pruneChromiumTabState(tabs,now=Date.now()){
+ if(!globalThis.DKChromiumDNR)return false;
+ const live=new Map(tabs.filter(tab=>Number.isSafeInteger(tab?.id)&&tab.id>=0)
+  .map(tab=>[tab.id,host(tab.url||"")]));
+ let changed=false;
+ for(const id of data.tempPaused)if(!live.has(id)){
+  data.tempPaused.delete(id);changed=true;
+ }
+ for(const [id,rows] of data.requestControls.temporary){
+  const site=live.get(id);
+  const kept=rows.filter(row=>site&&row.site===site&&
+   Number.isSafeInteger(row.expires)&&row.expires>now);
+  if(kept.length===rows.length)continue;
+  changed=true;
+  if(kept.length)data.requestControls.temporary.set(id,kept);
+  else data.requestControls.temporary.delete(id);
+ }
+ return changed;
+}
 async function saveChromiumSessionAllowances(){
  if(!globalThis.DKChromiumDNR)return;
  if(!browser.storage.session?.set)throw Error("Chromium session storage unavailable");
@@ -1000,6 +1021,9 @@ browser.webNavigation?.onCreatedNavigationTarget?.addListener(async event=>{
  }catch(error){console.warn("DK Live Block popup check:",error);}
 });
 browser.tabs.onUpdated.addListener((id,info,tab)=>{
+ // Ignore startup events until saved Chromium tab settings have loaded.
+ // The boot routine re-queries tabs and removes stale permissions.
+ if(globalThis.DKChromiumDNR&&!data.ready)return;
  // A confirmed video child keeps its recent source evidence across about:blank.
  const acceptedVideo=!!info.url&&DKOriginalTabGuard.confirmVideo(data.originalTabGuard,id,info.url);
  if(info.url&&DKPopupTrap.nestyRead(data.nestyPopupLinks,id))
@@ -1029,6 +1053,7 @@ browser.tabs.onUpdated.addListener((id,info,tab)=>{
   autoVideoTimes.delete(id);DKAllowedActivity.clear(data.allowedActivity,id);pendingAllowedDecisions.delete(id);toolbarIcons?.reset(id);data.hosts.set(id,host(info.url||tab.url));data.counts.set(id,0);data.logs.delete(id);data.networkIssues.delete(id);data.streamingIssues.delete(id);data.popupCounts.delete(id);badge(id);}
 });
 browser.tabs.onRemoved.addListener(id=>{
+ if(globalThis.DKChromiumDNR&&!data.ready)return;
  const hadTemporary=data.requestControls.temporary.has(id);
  DKOriginalTabGuard.clear(data.originalTabGuard,id);
  DKPopupTrap.nestyClear(data.nestyPopupLinks,id);
@@ -2387,13 +2412,18 @@ async function boot(){
   if(data.youtubeRules&&data.youtubeRules.version===data.youtubeHeldVersion){
    data.youtubeRules=null;data.listErrors.youtube="Rolled-back pack disabled until a newer version arrives.";
   }
-  const tabs=await browser.tabs.query({});
+  let tabs=await browser.tabs.query({});
+  let chromiumSessionLoaded=false;
   if(globalThis.DKChromiumDNR&&browser.storage.session?.get){
    try{
     const saved=await browser.storage.session.get([
      "dkChromiumPausedTabs","dkChromiumSessionAllowances",
      "dkChromiumTemporaryAllowances"]);
+    chromiumSessionLoaded=true;
+    // A tab can navigate while storage.session.get() is in flight.
+    tabs=await browser.tabs.query({});
     const liveIds=new Set(tabs.map(tab=>tab.id));
+    const liveSiteById=new Map(tabs.map(tab=>[tab.id,host(tab.url||"")]));
     const paused=Array.isArray(saved.dkChromiumPausedTabs)?
      saved.dkChromiumPausedTabs:[];
     data.tempPaused=new Set(paused.filter(id=>
@@ -2409,6 +2439,7 @@ async function boot(){
     const now=Date.now(),restored=new Map();
     for(const row of temporary.slice(0,2500)){
      if(!Number.isSafeInteger(row?.tabId)||!liveIds.has(row.tabId)||
+       liveSiteById.get(row.tabId)!==row.site||
        !Number.isSafeInteger(row.expires)||row.expires<=now)continue;
      const valid=DKRequestControls.choice(row.site,row.host,row.type,"temporary");
      if(!valid)continue;
@@ -2421,9 +2452,30 @@ async function boot(){
    }catch(error){console.warn("DK Live Block session allowance restore:",String(error).slice(0,100));}
   }
   const initialRules=await rebuild();
-  scheduleChromiumAllowanceExpiry();
   if(initialRules?.error)console.warn("DK Live Block initial Chromium protection:",
    initialRules.error);
+  if(globalThis.DKChromiumDNR){
+   // Re-read live tabs after DNR work: a navigation or closure could have
+   // arrived during the worker's async startup. Discard invalid exceptions.
+   tabs=await browser.tabs.query({});
+   if(pruneChromiumTabState(tabs)){
+    const refreshed=await refreshChromiumSession();
+    if(refreshed?.error)console.warn("DK Live Block startup tab reconciliation:",
+     refreshed.error);
+   }
+   // Never write empty startup defaults over session storage when the
+   // storage read failed; preserve evidence and permit later recovery.
+   if(chromiumSessionLoaded&&browser.storage.session?.set){
+    try{
+     await browser.storage.session.set({
+      dkChromiumPausedTabs:[...data.tempPaused],
+      dkChromiumSessionAllowances:data.requestControls.session,
+      dkChromiumTemporaryAllowances:chromiumSessionSettings().temporaryAllowances
+     });
+    }catch(error){console.warn("DK Live Block startup session save:",String(error).slice(0,120));}
+   }
+  }
+  scheduleChromiumAllowanceExpiry();
   for(const t of tabs)if(t.url){data.hosts.set(t.id,host(t.url));badge(t.id);}
   data.ready=true;
   try{syncProxyListener();}catch(error){

@@ -75,8 +75,12 @@ control flow. The tab-pause state uses Chromium session storage to survive
 MV3 worker suspension and clears after browser restart. Network Monitor
 session and ten-minute tab-restricted request approvals now have their
 own DNR session rules, session-storage restoration, expiry alarms and tab
-cleanup. Browser-owned network response replacement, Firefox DNS/proxy
-controls and arbitrary per-request decisions remain separate tasks.
+cleanup. Source-side MV3 startup now defers destructive tab handlers until
+session restore, verifies saved temporary approvals against each tab's
+current hostname and expiry, and reconciles again after DNR startup work.
+Live worker-restart, rapid-navigation and storage-failure verification
+is still required. Browser-owned network response replacement, Firefox
+DNS/proxy controls and arbitrary per-request decisions remain separate tasks.
 
 **Validation still required:** Incremental native Linux Chromium build,
 component registration/startup inspection, update/list rules quotas,

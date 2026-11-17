@@ -196,6 +196,17 @@ class DKLiveBlockIntegrationTests(unittest.TestCase):
         self.assertIn("removeListener(handler)", self.compat)
         self.assertIn("hasListener(handler)", self.compat)
 
+    def test_chromium_worker_startup_revalidates_live_tab_permissions(self):
+        background = (RUNTIME / "background.js").read_text(encoding="utf-8")
+        self.assertIn("function pruneChromiumTabState(tabs,now=Date.now())", background)
+        self.assertIn("liveSiteById.get(row.tabId)!==row.site", background)
+        self.assertIn("row.site===site", background)
+        self.assertIn("row.expires>now", background)
+        self.assertIn("if(globalThis.DKChromiumDNR&&!data.ready)return;", background)
+        self.assertIn("tabs=await browser.tabs.query({});", background)
+        self.assertIn("chromiumSessionLoaded=true;", background)
+        self.assertIn("if(chromiumSessionLoaded&&browser.storage.session?.set)", background)
+
     def test_no_automated_installer_or_action(self):
         self.assertFalse((DIRECTORY / ".github/workflows").exists())
         self.assertFalse((DIRECTORY / "install.sh").exists())

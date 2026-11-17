@@ -120,7 +120,9 @@ ownership and avoids responding to messages its original listener did not
 handle. Unsupported request types are rejected explicitly. The Network
 Monitor's session and ten-minute tab-specific request allowances now have
 separate Chromium session DNR rules with worker-session restoration and
-expiration handling. The separate tab-wide pause remains implemented in source.
+expiration handling. Startup reconciliation now rejects expired, closed-tab
+or wrong-site temporary approvals after a suspended worker resumes.
+The separate tab-wide pause remains implemented in source.
 
 These changes and their regression fixtures have **not been compiled, run
 or tested**. See the [DK Live Block component notes](dk_browser/integrations/dk_live_block/README.md).
