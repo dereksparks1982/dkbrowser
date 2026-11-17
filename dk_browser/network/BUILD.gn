@@ -1,0 +1,9 @@
+# Copyright 2026 DK Softworks.
+# Internal Linux SSDP network discovery. Linked into the browser toolbar.
+assert(is_linux)
+source_set("ssdp_discovery") {
+  sources = [
+    "ssdp_discovery.cc",
+    "ssdp_discovery.h",
+  ]
+}

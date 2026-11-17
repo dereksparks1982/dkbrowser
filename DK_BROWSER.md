@@ -179,12 +179,12 @@ use the new identity; upstream Chromium internal symbols retain their own names.
 
 ## Built-in UPnP/DLNA network media support (planned)
 
-**Status: roadmap only. No implementation, compilation or runtime testing yet.**
+**Status: first Linux discovery source milestone committed. No Chromium compilation or runtime testing yet.** The browser toolbar now exposes a bilingual **Devices / Устройства** action that runs bounded SSDP MediaServer/MediaRenderer discovery on a worker thread, and displays only the responding address and server identifier. There is no automatically running network scan, separate helper program, device-description fetching or arbitrary website API. Friendly device names, description validation, ContentDirectory browsing, playback and renderer control remain unimplemented.
 DK NetNav will provide its own integrated UPnP/DLNA **client/controller** for home-network media. No third-party app, browser plugin, separately installed helper, background daemon, account or additional server software is required *on the browser side*. Browsed media must already be shared by a compatible device on the local network; DK NetNav does not become a media server.
 
 ### Implementation milestones
 
-1. **Native LAN discovery:** implement Chromium-side SSDP/UPnP discovery and device-description handling, including bounded discovery, service identification, timeout/disconnect handling and a list of compatible DLNA media servers and renderers.
+1. **Native LAN discovery:** Linux SSDP M-SEARCH, bounded response parsing, user-triggered toolbar button, bilingual response list and worker-thread dispatch are now present in source. Next: obtain and validate device descriptions securely, show friendly names and support other platforms/IPv6. Source is not compiled or tested.
 2. **Browse shared files:** implement the DLNA ContentDirectory browse flow, showing folders, movies, music and photographs with available media URLs and metadata. Keep the network-device browser separate from DK Media's local-file picker.
 3. **Play directly:** hand a user-selected media resource to DK NetNav's media pipeline and support streaming/range requests where the device provides them, without first downloading an entire movie. Supported formats still depend on actual container, codec and subtitle support; this does not claim universal playback.
 4. **Play to a device:** discover compatible DLNA renderers and, where supported, provide play, pause, seek, stop and volume controls using the appropriate UPnP services. Expose device-specific limitations clearly; not every television or speaker supports every action or format.

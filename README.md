@@ -74,9 +74,9 @@ This is a **source implementation**; there is no compiled DK NetNav executable y
 [DK Media Player](https://github.com/dereksparks1982/DK-Media-Player) remains a **web application** and is opened by DK NetNav. Browser features are implemented here; site-specific player functionality remains in its own repository. Its [live web player](https://dereksparks1982.github.io/DK-Media-Player/) supports opening media, resume positions, a saved last-file handle in compatible browsers, and volume adjustment by scrolling over the video.
 
 
-## Planned network media support (UPnP/DLNA)
+## Built-in network media discovery (UPnP/DLNA)
 
-DK NetNav's [engineering roadmap](DK_BROWSER.md#built-in-upnpdlna-network-media-support-planned) now includes a **built-in UPnP/DLNA client**, to discover compatible media shares and playback devices on the local network, browse shared media, stream supported files, and control compatible renderers. This will be browser-native, without an externally installed helper or separate browser-side media server. DK Media remains a separate web player, with any future DLNA handoff explicitly permissioned. **Planning only: not implemented or tested.**
+DK NetNav's [engineering roadmap](DK_BROWSER.md#built-in-upnpdlna-network-media-support-planned) now includes a **built-in UPnP/DLNA client**, to discover compatible media shares and playback devices on the local network, browse shared media, stream supported files, and control compatible renderers. This will be browser-native, without an externally installed helper or separate browser-side media server. DK Media remains a separate web player, with any future DLNA handoff explicitly permissioned. **Linux discovery source implemented:** the native toolbar now has a user-triggered **Devices / Устройства** button, backed by an internal bounded SSDP search on a worker thread. It lists responding media servers and playback devices without an externally installed helper. Device-friendly names, description fetching, media browsing, streaming and remote control are not implemented yet. **The browser has not been compiled or tested.** See [native discovery sources](dk_browser/network/README.md).
 
 ## Separate Linux user profile
 

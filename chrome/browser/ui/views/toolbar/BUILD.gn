@@ -122,6 +122,10 @@ source_set("toolbar") {
     "//url",
   ]
 
+  if (is_linux) {
+    public_deps += [ "//dk_browser/network:ssdp_discovery" ]
+  }
+
   if (is_chromeos) {
     public_deps += [ "//chromeos/ash/experiences/arc/intent_helper" ]
   }

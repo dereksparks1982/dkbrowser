@@ -357,6 +357,8 @@ class ToolbarView : public views::AccessiblePaneView,
 
   void OnDKAIButtonPressed(const ui::Event& event);
 
+  void OnDKNetworkButtonPressed(const ui::Event& event);
+
   void OnTouchUiChanged();
 
   void InitGlicContainer();
@@ -408,6 +410,7 @@ class ToolbarView : public views::AccessiblePaneView,
   raw_ptr<HomeButton> home_ = nullptr;
   raw_ptr<views::LabelButton> language_button_ = nullptr;
   raw_ptr<views::LabelButton> ai_button_ = nullptr;
+  raw_ptr<views::LabelButton> network_button_ = nullptr;
   raw_ptr<SplitTabsToolbarButton> split_tabs_ = nullptr;
   raw_ptr<CustomTabBarView> custom_tab_bar_ = nullptr;
   raw_ptr<LocationBarView> location_bar_view_ = nullptr;

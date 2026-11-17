@@ -20,6 +20,10 @@
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
+#if BUILDFLAG(IS_LINUX)
+#include "base/task/thread_pool.h"
+#include "dk_browser/network/ssdp_discovery.h"
+#endif
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
@@ -162,6 +166,11 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/actions/action_view_controller.h"
 #include "ui/views/background.h"
+#if BUILDFLAG(IS_LINUX)
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/controls/label.h"
+#include "ui/views/layout/box_layout.h"
+#endif
 #include "ui/views/cascading_property.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/separator.h"
@@ -220,6 +229,66 @@ auto& GetViewCommandMap() {
        {VIEW_ID_AVATAR_BUTTON, IDC_SHOW_AVATAR_MENU}});
   return kViewCommandMap;
 }
+
+
+#if BUILDFLAG(IS_LINUX)
+// The user explicitly opens this bubble. It never scans in the background,
+// and its weak callback cannot write into a closed/destroyed bubble.
+class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
+ public:
+  DKNetworkDevicesBubble(views::View* anchor, bool russian)
+      : views::BubbleDialogDelegateView(anchor,
+                                        views::BubbleBorder::TOP_RIGHT),
+        russian_(russian) {
+    SetTitle(russian ? u"Сетевые медиаустройства"
+                     : u"Network media devices");
+    SetLayoutManager(std::make_unique<views::BoxLayout>(
+        views::BoxLayout::Orientation::kVertical));
+    status_ = AddChildView(std::make_unique<views::Label>(
+        russian ? u"Поиск устройств в локальной сети…"
+                : u"Searching your local network…"));
+    status_->SetMultiLine(true);
+    status_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    status_->SetMaximumWidth(410);
+  }
+
+  base::WeakPtr<DKNetworkDevicesBubble> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+
+  void ShowDevices(std::vector<dk_browser::network::MediaDevice> devices) {
+    if (devices.empty()) {
+      status_->SetText(russian_
+          ? u"Совместимые устройства не обнаружены. "
+            u"Убедитесь, что они подключены к этой сети."
+          : u"No compatible devices responded. "
+            u"Check that they are on this network.");
+      return;
+    }
+    std::u16string result = russian_
+        ? u"Ответившие устройства (названия ещё не загружены):\n"
+        : u"Responding devices (friendly names not yet available):\n";
+    for (const auto& device : devices) {
+      result += u"\n";
+      result += device.kind == "server"
+          ? (russian_ ? u"Медиасервер: " : u"Media server: ")
+          : (russian_ ? u"Проигрыватель: " : u"Renderer: ");
+      result += base::UTF8ToUTF16(device.address);
+      if (!device.server_header.empty()) {
+        result += u"\n";
+        result += base::UTF8ToUTF16(device.server_header);
+      }
+      result += u"\n";
+    }
+    status_->SetText(result);
+  }
+
+ private:
+  const bool russian_;
+  raw_ptr<views::Label> status_ = nullptr;
+  base::WeakPtrFactory<DKNetworkDevicesBubble> weak_factory_{this};
+};
+#endif  // BUILDFLAG(IS_LINUX)
 
 constexpr int kBrowserAppMenuRefreshCollapsedMargin = 2;
 constexpr int kInsideBorderAroundGlicButtons = 2;
@@ -511,6 +580,23 @@ void ToolbarView::Init() {
                  : u"Open DK AI in a new tab");
   ai_button_ = AddChildView(std::move(ai_button));
 
+#if BUILDFLAG(IS_LINUX)
+  // Discover devices only when explicitly clicked. Nothing is exposed to
+  // visited websites or the separate DK Media Player web application.
+  auto network_button = std::make_unique<views::LabelButton>(
+      base::BindRepeating(&ToolbarView::OnDKNetworkButtonPressed,
+                          base::Unretained(this)),
+      is_russian ? u"Устройства" : u"Devices");
+  network_button->SetTooltipText(
+      is_russian ? u"Найти медиасерверы и проигрыватели в локальной сети"
+                 : u"Discover local UPnP/DLNA media devices");
+  network_button->GetViewAccessibility().SetName(
+      is_russian ? u"Поиск сетевых медиаустройств"
+                 : u"Find network media devices");
+  network_button_ = AddChildView(std::move(network_button));
+#endif
+
+
   bool is_glic_left_of_profile =
       features::kGlicToolbarButtonLocationParam.Get() ==
           features::GlicToolbarButtonLocation::kLeftOfProfileChip ||
@@ -756,6 +842,25 @@ void ToolbarView::OnDKAIButtonPressed(const ui::Event&) {
       ui::PAGE_TRANSITION_AUTO_BOOKMARK);
   browser_->OpenURL(params, /*navigation_handle_callback=*/{});
 }
+
+
+#if BUILDFLAG(IS_LINUX)
+void ToolbarView::OnDKNetworkButtonPressed(const ui::Event&) {
+  const bool russian =
+      g_browser_process->GetApplicationLocale().starts_with("ru");
+  auto bubble =
+      std::make_unique<DKNetworkDevicesBubble>(network_button_, russian);
+  auto weak_bubble = bubble->GetWeakPtr();
+  views::BubbleDialogDelegateView::CreateBubble(std::move(bubble))->Show();
+
+  // UDP network I/O always runs off Chromium's UI thread. The weak callback
+  // is silently dropped if the user closes the bubble before discovery ends.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&dk_browser::network::DiscoverLocalMediaDevices),
+      base::BindOnce(&DKNetworkDevicesBubble::ShowDevices, weak_bubble));
+}
+#endif
 
 void ToolbarView::InitGlicContainer() {
   if ((base::FeatureList::IsEnabled(features::kGlicActorUi) &&
