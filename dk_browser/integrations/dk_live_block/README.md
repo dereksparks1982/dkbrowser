@@ -127,7 +127,18 @@ persistent Chromium dynamic rules. DNR host conditions may also match
 subdomains, so the Chromium adaptation is not an exact replacement for
 Firefox's every-request decision engine.
 
+**Protection-state error handling (source-only):** The Chromium adapter
+requires static ruleset control for acknowledged updates; it snapshots
+previous dynamic and static state and attempts rollback on failure.
+`setGlobal` now awaits that result and restores the previous preference on
+an unsuccessful change instead of persisting a misleading state. The popup
+displays Chromium rule and tab-pause errors, and rejects failed user actions
+instead of silently proceeding. Session-rule error status retains the last
+observed installed count. JavaScript and Python regression/source fixtures
+were updated, but **they have not been executed**.
+
 **Still not complete:** Native Chromium equivalents for Firefox-only
-blocking responses, response-body rewriting, DNS/proxy controls, tab-only
-pauses and all original UI behavior need additional source work and
-eventual runtime review. No browser binary was compiled or tested.
+blocking responses, response-body rewriting, DNS/proxy controls, temporary
+per-request approvals and other unsupported privileged features require
+additional source work. Tab-only pauses and all original UI behavior also
+need runtime verification. No browser binary was compiled or tested.
