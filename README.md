@@ -117,10 +117,10 @@ site allowlisting, selective blocking, remembered request allowances,
 built-in filter toggles and general Settings edits before treating them as
 saved successes. The Chromium message adapter also preserves listener
 ownership and avoids responding to messages its original listener did not
-handle. Unsupported request types are rejected explicitly; the Firefox
-Network Monitor's temporary/session **per-request** allowances still need a
-Chromium-specific implementation and are not represented as working.
-The separate tab-wide pause remains implemented in source.
+handle. Unsupported request types are rejected explicitly. The Network
+Monitor's session and ten-minute tab-specific request allowances now have
+separate Chromium session DNR rules with worker-session restoration and
+expiration handling. The separate tab-wide pause remains implemented in source.
 
 These changes and their regression fixtures have **not been compiled, run
 or tested**. See the [DK Live Block component notes](dk_browser/integrations/dk_live_block/README.md).
