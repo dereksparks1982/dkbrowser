@@ -73,6 +73,11 @@ This is a **source implementation**; there is no compiled DK Browser executable 
 
 [DK Media Player](https://github.com/dereksparks1982/DK-Media-Player) remains a **web application** and is opened by DK Browser. Browser features are implemented here; site-specific player functionality remains in its own repository. Its [live web player](https://dereksparks1982.github.io/DK-Media-Player/) supports opening media, resume positions, a saved last-file handle in compatible browsers, and volume adjustment by scrolling over the video.
 
+
+## Planned network media support (UPnP/DLNA)
+
+DK Browser's [engineering roadmap](DK_BROWSER.md#built-in-upnpdlna-network-media-support-planned) now includes a **built-in UPnP/DLNA client**, to discover compatible media shares and playback devices on the local network, browse shared media, stream supported files, and control compatible renderers. This will be browser-native, without an externally installed helper or separate browser-side media server. DK Media remains a separate web player, with any future DLNA handoff explicitly permissioned. **Planning only: not implemented or tested.**
+
 ## Separate Linux user profile
 
 DK Browser uses its own **`~/.config/dk-browser`** profile directory instead of Chromium's `~/.config/chromium`. Bookmarks, history, settings and extensions are therefore kept separate by default. The matching snap configuration path is also DK-specific. Existing Chromium overrides such as `--user-data-dir` and the XDG configuration location still take precedence when explicitly chosen.
