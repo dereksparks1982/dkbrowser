@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Prepare approved DK Browser artwork for Linux packaging (requires Pillow)."""
+"""Prepare DK NetNav English/Russian icons for Linux packaging (requires Pillow)."""
 from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = (
-    ("en", ROOT / "assets/images/DK Browser Imperial Icon.png"),
-    ("ru", ROOT / "assets/images/DK Browser Russian Imperial Icon.png"),
+    ("en", ROOT / "assets/images/DK_NetNav_English.png"),
+    ("ru", ROOT / "assets/images/DK_NetNav_Russian.png"),
 )
 SIZES = (16, 24, 32, 48, 64, 128, 256)
 

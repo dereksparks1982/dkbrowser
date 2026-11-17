@@ -19,8 +19,8 @@ ASSETS = ROOT / "assets" / "images"
 # SHA-1 here verifies the known Git blob identities of the two approved
 # image masters; it is not used as a cryptographic security signature.
 APPROVED_ICONS = {
-    "DK NetNav Imperial Icon.png": "cdf18df0ab941faccb539026cdf1203749ee8a1e",
-    "DK NetNav Russian Imperial Icon.png": "d67437ac56aa6ae930ea2b632758237f827568aa",
+    "DK_NetNav_English.png": "528aa41ecb3de9b7b4c3ad98fd79d459ec51e5fe",
+    "DK_NetNav_Russian.png": "cbb9fefa8461e0219ada94bb5d77dc7adc5f1e02",
 }
 
 
@@ -55,9 +55,9 @@ def validate():
 
     en = (ROOT / "README.md").read_text(encoding="utf-8")
     ru = (ROOT / "README.ru.md").read_text(encoding="utf-8")
-    check('DK%20Browser%20Imperial%20Icon.png' in en,
+    check('DK_NetNav_English.png' in en,
           "English front page has no official English icon.")
-    check('DK%20Browser%20Russian%20Imperial%20Icon.png' in ru,
+    check('DK_NetNav_Russian.png' in ru,
           "Russian front page has no official Russian icon.")
     check("(README.ru.md)" in en and "(README.md)" in ru,
           "Both README language navigation links must exist.")
@@ -69,11 +69,11 @@ def validate():
     for resource in ("IDR_DK_BROWSER_ICON_EN", "IDR_DK_BROWSER_ICON_RU"):
         check(resource in theme, f"Missing native image resource: {resource}")
     for suffix, master in (
-        ("en", "DK NetNav Imperial Icon.png"),
-        ("ru", "DK NetNav Russian Imperial Icon.png"),
+        ("en", "DK_NetNav_English.png"),
+        ("ru", "DK_NetNav_Russian.png"),
     ):
         icon = (ROOT / "chrome/app/theme/default_100_percent/chromium" /
-                f"dk_browser_icon_{suffix}.png")
+                f"dk_netnav_icon_{suffix}.png")
         check(icon.is_file(), f"Missing native {suffix} icon.")
         if icon.is_file():
             check(icon.read_bytes() == (ASSETS / master).read_bytes(),

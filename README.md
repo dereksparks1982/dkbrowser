@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/images/DK%20Browser%20Imperial%20Icon.png" alt="DK NetNav English imperial icon" width="220">
+<img src="assets/images/DK_NetNav_English.png" alt="DK NetNav English imperial icon" width="220">
 
 # DK NetNav
 
@@ -65,7 +65,7 @@ A separate DK NetNav Linux build configuration enables Chromium's available prop
 
 DK NetNav is designed with English and Russian interface support. The browser's native toolbar includes a visible **EN / РУ** button. Switching changes Chromium's application-locale preference and restarts through its normal session-preserving restart mechanism. Existing Russian resources provide native translations, and DK-specific Russian product wording uses **DK NetNav**.
 
-The existing imperial icon artwork retains its original lettering until an approved artwork update; both icon files live under [assets/images](assets/images), with the original filenames corrected to match the actual Latin/Cyrillic lettering. Linux browser windows select the proper icon based on the active language. Desktop launcher icon preparation is documented in [dk_browser/README.md](dk_browser/README.md).
+The approved DK NetNav icons now use matching Russian-inspired red-and-gold designs: [English](assets/images/DK_NetNav_English.png) and [Russian](assets/images/DK_NetNav_Russian.png). Browser-native English/Russian icon resources point to these exact images. The Linux launcher uses the English default, with separately generated Russian artwork for localized packaging. Before a compiled release, run the [icon preparation script](dk_browser/tools/prepare_icons.py) to generate all required launcher sizes. The former DK Browser artwork remains archived in assets; native icon display is not yet runtime-verified.
 
 This is a **source implementation**; there is no compiled DK NetNav executable yet, and native layout, locale persistence and icon display need runtime testing.
 

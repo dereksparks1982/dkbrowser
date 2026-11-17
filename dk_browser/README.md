@@ -64,7 +64,7 @@ Widevine support is enabled in the GN config. A local CDM may be selected at sta
 
 ## English and Russian assets
 
-The original approved English/Russian artwork is stored under `assets/images`. Normal Linux browser windows use the icon matching the current UI language. A visible **EN / РУ** toolbar switch persists the preferred language and restarts the browser.
+The approved English and Russian DK NetNav artwork is stored as `assets/images/DK_NetNav_English.png` and `assets/images/DK_NetNav_Russian.png`. Native image resources reference the respective new master images; the English icon is the default Linux launcher source and the Russian edition has its own localized resource. A visible **EN / РУ** toolbar switch persists the preferred language and restarts the browser.
 
 Before packaging a Linux release, regenerate standard icon sizes with Pillow (`python3-pil`):
 
@@ -72,7 +72,7 @@ Before packaging a Linux release, regenerate standard icon sizes with Pillow (`p
 python3 dk_browser/tools/prepare_icons.py
 ```
 
-The script does not compile Chromium or run GitHub Actions. It creates default English launcher icon sizes and separate Russian versions. Changing the installed desktop launcher's icon automatically is not yet implemented.
+The script does not compile Chromium or run GitHub Actions. It generates correctly sized English launcher and browser-theme icons plus Russian launcher icon sizes from the new originals. These generated files must be prepared before packaging; source wiring alone does not verify the appearance of a compiled application. Changing the installed desktop launcher's icon automatically is not yet implemented.
 
 ## Linux data separation
 
