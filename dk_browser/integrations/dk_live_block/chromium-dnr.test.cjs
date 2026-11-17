@@ -3,7 +3,8 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 require("./runtime/rules.js"); // The original DK Live Block parser, unmodified.
-const {compile,translate,MAX_DYNAMIC,create,compileTabPauses}=require("./chromium-dnr.js");
+const {compile,translate,MAX_DYNAMIC,create,compileTabPauses,
+ compileSessionRules,MAX_SESSION_RULES}=require("./chromium-dnr.js");
 test("native and subscribed ABP rules become scoped DNR, no global widening",()=>{
  const text=[
   "||tracker.example^",
@@ -220,4 +221,54 @@ test("failed tab-pause refresh reports previous installed session count",async()
  assert.equal(result.paused,2);
  assert.match(result.error,/session rule quota/);
  assert.equal(installed.length,2);
+});
+
+test("Chromium session exceptions retain exact site, host, type and duration boundaries",()=>{
+ const now=1763334000000;
+ const settings={enabled:true,
+  sessionAllowances:[{scope:"session",site:"forum.example",host:"assets.example",type:"script"}],
+  temporaryAllowances:[
+   {scope:"temporary",tabId:44,site:"forum.example",host:"cdn.example",
+    type:"media",expires:now+600000},
+   {scope:"temporary",tabId:45,site:"forum.example",host:"expired.example",
+    type:"image",expires:now-1},
+   {scope:"temporary",tabId:45,site:"forum.example",host:"assets.example",
+    type:"beacon",expires:now+100000}
+  ]};
+ const rules=compileSessionRules([77],settings,now);
+ assert.equal(rules.paused,1);
+ assert.equal(rules.allowances,2);
+ assert.equal(rules.rejected,2);
+ const persisted=rules.rules.find(r=>r.condition.requestDomains?.includes("assets.example"));
+ assert.deepEqual(persisted.condition.initiatorDomains,["forum.example"]);
+ assert.deepEqual(persisted.condition.resourceTypes,["script"]);
+ assert.equal(persisted.condition.tabIds,undefined);
+ const temporary=rules.rules.find(r=>r.condition.requestDomains?.includes("cdn.example"));
+ assert.deepEqual(temporary.condition.tabIds,[44]);
+ assert.ok(temporary.priority<30);
+ assert.deepEqual(compileSessionRules([77],{...settings,enabled:false},now).rules,[]);
+ assert.ok(MAX_SESSION_RULES>=500);
+});
+
+test("Chromium session refresh installs both tab pauses and scoped request approvals",async()=>{
+ const now=Date.now();
+ let installed=[];
+ const adapter=create({
+  getSessionRules:async()=>installed,
+  updateSessionRules:async ({addRules})=>{installed=addRules;}
+ });
+ const settings={enabled:true,
+  sessionAllowances:[{scope:"session",site:"blog.example",host:"cdn.example",type:"image"}],
+  temporaryAllowances:[{scope:"temporary",tabId:8,site:"blog.example",
+   host:"video.example",type:"media",expires:now+300000}]};
+ const result=await adapter.syncTabPauses([12],settings);
+ assert.equal(result.error,"");
+ assert.equal(result.paused,1);
+ assert.equal(result.allowances,2);
+ assert.equal(installed.length,3);
+ assert.equal(installed.filter(x=>x.action.type==="allow").length,2);
+ const disabled=await adapter.syncTabPauses([],{enabled:false});
+ assert.equal(disabled.paused,0);
+ assert.equal(disabled.allowances,0);
+ assert.deepEqual(installed,[]);
 });
