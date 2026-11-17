@@ -22,8 +22,26 @@ number and item range. Returning from a subfolder restores the parent's
 previously visited page. Response counts, offsets, list sizes and folder
 navigation depth are bounded.
 
-Artwork, search, media playback, remote control and wider protocol
-interoperability remain separate development milestones.
+## Direct playback
+
+Shared audio and video entries with a compatible DLNA `http-get`
+`protocolInfo` resource now display a **Play / Воспроизвести** action. The
+native ContentDirectory reader selects a resource only when its HTTP URL
+uses the literal private IPv4 address of the device discovered by SSDP.
+A click opens that resource directly in a new DK NetNav tab using Chromium's
+native media handling. Where supported, Chromium and the media server can
+stream or request byte ranges instead of first saving the entire file.
+
+Entries without a compatible resource remain visible as text, not dead Play
+buttons. The browser does not run a proxy, add a background downloader, or
+grant media access to ordinary websites. The stream uses the browser's
+existing network stack, so subsequent HTTP redirects and cookies follow its
+normal navigation policies rather than the stricter description-fetch rules.
+Actual codec and container compatibility remains limited to what the browser
+and server support.
+
+Artwork, search, renderer control and wider protocol interoperability remain
+separate development milestones.
 
 ## Network boundaries
 
@@ -38,8 +56,11 @@ interoperability remain separate development milestones.
 - SSDP, XML and HTTP responses are size-bounded, requests have deadlines,
   and the content displayed in the native interface is treated as text.
 - Device names, titles, and object IDs are never trusted as executable data.
+- A user must explicitly select a shared media item before its HTTP stream
+  URL is opened. Resources are restricted to the SSDP responder's private
+  IPv4 address; ordinary browser navigation rules apply after the click.
 
 This stage does not perform background discovery, start a listening service,
-fetch media resources, or open ports for inbound traffic. No release has yet
+automatically fetch media resources, or open ports for inbound traffic. No release has yet
 been produced. Some devices require additional ContentDirectory protocol
 versions or HTTP behaviors beyond this initial implementation.

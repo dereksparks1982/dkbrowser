@@ -15,6 +15,7 @@
 #include "base/containers/fixed_flat_map.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/i18n/number_formatting.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/histogram_functions.h"
@@ -240,10 +241,14 @@ auto& GetViewCommandMap() {
 // No network activity begins until the user presses the Devices button.
 class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
  public:
-  DKNetworkDevicesBubble(views::View* anchor, bool russian)
+  DKNetworkDevicesBubble(
+      views::View* anchor,
+      bool russian,
+      base::RepeatingCallback<void(const GURL&)> open_stream)
       : views::BubbleDialogDelegateView(anchor,
                                         views::BubbleBorder::TOP_RIGHT),
-        russian_(russian) {
+        russian_(russian),
+        open_stream_(std::move(open_stream)) {
     SetTitle(russian_ ? u"Сетевые медиаустройства"
                       : u"Network media devices");
     SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -322,6 +327,19 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
     path_.push_back(std::move(folder_id));
     page_history_.push_back({0});
     BrowseCurrent();
+  }
+
+  void OpenMedia(std::string stream_url, const ui::Event&) {
+    if (!chosen_ || chosen_->kind != "server" || !open_stream_)
+      return;
+    // Defense in depth: verify the selected device again at the UI boundary.
+    // The native parser already checked private IPv4 and the DLNA MIME type.
+    const GURL url(stream_url);
+    if (!url.is_valid() || !url.SchemeIs("http") ||
+        url.host() != chosen_->address || url.has_username() ||
+        url.has_password() || url.has_ref())
+      return;
+    open_stream_.Run(url);
   }
 
   void Back(const ui::Event&) {
@@ -411,7 +429,24 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
             base::BindRepeating(&DKNetworkDevicesBubble::OpenFolder,
                                 base::Unretained(this), entry.id),
             label));
+      } else if (!entry.resource_url.empty()) {
+        // The stream stays on the media server. Chromium's built-in media
+        // loader handles normal HTTP requests, including byte ranges when
+        // supported by the server. No temporary download or proxy service.
+        auto play = std::make_unique<views::LabelButton>(
+            base::BindRepeating(&DKNetworkDevicesBubble::OpenMedia,
+                                base::Unretained(this), entry.resource_url),
+            u"▶ " + base::UTF8ToUTF16(entry.title));
+        play->SetTooltipText(
+            russian_ ? u"Воспроизвести в новой вкладке"
+                     : u"Play in a new browser tab");
+        play->GetViewAccessibility().SetName(
+            (russian_ ? u"Воспроизвести: " : u"Play: ") +
+            base::UTF8ToUTF16(entry.title));
+        choices_->AddChildView(std::move(play));
       } else {
+        // Do not offer Play when the resource is absent, unsupported or
+        // points somewhere other than the discovered local device.
         auto* text = choices_->AddChildView(
             std::make_unique<views::Label>(label));
         text->SetHorizontalAlignment(gfx::ALIGN_LEFT);
@@ -449,6 +484,7 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
   }
 
   const bool russian_;
+  base::RepeatingCallback<void(const GURL&)> open_stream_;
   raw_ptr<views::Label> status_ = nullptr;
   raw_ptr<views::View> choices_ = nullptr;
   std::vector<dk_browser::network::MediaDevice> devices_;
@@ -1019,8 +1055,10 @@ void ToolbarView::OnDKAIButtonPressed(const ui::Event&) {
 void ToolbarView::OnDKNetworkButtonPressed(const ui::Event&) {
   const bool russian =
       g_browser_process->GetApplicationLocale().starts_with("ru");
-  auto bubble =
-      std::make_unique<DKNetworkDevicesBubble>(network_button_, russian);
+  auto bubble = std::make_unique<DKNetworkDevicesBubble>(
+      network_button_, russian,
+      base::BindRepeating(&ToolbarView::OpenDKNetworkStream,
+                          weak_ptr_factory_.GetWeakPtr()));
   auto weak_bubble = bubble->GetWeakPtr();
   views::BubbleDialogDelegateView::CreateBubble(std::move(bubble))->Show();
 
@@ -1030,6 +1068,17 @@ void ToolbarView::OnDKNetworkButtonPressed(const ui::Event&) {
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
       base::BindOnce(&dk_browser::network::DiscoverLocalMediaDevices),
       base::BindOnce(&DKNetworkDevicesBubble::ShowDevices, weak_bubble));
+}
+void ToolbarView::OpenDKNetworkStream(const GURL& stream_url) {
+  if (!stream_url.is_valid() || !stream_url.SchemeIs("http"))
+    return;
+  // Explicit user-selected resource navigation. Chromium remains responsible
+  // for normal media loading and optional byte-range requests.
+  auto params = content::OpenURLParams::CreateBrowserInitiated(
+      stream_url,
+      ui::mojom::WindowOpenDisposition::kNewForegroundTab,
+      ui::PAGE_TRANSITION_LINK);
+  browser_->OpenURL(params, /*navigation_handle_callback=*/{});
 }
 #endif
 

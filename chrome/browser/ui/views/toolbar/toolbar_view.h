@@ -359,6 +359,10 @@ class ToolbarView : public views::AccessiblePaneView,
 
   void OnDKNetworkButtonPressed(const ui::Event& event);
 
+#if BUILDFLAG(IS_LINUX)
+  void OpenDKNetworkStream(const GURL& stream_url);
+#endif
+
   void OnTouchUiChanged();
 
   void InitGlicContainer();

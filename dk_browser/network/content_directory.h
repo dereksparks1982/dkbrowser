@@ -19,6 +19,10 @@ struct LibraryEntry {
   std::string id;
   std::string title;
   bool is_folder = false;
+  // Empty unless the device advertised a compatible HTTP media resource on
+  // its own private IPv4 address. No URL is opened until the user clicks Play.
+  std::string resource_url;
+  std::string media_type;
 };
 
 struct LibraryPage {

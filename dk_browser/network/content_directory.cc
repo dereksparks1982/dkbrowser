@@ -13,6 +13,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <string>
@@ -100,6 +101,38 @@ bool ParseUrl(std::string_view raw, std::string_view expected_host, Url* out) {
   out->port = static_cast<uint16_t>(port);
   out->path = std::string(rest);
   return true;
+}
+
+// Only expose media types that Chromium's native playback path may handle.
+// Real support depends on the server's headers and available decoders.
+bool SupportedStreamType(std::string_view mime) {
+  constexpr std::string_view kSupportedTypes[] = {
+      "audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg",
+      "audio/wav", "audio/x-wav", "audio/flac", "audio/webm",
+      "video/mp4", "video/webm", "video/ogg", "video/mpeg",
+      "video/mp2t", "video/x-matroska",
+  };
+  return std::find(std::begin(kSupportedTypes), std::end(kSupportedTypes),
+                   mime) != std::end(kSupportedTypes);
+}
+
+// Extract the MIME component from DLNA protocolInfo. Refuse unadvertised
+// protocols, schemes and opaque binary resources rather than forwarding
+// arbitrary links to the browser.
+std::string MediaMime(std::string_view protocol_info) {
+  const auto first = protocol_info.find(':');
+  if (first == protocol_info.npos ||
+      Lower(Trim(protocol_info.substr(0, first))) != "http-get")
+    return "";
+  const auto second = protocol_info.find(':', first + 1);
+  if (second == protocol_info.npos)
+    return "";
+  const auto third = protocol_info.find(':', second + 1);
+  if (third == protocol_info.npos)
+    return "";
+  const std::string mime = Lower(Trim(
+      protocol_info.substr(second + 1, third - second - 1)));
+  return SupportedStreamType(mime) ? mime : "";
 }
 
 // A device's ControlURL may be absolute or relative to its description URL.
@@ -553,7 +586,38 @@ LibraryPage BrowseMediaFolder(const MediaDevice& device,
     std::string title = Field(entry->inner, "title");
     if (id.empty() || id.size() > 256 || title.empty())
       continue;
-    page.entries.push_back({std::move(id), title.substr(0, 180), folder});
+    LibraryEntry item;
+    item.id = std::move(id);
+    item.title = title.substr(0, 180);
+    item.is_folder = folder;
+    if (!folder) {
+      // ContentDirectory items may advertise many <res> endpoints. Check
+      // only a bounded number and choose the first compatible HTTP GET
+      // resource on the same private IPv4 host as the SSDP responder.
+      size_t resource_cursor = 0;
+      for (size_t resource_count = 0; resource_count < 12;
+           ++resource_count) {
+        const auto resource =
+            FindElement(entry->inner, "res", resource_cursor);
+        if (!resource)
+          break;
+        resource_cursor = resource->next;
+        const std::string media_type =
+            MediaMime(Attr(resource->opening, "protocolInfo"));
+        if (media_type.empty())
+          continue;
+        const std::string candidate = Trim(Unescape(resource->inner));
+        Url resolved{};
+        if (!ParseUrl(candidate, device.address, &resolved))
+          continue;
+        // Browsing XML never contacts media URLs. The selected URL is
+        // handed to Chromium only after an explicit Play click.
+        item.media_type = media_type;
+        item.resource_url = candidate;
+        break;
+      }
+    }
+    page.entries.push_back(std::move(item));
   }
   const auto reported = ParseCount(Field(*response, "NumberReturned"));
   // Some devices omit NumberReturned; others report a larger count than
