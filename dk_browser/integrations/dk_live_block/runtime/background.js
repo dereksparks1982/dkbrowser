@@ -1037,10 +1037,31 @@ browser.tabs.onRemoved.addListener(id=>{
   void saveChromiumSessionAllowances().catch(()=>{});
  }
  toolbarIcons?.reset(id);});
-browser.alarms.onAlarm.addListener(a=>{if(a.name==="refresh-rules"&&data.settings.autoUpdate){
- updateLists().catch(console.warn);
- if(data.settings.threatProtection)updateThreatDatabase().catch(console.warn);
-}});
+browser.alarms.onAlarm.addListener(a=>{
+ if(a.name==="dk-chromium-allowance-expiry"){
+  const now=Date.now();
+  for(const [id,rows] of data.requestControls.temporary){
+   const fresh=rows.filter(row=>row.expires>now);
+   if(fresh.length)data.requestControls.temporary.set(id,fresh);
+   else data.requestControls.temporary.delete(id);
+  }
+  void (async()=>{
+   const result=await refreshChromiumSession();
+   if(result?.error)throw Error(result.error);
+   await saveChromiumSessionAllowances();
+   scheduleChromiumAllowanceExpiry();
+  })().catch(error=>{
+   console.warn("DK Chromium allowance expiration:",error);
+   void browser.alarms.create("dk-chromium-allowance-expiry",
+    {when:Date.now()+60000}).catch(()=>{});
+  });
+  return;
+ }
+ if(a.name==="refresh-rules"&&data.settings.autoUpdate){
+  updateLists().catch(console.warn);
+  if(data.settings.threatProtection)updateThreatDatabase().catch(console.warn);
+ }
+});
 browser.runtime.onMessage.addListener(async(msg,sender={})=>{
  if(!msg||typeof msg.action!=="string")return {};
  // Firefox provides sender.tab for extension pages opened in ordinary tabs.
@@ -2339,15 +2360,38 @@ async function boot(){
   const tabs=await browser.tabs.query({});
   if(globalThis.DKChromiumDNR&&browser.storage.session?.get){
    try{
-    const saved=await browser.storage.session.get("dkChromiumPausedTabs");
+    const saved=await browser.storage.session.get([
+     "dkChromiumPausedTabs","dkChromiumSessionAllowances",
+     "dkChromiumTemporaryAllowances"]);
     const liveIds=new Set(tabs.map(tab=>tab.id));
-    const entries=Array.isArray(saved.dkChromiumPausedTabs)?
+    const paused=Array.isArray(saved.dkChromiumPausedTabs)?
      saved.dkChromiumPausedTabs:[];
-    data.tempPaused=new Set(entries.filter(id=>
+    data.tempPaused=new Set(paused.filter(id=>
      Number.isSafeInteger(id)&&id>=0&&liveIds.has(id)).slice(0,250));
-   }catch(error){console.warn("DK Live Block session pause restore:",String(error).slice(0,100));}
+    const choices=Array.isArray(saved.dkChromiumSessionAllowances)?
+     saved.dkChromiumSessionAllowances:[];
+    data.requestControls.session=choices.map(row=>
+     row?.scope==="session"?
+      DKRequestControls.choice(row.site,row.host,row.type,"session"):null)
+     .filter(Boolean).slice(0,DKRequestControls.MAX);
+    const temporary=Array.isArray(saved.dkChromiumTemporaryAllowances)?
+     saved.dkChromiumTemporaryAllowances:[];
+    const now=Date.now(),restored=new Map();
+    for(const row of temporary.slice(0,2500)){
+     if(!Number.isSafeInteger(row?.tabId)||!liveIds.has(row.tabId)||
+       !Number.isSafeInteger(row.expires)||row.expires<=now)continue;
+     const valid=DKRequestControls.choice(row.site,row.host,row.type,"temporary");
+     if(!valid)continue;
+     const entries=restored.get(row.tabId)||[];
+     if(entries.length>=DKRequestControls.MAX)continue;
+     entries.push({...valid,expires:row.expires});
+     restored.set(row.tabId,entries);
+    }
+    data.requestControls.temporary=restored;
+   }catch(error){console.warn("DK Live Block session allowance restore:",String(error).slice(0,100));}
   }
   const initialRules=await rebuild();
+  scheduleChromiumAllowanceExpiry();
   if(initialRules?.error)console.warn("DK Live Block initial Chromium protection:",
    initialRules.error);
   for(const t of tabs)if(t.url){data.hosts.set(t.id,host(t.url));badge(t.id);}
