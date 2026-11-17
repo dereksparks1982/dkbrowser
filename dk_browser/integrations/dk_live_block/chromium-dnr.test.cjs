@@ -55,7 +55,9 @@ test("atomic installed-rule refresh, disable and bad API failure handling",async
   getDynamicRules:async()=>installed,
   updateDynamicRules:async args=>{
    calls.push(args);installed=args.addRules;
-  }
+  },
+  getEnabledRulesets:async()=>["dk_live_block_seed"],
+  updateEnabledRulesets:async()=>{}
  };
  const adapter=create(dnr);
  await adapter.sync("||ads.example^",{enabled:true});
@@ -153,4 +155,69 @@ test("tab pauses are session-scoped and removed when no longer requested",async(
  const off=await adapter.syncTabPauses([42],{enabled:false});
  assert.equal(off.paused,0);
  assert.deepEqual(sessions,[]);
+});
+
+test("refused disable leaves dynamic rules unchanged without static control",async()=>{
+ const current=[{id:88,priority:1,action:{type:"block"},
+  condition:{urlFilter:"||existing.example^"}}];
+ let updateCalls=0;
+ const adapter=create({
+  getDynamicRules:async()=>current,
+  updateDynamicRules:async()=>{updateCalls++;}
+ });
+ const result=await adapter.sync("||next.example^",{enabled:false});
+ assert.match(result.error,/toggle unavailable/);
+ assert.equal(updateCalls,0);
+ assert.equal(current.length,1);
+});
+
+test("dynamic disable rejection rolls back static seed and reports installed count",async()=>{
+ const old=[{id:4,priority:1,action:{type:"block"},
+  condition:{urlFilter:"||old.example^"}}];
+ let enabled=["dk_live_block_seed"],attempts=0;
+ const adapter=create({
+  getDynamicRules:async()=>old,
+  updateDynamicRules:async()=>{attempts++;throw Error("DNR quota rejected");},
+  getEnabledRulesets:async()=>[...enabled],
+  updateEnabledRulesets:async({enableRulesetIds=[],disableRulesetIds=[]})=>{
+   enabled=enabled.filter(id=>!disableRulesetIds.includes(id));
+   for(const id of enableRulesetIds)if(!enabled.includes(id))enabled.push(id);
+  }
+ });
+ const result=await adapter.sync("||new.example^",{enabled:false});
+ assert.match(result.error,/DNR quota rejected/);
+ assert.equal(attempts,1);
+ assert.equal(result.accepted,1);
+ assert.deepEqual(enabled,["dk_live_block_seed"]);
+ assert.equal(old.length,1);
+});
+
+test("failed static enable restores prior dynamic rules without false success",async()=>{
+ let dynamic=[{id:44,priority:1,action:{type:"block"},
+  condition:{urlFilter:"||old.example^"}}];
+ const previous=structuredClone(dynamic);
+ let attempted=0;
+ const adapter=create({
+  getDynamicRules:async()=>dynamic,
+  updateDynamicRules:async({addRules})=>{dynamic=addRules;attempted++;},
+  getEnabledRulesets:async()=>[],
+  updateEnabledRulesets:async()=>{throw Error("Static seed could not be enabled");}
+ });
+ const result=await adapter.sync("||new.example^",{enabled:true});
+ assert.match(result.error,/could not be enabled/);
+ assert.equal(attempted,2);
+ assert.deepEqual(dynamic,previous);
+ assert.equal(result.accepted,1);
+});
+
+test("failed tab-pause refresh reports previous installed session count",async()=>{
+ const installed=[{id:81},{id:82}];
+ const adapter=create({
+  getSessionRules:async()=>installed,
+  updateSessionRules:async()=>{throw Error("session rule quota");}
+ });
+ const result=await adapter.syncTabPauses([13],{enabled:true});
+ assert.equal(result.paused,2);
+ assert.match(result.error,/session rule quota/);
+ assert.equal(installed.length,2);
 });
