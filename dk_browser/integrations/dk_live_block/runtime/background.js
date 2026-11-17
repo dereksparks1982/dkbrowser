@@ -1153,10 +1153,8 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   if(msg.action==="getRequestAllowances")
    return DKRequestControls.list(data.requestControls,id,sourceHost);
   if(msg.action==="allowMonitoredRequest"){
-   if(globalThis.DKChromiumDNR&&msg.scope!=="remember")
-    return {error:"Chromium temporary/session request allowances are not yet supported. Use a remembered exception."};
    if(globalThis.DKChromiumDNR&&!globalThis.DKChromiumRules.explicitRule(
-     {site:sourceHost,host:msg.host,type:msg.type,scope:"remember"},1,true))
+     {site:sourceHost,host:msg.host,type:msg.type,scope:msg.scope},1,true))
     return {error:"Chromium cannot allow this request type precisely."};
    if(msg.confirm!==true||!data.ready||!activeTab(id,sourceHost))
     return {error:"An explicit confirmation and active website protection are required."};
@@ -1166,29 +1164,44 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
    if(!session.rows.some(row=>row.status==="blocked"&&
       row.host===msg.host&&row.type===msg.type))
     return {error:"That exact hostname and request type were not recorded as blocked."};
-   const previous=data.requestControls.remember.slice();
+   const previousRemember=data.requestControls.remember.slice();
+   const previousSession=data.requestControls.session.slice();
+   const previousTemporary=(data.requestControls.temporary.get(id)||[]).slice();
+   const restore=()=>{
+    data.requestControls.remember=previousRemember;
+    data.requestControls.session=previousSession;
+    if(previousTemporary.length)data.requestControls.temporary.set(id,previousTemporary);
+    else data.requestControls.temporary.delete(id);
+   };
    const result=DKRequestControls.grant(data.requestControls,id,
     sourceHost,msg.host,msg.type,msg.scope);
-   if(result.ok&&msg.scope==="remember"){
-    const failure=await acceptRuleChange(
-     ()=>{data.requestControls.remember=previous;},
+   if(!result.ok)return result;
+   const failure=msg.scope==="remember"?
+    await acceptRuleChange(restore,
      ()=>browser.storage.local.set({requestAllowances:data.requestControls.remember}),
-     "Monitored request allowance was not applied");
-    if(failure)return failure;
-   }
+     "Monitored request allowance was not applied"):
+    await acceptSessionChange(restore,"Short-lived request allowance was not applied");
+   if(failure)return failure;
    return result;
   }
-  const previous=data.requestControls.remember.slice();
+  const previousRemember=data.requestControls.remember.slice();
+  const previousSession=data.requestControls.session.slice();
+  const previousTemporary=(data.requestControls.temporary.get(id)||[]).slice();
+  const restore=()=>{
+   data.requestControls.remember=previousRemember;
+   data.requestControls.session=previousSession;
+   if(previousTemporary.length)data.requestControls.temporary.set(id,previousTemporary);
+   else data.requestControls.temporary.delete(id);
+  };
   const removed=DKRequestControls.revoke(data.requestControls,id,
    sourceHost,msg.host,msg.type,msg.scope);
   if(!removed)return {error:"No matching exception for this website."};
-  if(msg.scope==="remember"){
-   const failure=await acceptRuleChange(
-    ()=>{data.requestControls.remember=previous;},
+  const failure=msg.scope==="remember"?
+   await acceptRuleChange(restore,
     ()=>browser.storage.local.set({requestAllowances:data.requestControls.remember}),
-    "Monitored request allowance removal was not applied");
-   if(failure)return failure;
-  }
+    "Monitored request allowance removal was not applied"):
+   await acceptSessionChange(restore,"Short-lived request allowance removal was not applied");
+  if(failure)return failure;
   return {ok:true};
  }
  if(msg.action==="stopNetworkMonitor"||msg.action==="clearNetworkMonitor"){
