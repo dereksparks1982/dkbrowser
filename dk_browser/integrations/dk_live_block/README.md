@@ -50,8 +50,10 @@ specific compatibility boundaries.
   closed-tab cleanup removes obsolete entries. This does not persist after
   closing the browser and is not a site-wide exception.
 - **Selective controls:** Persisted, user-confirmed host/type blocks and
-  remembered allowances now reach DNR. Temporary per-request allowances
-  and Firefox's exact per-request telemetry still need distinct adapters.
+  remembered allowances reach dynamic DNR. Network Monitor session-wide and
+  ten-minute tab-specific request allowances now use distinct session DNR
+  rules, with saved worker-session state, expiry alarms and tab cleanup.
+  Firefox's exact per-request telemetry is not available on Chromium.
 - **Page-side protection:** Original cosmetic and procedural, Facebook,
   YouTube, Nesty, popup and cookie modules remain registered. Their
   runtime behavior and feature compatibility require real-browser testing.
@@ -65,14 +67,16 @@ Firefox Manifest V2 blocking `webRequest` callbacks cannot be reused
 unchanged in Chromium MV3; those synchronous callbacks are skipped in the
 Chromium worker and supported rules use DNR. Firefox response-body editing
 (`filterResponseData`), Firefox-specific DNS/proxy and browser-wide
-notification preferences, arbitrary request-by-request decisions and
-temporary per-request allowances are **not yet implemented natively**.
+notification preferences and arbitrary Firefox callback decisions are
+**not yet implemented natively**. Source-level scoped request allowances do
+not provide arbitrary per-request interception.
 Some original UI controls can report unavailable actions or require
 a browser-native adapter. Do not label these as working without a compiled
 browser check. A snapshot of source modules is not proof of live filtering.
 
-Chromium tab pause and remembered allowance handling are source-level only;
-the exact effects and UI status have not been verified in a compiled browser.
+Chromium tab pauses, remembered and short-lived request allowances are
+source-level only; their effects and UI status have not been verified in a
+compiled browser.
 
 The optional companion remains reference source and is **never installed,
 executed or granted nativeMessaging permissions automatically**.
@@ -161,11 +165,13 @@ The service worker waits for its initial DNR refresh before marking its
 startup path ready.
 
 Unsupported Chromium request types are explicitly refused for user-selected
-blocks and remembered exceptions. The Network Monitor does **not** silently
-pretend that the original Firefox temporary/session request allowances are
-enforced by DNR: it returns an explanation until tab/session-specific native
-rules are implemented. The separate **Pause this tab** command continues to
-use its existing Chromium session-rule implementation.
+blocks and remembered exceptions. The Network Monitor now translates
+supported session-wide and ten-minute tab-restricted request allowances
+into Chromium session DNR rules, while refusing types DNR cannot represent.
+Session state is restored after worker suspension; temporary permissions
+expire via alarms and are cleared on navigation or tab closure. The
+separate **Pause this tab** command retains its own higher-priority
+document-wide session rule. These are source changes, not validated behavior.
 
 Regression source cases were added for the message bridge, with source
 assertions for the relevant rule-control paths. **None were executed in this
