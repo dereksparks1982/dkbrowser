@@ -5,8 +5,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = (
-    ("en", ROOT / "assets/images/DK_NetNav_English.png"),
-    ("ru", ROOT / "assets/images/DK_NetNav_Russian.png"),
+    ("en", ROOT / "assets/images/Glossy Russian-Inspired Digital Emblem.png"),
+    ("ru", ROOT / "assets/images/ДК НетНав_ Золотой цифровой собор.png"),
 )
 SIZES = (16, 24, 32, 48, 64, 128, 256)
 

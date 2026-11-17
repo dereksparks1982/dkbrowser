@@ -136,7 +136,7 @@ Models are candidates, not embedded distributions. Check upstream license files 
 ## English/Russian branding and language switch
 
 - A native Chromium Views toolbar **EN / РУ** button switches `intl.app_locale` between English and Russian and requests a session-preserving browser restart. The UI text comes from Chromium's existing language resources; DK-specific Russian product labels are updated to DK NetNav.
-- Corrected the approved English and Russian icons in `assets/images`. Their filenames had been assigned to the wrong original source artwork. Both original Git blobs are retained unmodified, and two Linux theme resources point to the correct variants.
+- Replaced the previous English and Russian icon masters with the new flag-free Russian-inspired artwork in `assets/images`. The native Chromium 100%-scale image resources now reuse these exact master Git blobs. The DK AI local page and icon preparation script use the new filenames.
 - Normal browser windows select an icon according to the current interface locale. Web-app windows keep the relevant site's icon. The default OS launcher icon requires a pre-packaging generation step, `python3 dk_browser/tools/prepare_icons.py`; a locale-switching OS desktop launcher remains a future task.
 - Both GitHub README front pages feature their appropriate icon, with English/Russian navigation. Russian product translation strings are improved but still require native-language review.
 - **Not compiled or run yet**: check toolbar layout, restart behavior, Russian translations, Chromium app packaging and correct icons on a real Ubuntu machine.

@@ -23,9 +23,9 @@ FILES = {
     "/app.js": (STATIC / "app.js", "text/javascript; charset=utf-8"),
     "/style.css": (STATIC / "style.css", "text/css; charset=utf-8"),
     "/assets/dk-icon-en.png": (
-        ASSETS / "DK Browser Imperial Icon.png", "image/png"),
+        ASSETS / "Glossy Russian-Inspired Digital Emblem.png", "image/png"),
     "/assets/dk-icon-ru.png": (
-        ASSETS / "DK Browser Russian Imperial Icon.png", "image/png"),
+        ASSETS / "ДК НетНав_ Золотой цифровой собор.png", "image/png"),
 }
 MAX_REQUEST = 64 * 1024
 MAX_REPLY = 2 * 1024 * 1024

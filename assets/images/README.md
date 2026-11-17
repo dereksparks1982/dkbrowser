@@ -1,6 +1,24 @@
-# DK Browser official icons
+# DK NetNav approved icons
 
-- `DK Browser Imperial Icon.png`: **English**, Latin DK BROWSER.
-- `DK Browser Russian Imperial Icon.png`: **Русский**, ДК БРАУЗЕР.
+The two current master image files are:
 
-The approved masters are original 1254 × 1254 PNG files. Their GitHub filenames now reflect their lettering. Don't resize or overwrite the masters. Use `python3 dk_browser/tools/prepare_icons.py` with Pillow for native Linux icon sizes.
+- **English:** `Glossy Russian-Inspired Digital Emblem.png` (DK NetNav)
+- **Русский:** `ДК НетНав_ Золотой цифровой собор.png` (ДК НетНав)
+
+Both are Russian-inspired, flag-free emblems with transparent backgrounds.
+The English and Russian images remain separate, and filenames must be
+preserved exactly, including spaces and Cyrillic characters.
+
+Chromium's native language-dependent icons are kept at
+`chrome/app/theme/default_100_percent/chromium/dk_netnav_icon_en.png`
+and `chrome/app/theme/default_100_percent/chromium/dk_netnav_icon_ru.png`.
+Those native files must contain the **same bytes** as the corresponding
+master images.
+
+`python3 dk_browser/tools/prepare_icons.py` prepares resized launcher
+icons for Linux packaging from these masters. It does not compile Chromium.
+The generated launcher sizes have not been regenerated or tested as part
+of this source-only update.
+
+Previous masters were removed from this directory. Their earlier
+versions can still be found in the repository's Git history.
