@@ -14,6 +14,24 @@ DK Browser is a full Chromium source fork developed as its own general-purpose, 
 - Widevine key-system support is enabled by the DK Browser Linux GN configuration. On Linux, `DK_BROWSER_WIDEVINE_DIR` selects a previously installed CDM directory with `manifest.json` and `_platform_specific/linux_x64/libwidevinecdm.so` (or the corresponding CPU architecture). The code validates the manifest using Chromium's own CDM parser and falls back to Chromium's existing component/bundled discovery when no valid selection is provided.
 - Unit-test fixtures cover the local Widevine directory registration and rejection of a relative directory. These tests are committed but have not run on a compiled Chromium checkout.
 
+## DK Live Block protection-state reliability (source changes)
+
+The Chromium adapter now treats protection switching as an acknowledged
+operation, rather than a fire-and-forget filter refresh. It snapshots the
+existing dynamic rules and the bundled static seed state, requires Chromium
+static-ruleset controls, and attempts rollback if either part of an update
+fails. A failure cannot truthfully be displayed as the newly requested
+network state: the background settings handler restores the prior preference,
+and the popup surfaces the blocking or tab-pause error.
+
+The adapter also retains the last known session-rule count when an update
+fails, rather than displaying an unverified zero. Source-level regression
+cases cover rollback after static/dynamic failures, missing APIs and session
+rule errors. These cases were **committed but not executed**, and no
+compiled browser was tested. Rollback itself can fail, in which case the
+error is explicitly surfaced and a browser runtime investigation is still
+required.
+
 ## DK Live Block in DK Browser: full source integration
 
 **Bundled source:** Original DK Live Block upstream snapshot
