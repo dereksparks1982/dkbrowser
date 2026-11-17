@@ -135,7 +135,7 @@ class DKLiveBlockIntegrationTests(unittest.TestCase):
     def test_mv2_sync_interception_not_registered_on_chromium(self):
         legacy = (RUNTIME / "background.js").read_text(encoding="utf-8")
         self.assertIn("if (!globalThis.DKChromiumRuntime?.dnr)", legacy)
-        self.assertIn("DKChromiumDNR.sync(next,data.settings)", legacy)
+        self.assertIn("DKChromiumDNR.sync(next,chromiumSettings)", legacy)
         self.assertIn("chrome", self.compat.lower())
         self.assertIn("onMessage", self.compat)
         self.assertIn("updateDynamicRules", self.dnr)
@@ -151,6 +151,21 @@ class DKLiveBlockIntegrationTests(unittest.TestCase):
             [{"id": "dk_live_block_seed", "enabled": True, "path": "rules.json"}]
         )
         self.assertIn('updateDynamicRules', self.dnr)
+
+    def test_chromium_protection_controls_acknowledge_real_backend_state(self):
+        background = (RUNTIME / "background.js").read_text(encoding="utf-8")
+        popup = (RUNTIME / "popup.js").read_text(encoding="utf-8")
+        popup_html = (RUNTIME / "popup.html").read_text(encoding="utf-8")
+        self.assertIn("return chromiumResult;", background)
+        self.assertIn("const applied=await rebuild();", background)
+        self.assertIn("data.settings.enabled=previous;", background)
+        self.assertIn("Chromium protection switch failed:", background)
+        self.assertIn("dynamic rollback failed", self.dnr)
+        self.assertIn("static rollback failed", self.dnr)
+        self.assertIn("getEnabledRulesets", self.dnr)
+        self.assertIn("chromiumProtectionStatus", popup_html)
+        self.assertIn("current.chromiumDNR?.error", popup)
+        self.assertIn("reply?.error", popup)
 
     def test_no_automated_installer_or_action(self):
         self.assertFalse((DIRECTORY / ".github/workflows").exists())
