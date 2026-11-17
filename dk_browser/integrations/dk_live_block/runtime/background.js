@@ -208,7 +208,7 @@ function scheduleChromiumAllowanceExpiry(){
   void browser.alarms.clear(name).catch(()=>{});
   return;
  }
- void browser.alarms.create(name,{when:Math.max(Date.now()+60000,Math.min(...times))})
+ void browser.alarms.create(name,{when:Math.max(Date.now()+60000,times.reduce((a,b)=>Math.min(a,b),Infinity))})
   .catch(error=>console.warn("DK Chromium allowance expiry:",error));
 }
 async function refreshChromiumSession(){
@@ -1048,6 +1048,13 @@ browser.tabs.onRemoved.addListener(id=>{
  toolbarIcons?.reset(id);});
 browser.alarms.onAlarm.addListener(a=>{
  if(a.name==="dk-chromium-allowance-expiry"){
+  // An alarm can wake the MV3 worker before boot() has restored session
+  // state. Never erase stored allowances from an uninitialized worker.
+  if(!data.ready){
+   void browser.alarms.create("dk-chromium-allowance-expiry",
+    {when:Date.now()+60000}).catch(()=>{});
+   return;
+  }
   const now=Date.now();
   for(const [id,rows] of data.requestControls.temporary){
    const fresh=rows.filter(row=>row.expires>now);
