@@ -183,6 +183,57 @@ function updateThreatDatabase(){
  return task;
 }
 function refreshTabs(){browser.tabs.query({}).then(t=>Promise.all(t.map(tab=>browser.tabs.sendMessage(tab.id,{action:"refresh"}).catch(()=>{})))).catch(()=>{});}
+function chromiumSessionSettings(){
+ const temporaryAllowances=[];
+ for(const [tabId,rows] of data.requestControls.temporary)
+  for(const row of rows)temporaryAllowances.push({...row,tabId});
+ return {...data.settings,sessionAllowances:data.requestControls.session,
+  temporaryAllowances};
+}
+async function saveChromiumSessionAllowances(){
+ if(!globalThis.DKChromiumDNR)return;
+ if(!browser.storage.session?.set)throw Error("Chromium session storage unavailable");
+ const temporaryAllowances=chromiumSessionSettings().temporaryAllowances;
+ await browser.storage.session.set({
+  dkChromiumSessionAllowances:data.requestControls.session,
+  dkChromiumTemporaryAllowances:temporaryAllowances
+ });
+}
+function scheduleChromiumAllowanceExpiry(){
+ if(!globalThis.DKChromiumDNR||!browser.alarms)return;
+ const times=[...data.requestControls.temporary.values()].flat()
+  .map(row=>row.expires).filter(time=>Number.isSafeInteger(time));
+ const name="dk-chromium-allowance-expiry";
+ if(!times.length){
+  void browser.alarms.clear(name).catch(()=>{});
+  return;
+ }
+ void browser.alarms.create(name,{when:Math.max(Date.now()+60000,Math.min(...times))})
+  .catch(error=>console.warn("DK Chromium allowance expiry:",error));
+}
+async function refreshChromiumSession(){
+ if(!globalThis.DKChromiumDNR)return null;
+ return globalThis.DKChromiumDNR.syncTabPauses(
+  [...data.tempPaused],chromiumSessionSettings());
+}
+async function acceptSessionChange(rollback,label){
+ const applied=await refreshChromiumSession();
+ if(applied?.error){
+  rollback();
+  const restored=await refreshChromiumSession();
+  return {error:(label+": "+applied.error+
+   (restored?.error?"; restore: "+restored.error:"")).slice(0,250)};
+ }
+ try{await saveChromiumSessionAllowances();}
+ catch(_){
+  rollback();
+  const restored=await refreshChromiumSession();
+  return {error:(label+": session choice was not saved"+
+   (restored?.error?"; restore: "+restored.error:"")).slice(0,250)};
+ }
+ scheduleChromiumAllowanceExpiry();
+ return null;
+}
 function rebuild(){
  const next=assemble();
  let chromiumResult=Promise.resolve(null);
@@ -197,8 +248,7 @@ function rebuild(){
      if(result?.error)return result;
      // A failed session pause must remain visible through status(), but it
      // cannot mean the global network switch itself failed.
-     const tabResult=await globalThis.DKChromiumDNR.syncTabPauses(
-       [...data.tempPaused],data.settings);
+     const tabResult=await refreshChromiumSession();
      if(tabResult?.error)console.warn("DK Live Block Chromium tab pauses:",
        tabResult.error);
      return result;
@@ -982,8 +1032,9 @@ browser.tabs.onRemoved.addListener(id=>{
  DKPopupTrap.revoke(data.popupTrapPermits,id);data.popupTrapClaims.delete(id);data.popupTrapAllowed.delete(id);data.popupTrapCounts.delete(id);
  DKThreatWarning.clear(data.threatWarnings,id);data.threatWarningPending.delete(id);DKNetworkMonitor.remove(data.networkMonitors,id);DKAllowedActivity.clear(data.allowedActivity,id);pendingAllowedDecisions.delete(id);DKPlaybackHealth.clear(data.playbackHealth,id);DKYouTubeResponse.clear(id);DKMetaGraphQL.clear(id);autoVideoTimes.delete(id);data.hosts.delete(id);data.counts.delete(id);data.logs.delete(id);data.networkIssues.delete(id);data.streamingIssues.delete(id);DKStreamingRepair.clear(data.streamingAllowances,id);data.popupCounts.delete(id);const wasPaused=data.tempPaused.delete(id);
  if(wasPaused&&globalThis.DKChromiumDNR){
-  void globalThis.DKChromiumDNR.syncTabPauses([...data.tempPaused],data.settings);
+  void refreshChromiumSession();
   void browser.storage.session?.set({dkChromiumPausedTabs:[...data.tempPaused]}).catch(()=>{});
+  void saveChromiumSessionAllowances().catch(()=>{});
  }
  toolbarIcons?.reset(id);});
 browser.alarms.onAlarm.addListener(a=>{if(a.name==="refresh-rules"&&data.settings.autoUpdate){
@@ -2047,11 +2098,10 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   if(globalThis.DKChromiumDNR){
    // A Chromium service worker can suspend; keep this session-only setting
    // in storage.session and install a tab-restricted DNR allow rule.
-   const result=await globalThis.DKChromiumDNR.syncTabPauses(
-    [...data.tempPaused],data.settings);
+   const result=await refreshChromiumSession();
    if(result.error){
     if(previouslyPaused)data.tempPaused.add(id);else data.tempPaused.delete(id);
-    await globalThis.DKChromiumDNR.syncTabPauses([...data.tempPaused],data.settings);
+    await refreshChromiumSession();
     return {error:result.error};
    }
    try{
@@ -2059,7 +2109,7 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
     await browser.storage.session.set({dkChromiumPausedTabs:[...data.tempPaused]});
    }catch(_){
     if(previouslyPaused)data.tempPaused.add(id);else data.tempPaused.delete(id);
-    await globalThis.DKChromiumDNR.syncTabPauses([...data.tempPaused],data.settings);
+    await refreshChromiumSession();
     return {error:"Could not save the Chromium tab pause. Previous state restored."};
    }
   }
