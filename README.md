@@ -109,3 +109,18 @@ The build configuration sets `enable_widevine = true`. If a Widevine CDM is alre
 This does **not** install Google's CDM, defeat DRM, certify DK Browser for streaming services, or guarantee that a site will accept it. Actual playback requires a compatible local CDM and runtime testing. See [DK_BROWSER.md](DK_BROWSER.md) for implementation status.
 
 **No custom GitHub Actions or automatic builds are added to this project.**
+
+### Chromium rule-control reliability (source update, November 16, 2026)
+
+The built-in DK Live Block integration now waits for Chromium to acknowledge
+site allowlisting, selective blocking, remembered request allowances,
+built-in filter toggles and general Settings edits before treating them as
+saved successes. The Chromium message adapter also preserves listener
+ownership and avoids responding to messages its original listener did not
+handle. Unsupported request types are rejected explicitly; the Firefox
+Network Monitor's temporary/session **per-request** allowances still need a
+Chromium-specific implementation and are not represented as working.
+The separate tab-wide pause remains implemented in source.
+
+These changes and their regression fixtures have **not been compiled, run
+or tested**. See the [DK Live Block component notes](dk_browser/integrations/dk_live_block/README.md).
