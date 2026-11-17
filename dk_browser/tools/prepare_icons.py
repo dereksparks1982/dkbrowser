@@ -25,6 +25,9 @@ def main():
             rgba = opened.convert("RGBA")
             for size in SIZES:
                 resized = rgba.resize((size, size), Image.Resampling.LANCZOS)
+                if size <= 64:
+                    resized = resized.quantize(colors=32, method=Image.Quantize.FASTOCTREE,
+                                               dither=Image.Dither.NONE)
                 # English is the default system launcher icon. Keep Russian
                 # as a separate resource for localized desktop packaging.
                 suffix = "" if language == "en" else "_ru"

@@ -64,7 +64,7 @@ Widevine support is enabled in the GN config. A local CDM may be selected at sta
 
 ## English and Russian assets
 
-The approved English and Russian DK NetNav artwork is stored as `assets/images/DK_NetNav_English.png` and `assets/images/DK_NetNav_Russian.png`. Native image resources reference the respective new master images; the English icon is the default Linux launcher source and the Russian edition has its own localized resource. A visible **EN / РУ** toolbar switch persists the preferred language and restarts the browser.
+The approved English and Russian DK NetNav artwork is stored as `assets/images/Glossy Russian-Inspired Digital Emblem.png` and `assets/images/ДК НетНав_ Золотой цифровой собор.png`. Native image resources reference the respective new master images; the English icon is the default Linux launcher source and the Russian edition has its own localized resource. A visible **EN / РУ** toolbar switch persists the preferred language and restarts the browser.
 
 Before packaging a Linux release, regenerate standard icon sizes with Pillow (`python3-pil`):
 
