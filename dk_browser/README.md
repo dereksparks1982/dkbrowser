@@ -72,7 +72,7 @@ Before packaging a Linux release, regenerate standard icon sizes with Pillow (`p
 python3 dk_browser/tools/prepare_icons.py
 ```
 
-The script does not compile Chromium or run GitHub Actions. It generates correctly sized English launcher and browser-theme icons plus Russian launcher icon sizes from the new originals. These generated files must be prepared before packaging; source wiring alone does not verify the appearance of a compiled application. Changing the installed desktop launcher's icon automatically is not yet implemented.
+The script does not compile Chromium or run GitHub Actions. It generates correctly sized English launcher and browser-theme icons plus Russian launcher icon sizes from the new originals. Pre-sized English and Russian launcher icons are committed for 16, 24, 32, 48, 64, 128, and 256 pixels. The checked-in 128/256-pixel images were resampled from the smaller theme assets; regenerate from the approved high-resolution masters with this script before packaging. Source wiring does not verify their appearance in a compiled browser. Changing the installed desktop launcher's icon automatically is not yet implemented.
 
 ## Linux data separation
 
