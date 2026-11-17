@@ -272,3 +272,30 @@ dependencies in `DEPS`, build flags, extension startup and media plumbing
 when the owner resumes compilation/testing. GitHub Actions were not used.
 The upstream `main` branch keeps moving, so this records a specific
 immutable commit, not permanent parity.
+
+## November 16, 2026: Chromium control acknowledgment improvements
+
+A follow-up source pass removes several false-positive success paths in the
+DK Live Block Chromium port:
+
+- The Firefox-style runtime message shim no longer replies with an empty
+  object for unhandled synchronous listeners; it supports removal and
+  inspection by original listener identity.
+- Global-protection storage failures, selective site+host+type blocks,
+  remembered request allowances, site allowlist edits, filter subscription
+  toggles and the general Settings form now use acknowledged network-rule
+  updates and attempt rollback on failure.
+- Unsupported precise request types are declined rather than accepted by the
+  UI when the DNR compiler cannot represent them.
+- The older Network Monitor's session/temporary per-request allowances are
+  explicitly marked unavailable on Chromium until appropriate session rules
+  and lifetime management are implemented. This does not affect the separate
+  tab-wide session pause.
+- Initial service-worker startup waits for the DNR operation to settle
+  before completing its boot sequence.
+- Regression fixtures were committed, **not executed**.
+
+This is not a claim of functional Chromium parity. The legacy Firefox
+response-body modification, browser-level interception, per-request
+telemetry, session request exceptions, and unsupported privileged APIs
+remain open development tasks. No browser binary was compiled or tested.
