@@ -219,6 +219,26 @@ function rebuild(){
  // actual DNR response. Other existing callers may safely remain asynchronous.
  return chromiumResult;
 }
+// A UI mutation is acknowledged only when Chromium has accepted the new DNR
+// rules and the choice is durably saved. Revert on either failure, and report
+// failed restoration instead of claiming the requested change took effect.
+async function acceptRuleChange(rollback,save,label){
+ const applied=await rebuild();
+ if(applied?.error){
+  rollback();
+  const restored=await rebuild();
+  return {error:(label+": "+applied.error+
+   (restored?.error?"; restore: "+restored.error:"")).slice(0,250)};
+ }
+ try{await save();}
+ catch(error){
+  rollback();
+  const restored=await rebuild();
+  return {error:(label+": unable to save the change"+
+   (restored?.error?"; restore: "+restored.error:"")).slice(0,250)};
+ }
+ return null;
+}
 const toolbarIcons=typeof DKIconState!=="undefined"?DKIconState.create(browser):null;
 function badge(id){
  const n=data.counts.get(id)||0,h=data.hosts.get(id)||"";
@@ -1082,6 +1102,11 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   if(msg.action==="getRequestAllowances")
    return DKRequestControls.list(data.requestControls,id,sourceHost);
   if(msg.action==="allowMonitoredRequest"){
+   if(globalThis.DKChromiumDNR&&msg.scope!=="remember")
+    return {error:"Chromium temporary/session request allowances are not yet supported. Use a remembered exception."};
+   if(globalThis.DKChromiumDNR&&!globalThis.DKChromiumRules.explicitRule(
+     {site:sourceHost,host:msg.host,type:msg.type,scope:"remember"},1,true))
+    return {error:"Chromium cannot allow this request type precisely."};
    if(msg.confirm!==true||!data.ready||!activeTab(id,sourceHost))
     return {error:"An explicit confirmation and active website protection are required."};
    const session=data.networkMonitors.get(id);
@@ -1090,17 +1115,29 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
    if(!session.rows.some(row=>row.status==="blocked"&&
       row.host===msg.host&&row.type===msg.type))
     return {error:"That exact hostname and request type were not recorded as blocked."};
+   const previous=data.requestControls.remember.slice();
    const result=DKRequestControls.grant(data.requestControls,id,
     sourceHost,msg.host,msg.type,msg.scope);
-   if(result.ok&&msg.scope==="remember")
-    await browser.storage.local.set({requestAllowances:data.requestControls.remember});
+   if(result.ok&&msg.scope==="remember"){
+    const failure=await acceptRuleChange(
+     ()=>{data.requestControls.remember=previous;},
+     ()=>browser.storage.local.set({requestAllowances:data.requestControls.remember}),
+     "Monitored request allowance was not applied");
+    if(failure)return failure;
+   }
    return result;
   }
+  const previous=data.requestControls.remember.slice();
   const removed=DKRequestControls.revoke(data.requestControls,id,
    sourceHost,msg.host,msg.type,msg.scope);
   if(!removed)return {error:"No matching exception for this website."};
-  if(msg.scope==="remember")
-   await browser.storage.local.set({requestAllowances:data.requestControls.remember});
+  if(msg.scope==="remember"){
+   const failure=await acceptRuleChange(
+    ()=>{data.requestControls.remember=previous;},
+    ()=>browser.storage.local.set({requestAllowances:data.requestControls.remember}),
+    "Monitored request allowance removal was not applied");
+   if(failure)return failure;
+  }
   return {ok:true};
  }
  if(msg.action==="stopNetworkMonitor"||msg.action==="clearNetworkMonitor"){
@@ -1189,6 +1226,9 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   if(typeof msg.block!=="boolean"||!DKAllowedActivity.hostname(msg.host)||
      !DKAllowedActivity.TYPES.has(msg.type))return {error:"Invalid request-control choice."};
   if(msg.block){
+   if(globalThis.DKChromiumDNR&&!globalThis.DKChromiumRules.explicitRule(
+     {site:liveSite,host:msg.host,type:msg.type},1,false))
+    return {error:"Chromium cannot block this request type precisely."};
    if(!data.settings.enabled||data.tempPaused.has(id)||msg.confirm!==true)
     return {error:"Enable protection and explicitly confirm the selective block."};
    const rows=DKAllowedActivity.snapshot(data.allowedActivity,id,liveSite).groups;
@@ -1200,9 +1240,11 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   if(outcome.changed){
    const previous=data.manualBlocks;
    data.manualBlocks=outcome.rows;
-   try{await browser.storage.local.set({manualBlocks:data.manualBlocks});}
-   catch(_){data.manualBlocks=previous;return {error:"Could not save the selective block."};}
-   rebuild(); // User-selected DNR blocks must apply without a list update.
+   const failure=await acceptRuleChange(
+    ()=>{data.manualBlocks=previous;},
+    ()=>browser.storage.local.set({manualBlocks:data.manualBlocks}),
+    "Selective request block was not applied");
+   if(failure)return failure;
   }
   return {ok:true,blocked:outcome.blocked,changed:outcome.changed,
    count:DKAllowedActivity.list(data.manualBlocks,liveSite).length};
@@ -1242,6 +1284,9 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   if(!liveSite||liveSite!==msg.expectedSite||data.hosts.get(id)!==liveSite)
    return {error:"Website changed; refresh the dashboard before editing."};
   if(msg.allow){
+   if(globalThis.DKChromiumDNR&&!globalThis.DKChromiumRules.explicitRule(
+      {site:liveSite,host:msg.host,type:msg.type,scope:"remember"},1,true))
+    return {error:"Chromium cannot allow this request type precisely."};
    if(msg.confirm!==true||!data.ready||!data.settings.requestLog||!activeTab(id,liveSite))
     return {error:"Explicit approval, request history, and active protection are required."};
    if(!(data.logs.get(id)||[]).some(x=>x.host===msg.host&&x.type===msg.type&&
@@ -1270,18 +1315,17 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
      liveSite,msg.host,msg.type,scope)||changed;
   }
   if(!changed)return {ok:true,allowed:msg.allow,changed:false};
-  try{
-   await browser.storage.local.set({
-    requestAllowances:data.requestControls.remember
-   });
-  }catch(_){
+  const restore=()=>{
    data.requestControls.remember=oldRemember;
    data.requestControls.session=oldSession;
    if(oldTemp.length)data.requestControls.temporary.set(id,oldTemp);
    else data.requestControls.temporary.delete(id);
-   return {error:"Saving failed; prior request allowances restored."};
-  }
-  rebuild(); // Apply or revoke the saved Chromium DNR exception immediately.
+  };
+  const failure=await acceptRuleChange(restore,
+   ()=>browser.storage.local.set({
+    requestAllowances:data.requestControls.remember
+   }),"Remembered request allowance was not applied");
+  if(failure)return failure;
   return {ok:true,allowed:msg.allow,changed:true,scope:"site+hostname+type"};
  }
  if(msg.action==="getAgentNestyCookieIntel"||msg.action==="clearAgentNestyCookieIntel"){
@@ -1781,8 +1825,12 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   if(fromContent||!Object.prototype.hasOwnProperty.call(SOURCES,msg.key)||
       typeof msg.enabled!=="boolean")return {error:"Invalid built-in filter list change."};
   if(data.updateJob)return {error:"Filter updates are running. Try again after they finish."};
+  const previous=data.settings.listEnabled[msg.key];
   data.settings.listEnabled[msg.key]=msg.enabled;
-  await persistSettings();rebuild();
+  const failure=await acceptRuleChange(
+   ()=>{data.settings.listEnabled[msg.key]=previous;},persistSettings,
+   "Built-in subscription switch was not applied");
+  if(failure)return failure;
   return {ok:true,enabled:msg.enabled,needsDownload:msg.enabled&&!data.lists[msg.key]?.text};
  }
  if(msg.action==="updateFilterList"){
@@ -2013,8 +2061,12 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
    DKSiteAllowlist.add(data.settings.paused,msg.site):
    DKSiteAllowlist.remove(data.settings.paused,msg.site);
   if(result.error)return result;
+  const previous=data.settings.paused;
   data.settings.paused=result.entries;
-  await persistSettings();rebuild();
+  const failure=await acceptRuleChange(
+   ()=>{data.settings.paused=previous;},persistSettings,
+   "Allowed websites update was not applied");
+  if(failure)return failure;
   return {ok:true,sites:result.entries,unchanged:!!result.unchanged};
  }
  if(msg.action==="setSiteAllowed"||msg.action==="toggleSite"){
@@ -2028,16 +2080,25 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
    DKSiteAllowlist.add(data.settings.paused,site):
    DKSiteAllowlist.resume(data.settings.paused,site);
   if(result.error)return result;
+  const previous=data.settings.paused;
   data.settings.paused=result.entries;
-  await persistSettings();rebuild();
+  const failure=await acceptRuleChange(
+   ()=>{data.settings.paused=previous;},persistSettings,
+   "Website allowlist switch was not applied");
+  if(failure)return failure;
   return {...status(id,liveUrl),ok:true,allowlistMatch:DKSiteAllowlist.match(result.entries,site)};
  }
  if(msg.action==="allowHost"){
   const rule=DKManualRules.allowHostOnSite(h,msg.host);
   if(!rule)return {error:"Invalid site or blocked-request hostname."};
+  const previous=data.settings.customRules;
   const existing=data.settings.customRules.split("\n");
   if(!existing.includes(rule))data.settings.customRules+="\n"+rule;
-  await persist();rebuild();return {ok:true,rule};
+  const failure=await acceptRuleChange(
+   ()=>{data.settings.customRules=previous;},persist,
+   "Custom request exception was not applied");
+  if(failure)return failure;
+  return {ok:true,rule};
  }
  if(msg.action==="revokeSiteDashboardHost"||msg.action==="clearSiteDashboardLog"){
   if(fromContent||!Number.isInteger(id)||id<0||
@@ -2201,7 +2262,9 @@ async function boot(){
      Number.isSafeInteger(id)&&id>=0&&liveIds.has(id)).slice(0,250));
    }catch(error){console.warn("DK Live Block session pause restore:",String(error).slice(0,100));}
   }
-  rebuild();
+  const initialRules=await rebuild();
+  if(initialRules?.error)console.warn("DK Live Block initial Chromium protection:",
+   initialRules.error);
   for(const t of tabs)if(t.url){data.hosts.set(t.id,host(t.url));badge(t.id);}
   data.ready=true;
   try{syncProxyListener();}catch(error){
