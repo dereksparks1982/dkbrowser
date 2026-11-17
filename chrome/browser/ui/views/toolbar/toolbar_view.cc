@@ -6,7 +6,10 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_map.h"
@@ -23,6 +26,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(IS_LINUX)
 #include "base/task/thread_pool.h"
+#include "dk_browser/network/content_directory.h"
 #include "dk_browser/network/ssdp_discovery.h"
 #endif
 #include "chrome/app/chrome_command_ids.h"
@@ -232,24 +236,27 @@ auto& GetViewCommandMap() {
 
 
 #if BUILDFLAG(IS_LINUX)
-// The user explicitly opens this bubble. It never scans in the background,
-// and its weak callback cannot write into a closed/destroyed bubble.
+// Browser-owned UI only. Devices never become accessible to web content.
+// No network activity begins until the user presses the Devices button.
 class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
  public:
   DKNetworkDevicesBubble(views::View* anchor, bool russian)
       : views::BubbleDialogDelegateView(anchor,
                                         views::BubbleBorder::TOP_RIGHT),
         russian_(russian) {
-    SetTitle(russian ? u"Сетевые медиаустройства"
-                     : u"Network media devices");
+    SetTitle(russian_ ? u"Сетевые медиаустройства"
+                      : u"Network media devices");
     SetLayoutManager(std::make_unique<views::BoxLayout>(
         views::BoxLayout::Orientation::kVertical));
     status_ = AddChildView(std::make_unique<views::Label>(
-        russian ? u"Поиск устройств в локальной сети…"
-                : u"Searching your local network…"));
+        russian_ ? u"Поиск устройств в локальной сети…"
+                 : u"Searching your local network…"));
     status_->SetMultiLine(true);
     status_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    status_->SetMaximumWidth(410);
+    status_->SetMaximumWidth(440);
+    choices_ = AddChildView(std::make_unique<views::View>());
+    choices_->SetLayoutManager(std::make_unique<views::BoxLayout>(
+        views::BoxLayout::Orientation::kVertical));
   }
 
   base::WeakPtr<DKNetworkDevicesBubble> GetWeakPtr() {
@@ -257,35 +264,150 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
   }
 
   void ShowDevices(std::vector<dk_browser::network::MediaDevice> devices) {
-    if (devices.empty()) {
+    // Retain the original discovery list for the Back button. Incrementing
+    // the generation drops pending results from a previously selected device.
+    ++generation_;
+    devices_ = std::move(devices);
+    chosen_.reset();
+    path_.clear();
+    choices_->RemoveAllChildViews();
+    if (devices_.empty()) {
       status_->SetText(russian_
-          ? u"Совместимые устройства не обнаружены. "
-            u"Убедитесь, что они подключены к этой сети."
-          : u"No compatible devices responded. "
-            u"Check that they are on this network.");
+          ? u"Совместимые устройства не обнаружены."
+          : u"No compatible media devices responded.");
+      Refresh();
       return;
     }
-    std::u16string result = russian_
-        ? u"Ответившие устройства (названия ещё не загружены):\n"
-        : u"Responding devices (friendly names not yet available):\n";
-    for (const auto& device : devices) {
-      result += u"\n";
-      result += device.kind == "server"
-          ? (russian_ ? u"Медиасервер: " : u"Media server: ")
-          : (russian_ ? u"Проигрыватель: " : u"Renderer: ");
-      result += base::UTF8ToUTF16(device.address);
-      if (!device.server_header.empty()) {
-        result += u"\n";
-        result += base::UTF8ToUTF16(device.server_header);
-      }
-      result += u"\n";
+    status_->SetText(russian_
+        ? u"Выберите устройство для просмотра его папок:"
+        : u"Choose a device to view its folders:");
+    const size_t shown = std::min<size_t>(devices_.size(), 20);
+    for (size_t n = 0; n < shown; ++n) {
+      const auto& device = devices_[n];
+      const std::u16string label =
+          (device.kind == "server"
+              ? (russian_ ? u"Медиасервер: " : u"Media server: ")
+              : (russian_ ? u"Проигрыватель: " : u"Renderer: ")) +
+          base::UTF8ToUTF16(device.address);
+      choices_->AddChildView(std::make_unique<views::LabelButton>(
+          base::BindRepeating(&DKNetworkDevicesBubble::OpenDevice,
+                              base::Unretained(this), device),
+          label));
     }
-    status_->SetText(result);
+    if (devices_.size() > shown)
+      status_->SetText(russian_ ? u"Найдено много устройств. Показаны первые 20."
+                               : u"Many devices responded. Showing the first 20.");
+    Refresh();
   }
 
  private:
+  void Refresh() {
+    PreferredSizeChanged();
+    if (GetWidget())
+      GetWidget()->SizeToContents();
+  }
+
+  void OpenDevice(dk_browser::network::MediaDevice device,
+                  const ui::Event&) {
+    chosen_ = std::move(device);
+    path_ = {"0"};
+    BrowseCurrent();
+  }
+
+  void OpenFolder(std::string folder_id, const ui::Event&) {
+    if (!chosen_ || path_.size() >= 16)
+      return;
+    path_.push_back(std::move(folder_id));
+    BrowseCurrent();
+  }
+
+  void Back(const ui::Event&) {
+    if (path_.size() <= 1) {
+      ShowDevices(devices_);
+      return;
+    }
+    path_.pop_back();
+    BrowseCurrent();
+  }
+
+  void BrowseCurrent() {
+    if (!chosen_ || path_.empty())
+      return;
+    ++generation_;
+    choices_->RemoveAllChildViews();
+    status_->SetText(russian_ ? u"Чтение папок устройства…"
+                             : u"Reading device folders…");
+    Refresh();
+    const int generation = generation_;
+    // Both HTTP description retrieval and SOAP requests remain on a worker.
+    // The callback is invalidated when the dialog closes or selection changes.
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+        base::BindOnce(&dk_browser::network::BrowseMediaFolder,
+                       *chosen_, path_.back()),
+        base::BindOnce(&DKNetworkDevicesBubble::ShowFolder,
+                       GetWeakPtr(), generation));
+  }
+
+  void ShowFolder(int generation, dk_browser::network::LibraryPage page) {
+    if (generation != generation_)
+      return;
+    choices_->RemoveAllChildViews();
+    if (!page.error.empty()) {
+      status_->SetText(
+          russian_ ? u"Не удалось открыть папки этого устройства."
+                   : u"Could not open this device's folders.");
+    } else if (page.is_renderer) {
+      status_->SetText(
+          russian_ ? u"Это устройство воспроизведения. Папки доступны на медиасерверах."
+                   : u"This is a playback device. Browse folders on a media server.");
+    } else {
+      status_->SetText(base::UTF8ToUTF16(page.device_name) +
+          (russian_ ? u" • общие файлы:" : u" • shared files:"));
+    }
+    choices_->AddChildView(std::make_unique<views::LabelButton>(
+        base::BindRepeating(&DKNetworkDevicesBubble::Back,
+                            base::Unretained(this)),
+        russian_ ? u"← Назад" : u"← Back"));
+    if (!page.error.empty() || page.is_renderer) {
+      Refresh();
+      return;
+    }
+    if (page.entries.empty())
+      status_->SetText(base::UTF8ToUTF16(page.device_name) +
+          (russian_ ? u" • папка пуста" : u" • empty folder"));
+    const size_t shown = std::min<size_t>(page.entries.size(), 30);
+    for (size_t n = 0; n < shown; ++n) {
+      const auto& entry = page.entries[n];
+      std::u16string label = entry.is_folder ? u"📁 " : u"♪ ";
+      label += base::UTF8ToUTF16(entry.title);
+      if (entry.is_folder) {
+        choices_->AddChildView(std::make_unique<views::LabelButton>(
+            base::BindRepeating(&DKNetworkDevicesBubble::OpenFolder,
+                                base::Unretained(this), entry.id),
+            label));
+      } else {
+        auto* text = choices_->AddChildView(
+            std::make_unique<views::Label>(label));
+        text->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+      }
+    }
+    if (page.more_entries || page.entries.size() > shown) {
+      auto* more = choices_->AddChildView(std::make_unique<views::Label>(
+          russian_ ? u"Есть другие файлы. Поддержка следующих страниц будет добавлена."
+                   : u"More files exist. Additional pages are coming."));
+      more->SetMultiLine(true);
+    }
+    Refresh();
+  }
+
   const bool russian_;
   raw_ptr<views::Label> status_ = nullptr;
+  raw_ptr<views::View> choices_ = nullptr;
+  std::vector<dk_browser::network::MediaDevice> devices_;
+  std::optional<dk_browser::network::MediaDevice> chosen_;
+  std::vector<std::string> path_;
+  int generation_ = 0;
   base::WeakPtrFactory<DKNetworkDevicesBubble> weak_factory_{this};
 };
 #endif  // BUILDFLAG(IS_LINUX)
