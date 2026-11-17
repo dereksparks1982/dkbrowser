@@ -1,17 +1,17 @@
-# DK Browser engineering plan
+# DK NetNav engineering plan
 
-DK Browser is a full Chromium source fork developed as its own general-purpose, open-source browser under DK Softworks.
+DK NetNav is a full Chromium source fork developed as its own general-purpose, open-source browser under DK Softworks.
 
 ## Implemented in the source fork
 
-- DK Browser product name in the Chromium branding configuration.
-- DK Browser English product title, desktop welcome text and selected browser window titles.
+- DK NetNav product name in the Chromium branding configuration. Internal Chromium source identifiers and existing Linux package/profile paths remain unchanged by the public-facing rename.
+- DK NetNav English product title, desktop welcome text and selected browser window titles.
 - DK Media Player becomes the fresh-session landing page when a default startup tab would normally open. Session restoration, explicit startup URLs and browser preferences are respected.
 - The Home command now opens DK Media Player when the browser's homepage is still set to the default new-tab page, without replacing a custom homepage.
 - DK Media Player's web app implements File System Access handle persistence via IndexedDB and mouse-wheel volume control. File restore is automatic when read permission persists; otherwise the player offers a button for interactive reauthorization. Changes live in the separate `DK-Media-Player` repository.
-- DK Browser Linux GN args to select Chromium's existing licensed/proprietary-media build pathways for codec investigation. These flags **do not add an FFmpeg HEVC software decoder** by themselves.
+- DK NetNav Linux GN args to select Chromium's existing licensed/proprietary-media build pathways for codec investigation. These flags **do not add an FFmpeg HEVC software decoder** by themselves.
 - DK Softworks artwork uses a copy of the previously approved DK identity. The Chromium AUTHORS, LICENSE and upstream legal notice remain intact.
-- Widevine key-system support is enabled by the DK Browser Linux GN configuration. On Linux, `DK_BROWSER_WIDEVINE_DIR` selects a previously installed CDM directory with `manifest.json` and `_platform_specific/linux_x64/libwidevinecdm.so` (or the corresponding CPU architecture). The code validates the manifest using Chromium's own CDM parser and falls back to Chromium's existing component/bundled discovery when no valid selection is provided.
+- Widevine key-system support is enabled by the DK NetNav Linux GN configuration. On Linux, `DK_BROWSER_WIDEVINE_DIR` selects a previously installed CDM directory with `manifest.json` and `_platform_specific/linux_x64/libwidevinecdm.so` (or the corresponding CPU architecture). The code validates the manifest using Chromium's own CDM parser and falls back to Chromium's existing component/bundled discovery when no valid selection is provided.
 - Unit-test fixtures cover the local Widevine directory registration and rejection of a relative directory. These tests are committed but have not run on a compiled Chromium checkout.
 
 ## DK Live Block protection-state reliability (source changes)
@@ -44,7 +44,7 @@ rule slots prevent large subscriptions or explicit controls from crowding
 out these pause rules. Source regression cases are committed but not run.
 Native Chromium behavior, especially frame transitions, is not verified.
 
-## DK Live Block in DK Browser: full source integration
+## DK Live Block in DK NetNav: full source integration
 
 **Bundled source:** Original DK Live Block upstream snapshot
 `dereksparks1982/dkliveblock@264e7f5ad2df24582247bd74fcd18c073e622b01`
@@ -135,7 +135,7 @@ Models are candidates, not embedded distributions. Check upstream license files 
 
 ## English/Russian branding and language switch
 
-- A native Chromium Views toolbar **EN / РУ** button switches `intl.app_locale` between English and Russian and requests a session-preserving browser restart. The UI text comes from Chromium's existing language resources; DK-specific Russian product labels are updated to ДК Браузер.
+- A native Chromium Views toolbar **EN / РУ** button switches `intl.app_locale` between English and Russian and requests a session-preserving browser restart. The UI text comes from Chromium's existing language resources; DK-specific Russian product labels are updated to DK NetNav.
 - Corrected the approved English and Russian icons in `assets/images`. Their filenames had been assigned to the wrong original source artwork. Both original Git blobs are retained unmodified, and two Linux theme resources point to the correct variants.
 - Normal browser windows select an icon according to the current interface locale. Web-app windows keep the relevant site's icon. The default OS launcher icon requires a pre-packaging generation step, `python3 dk_browser/tools/prepare_icons.py`; a locale-switching OS desktop launcher remains a future task.
 - Both GitHub README front pages feature their appropriate icon, with English/Russian navigation. Russian product translation strings are improved but still require native-language review.
@@ -148,9 +148,9 @@ Models are candidates, not embedded distributions. Check upstream license files 
 - The Google-branded code paths and their profile directory names remain unchanged.
 - Static source checks are recorded in `dk_browser/tests/test_linux_profile_identity.py`. This has not been validated in a compiled browser, and snap packaging remains disabled by the normal GN configuration.
 
-## DK Browser Linux packaging identity
+## DK NetNav Linux packaging identity
 
-- Separate non-Google Linux package name (`dk-browser`), installation directory (`/opt/dksoftworks/dk-browser`), desktop icon identifier and protocol scheme. Include `Name[ru]=ДК Браузер` in the desktop file.
+- Separate non-Google Linux package name (`dk-browser`), installation directory (`/opt/dksoftworks/dk-browser`), desktop icon identifier and protocol scheme. Include `Name[ru]=DK NetNav` in the desktop file.
 - Keep Chromium's binary `chrome` as an internal executable, launched by the `dk-browser` package wrapper. Do not assume the binary has been renamed.
 - No DK signed package repository exists. The DK-specific Debian and RPM paths skip Google's updater and key installation; the default Linux group excludes Chromium's Google-hosted repository installer for DK. Google-branded source paths remain available when building that brand.
 - The publisher contact in package metadata is currently a GitHub no-reply address used as a *development placeholder*. Confirm a real support/maintainer address before public binary packages.
@@ -171,22 +171,22 @@ Models are candidates, not embedded distributions. Check upstream license files 
 ## Built-in UPnP/DLNA network media support (planned)
 
 **Status: roadmap only. No implementation, compilation or runtime testing yet.**
-DK Browser will provide its own integrated UPnP/DLNA **client/controller** for home-network media. No third-party app, browser plugin, separately installed helper, background daemon, account or additional server software is required *on the browser side*. Browsed media must already be shared by a compatible device on the local network; DK Browser does not become a media server.
+DK NetNav will provide its own integrated UPnP/DLNA **client/controller** for home-network media. No third-party app, browser plugin, separately installed helper, background daemon, account or additional server software is required *on the browser side*. Browsed media must already be shared by a compatible device on the local network; DK NetNav does not become a media server.
 
 ### Implementation milestones
 
 1. **Native LAN discovery:** implement Chromium-side SSDP/UPnP discovery and device-description handling, including bounded discovery, service identification, timeout/disconnect handling and a list of compatible DLNA media servers and renderers.
 2. **Browse shared files:** implement the DLNA ContentDirectory browse flow, showing folders, movies, music and photographs with available media URLs and metadata. Keep the network-device browser separate from DK Media's local-file picker.
-3. **Play directly:** hand a user-selected media resource to DK Browser's media pipeline and support streaming/range requests where the device provides them, without first downloading an entire movie. Supported formats still depend on actual container, codec and subtitle support; this does not claim universal playback.
+3. **Play directly:** hand a user-selected media resource to DK NetNav's media pipeline and support streaming/range requests where the device provides them, without first downloading an entire movie. Supported formats still depend on actual container, codec and subtitle support; this does not claim universal playback.
 4. **Play to a device:** discover compatible DLNA renderers and, where supported, provide play, pause, seek, stop and volume controls using the appropriate UPnP services. Expose device-specific limitations clearly; not every television or speaker supports every action or format.
-5. **Optional DK Media integration:** DK Media remains a separate, standalone web player. When opened in DK Browser, a specifically approved browser-owned bridge or explicit media handoff may let it use selected DLNA resources. Ordinary websites must not receive unrestricted device discovery or private-network access.
+5. **Optional DK Media integration:** DK Media remains a separate, standalone web player. When opened in DK NetNav, a specifically approved browser-owned bridge or explicit media handoff may let it use selected DLNA resources. Ordinary websites must not receive unrestricted device discovery or private-network access.
 6. **English/Russian UI and resilience:** localized device picker and clear states for permissions, no devices found, unsupported media, device disconnects and network changes.
 
 ### Privacy, security and acceptance requirements
 
 - Require an explicit user action and appropriately scoped permission for discovering or controlling devices. Allow revocation and do not expose device lists to arbitrary sites.
 - Treat SSDP announcements, XML device descriptions, SOAP replies, URLs and media metadata as untrusted. Bound parsing and response sizes; defend against local-network request forgery, redirect/rebinding tricks and attempts to reach sensitive private services.
-- Do not silently run a background server or open inbound media-sharing endpoints. Keep the functionality inside DK Browser, not as an externally installed dependency.
+- Do not silently run a background server or open inbound media-sharing endpoints. Keep the functionality inside DK NetNav, not as an externally installed dependency.
 - Validate discovery, browsing, local-network permission behavior, direct playback and remote controls on real devices before describing the feature as working. **No builds or tests are authorized at this stage.**
 
 
@@ -197,7 +197,7 @@ DK Browser will provide its own integrated UPnP/DLNA **client/controller** for h
 - It checks Linux profile/package isolation and that the local AI service stays loopback-bound with same-origin write restrictions.
 - **This is a source validation gate only**, not evidence of a successful full Chromium compilation, secure package lifecycle or real-world media/AI capability.
 
-## Outstanding before a usable DK Browser release## Native Matroska path: first source integration (November 2026)
+## Outstanding before a usable DK NetNav release## Native Matroska path: first source integration (November 2026)
 
 The Chromium fork **already** has `audio/matroska`, `video/matroska`
 and their `x-matroska` aliases in `media/base/mime_util_internal.cc`.
@@ -267,7 +267,7 @@ pipeline, followed by actual MKV subtitle rendering.
 
 1. **Compile** on Linux using a synchronized upstream DEPS checkout and check build errors. Widevine is currently source-integrated, not proven working at runtime. A compatible CDM must already be present on the machine or supplied through a supported component flow. Some streaming services additionally enforce client authorization.
 2. **Validate native MKV** playback and H.265 decoding on target Linux hardware. Chromium's HEVC parser/build flags alone are not a guarantee of a working video decoder. Implement a real FFmpeg/libavcodec decode path or suitable supported platform decoder and test codec support before claiming this works. Check legal redistribution requirements.
-3. **Verify file restoration** in a built DK Browser against real disk files across refresh, browser restart and permission prompts. The web player implementation is committed but not yet browser-tested.
+3. **Verify file restoration** in a built DK NetNav against real disk files across refresh, browser restart and permission prompts. The web player implementation is committed but not yet browser-tested.
 4. **Verify mouse-wheel volume** in regular and fullscreen player mode. The 5% wheel adjustment and overlay are committed to the web player.
 5. **Complete branding** across browser surfaces, Linux desktop launcher and package naming. Bilingual icons, Russian product strings and the native language selector are source-integrated but untested. Preserve original Chromium credits.
 6. **Test** cold startup, session restoration, local video reopen, fullscreen, subtitles, audio/video sync, MKV, H.264, H.265, hardware/software playback and browser upgrades.
@@ -277,25 +277,25 @@ pipeline, followed by actual MKV subtitle rendering.
 - DK Media Player landing page: https://dereksparks1982.github.io/DK-Media-Player/
 - Browser startup URL settings and restore-last-session remain user-controlled.
 - No mandatory server, account, Electron wrapper, or additional media desktop application.
-- Keep DK Browser source in this fork; DK Media Player remains its own website and codebase.
+- Keep DK NetNav source in this fork; DK Media Player remains its own website and codebase.
 
 ## Build configuration
 
 The `dk_browser/args.linux.gn` file supplies a starting point for a Linux development build with Chromium's supported media configuration. Actual codec availability depends on built FFmpeg and Linux hardware/platform decoder support. Check the resulting `media_buildflags.h` and inspect runtime decoding using `chrome://media-internals`.
 
-No Chromium executable was compiled by these source commits; this is repository-source development. There is no released DK Browser binary or claimed DRM/codec compatibility matrix.
+No Chromium executable was compiled by these source commits; this is repository-source development. There is no released DK NetNav binary or claimed DRM/codec compatibility matrix.
 
 
 ## Chromium upstream synchronization (source-only, November 16, 2026)
 
-DK Browser preserves its Chromium fork ancestry and the DK-specific changes
+DK NetNav preserves its Chromium fork ancestry and the DK-specific changes
 while incorporating upstream Chromium commit
 `cfba7487b2e7e4a3a4fca808786a20780ea54c86` through a two-parent
 merge. The common ancestor was
 `c351363961e57cc3abe06e5e42359514c0a70ea4`.
 
 The source-level reconciliation retained the DK additions under
-`dk_browser/`, `assets/`, DK Browser README and engineering files,
+`dk_browser/`, `assets/`, DK NetNav README and engineering files,
 Linux packaging/profile, DK Live Block component wiring, Widevine/media
 changes, Russian strings and browser toolbar customizations. Chromium's
 new upstream files and dependency-roll changes were retained.

@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 #
 # This file provides common configuration information for building
-# DK Browser packages for supported Linux platforms.
+# DK NetNav packages for supported Linux platforms.
 
 # Base name of the package.
 PACKAGE="dk-browser"
@@ -21,13 +21,13 @@ INSTALLDIR=/opt/dksoftworks/dk-browser
 ENROLLMENTDIR=/etc/dk-browser/policies/enrollment
 
 # Display string for desktop menu/icon.
-MENUNAME="DK Browser"
+MENUNAME="DK NetNav"
 
 # Brief package description.
-SHORTDESC="DK Browser, a free browser based on Chromium"
+SHORTDESC="DK NetNav, a free browser based on Chromium"
 
 # Detailed package description.
-FULLDESC="DK Browser is a free and open-source Chromium-based browser with English and Russian editions, media playback features, and user-controlled settings."
+FULLDESC="DK NetNav is a free and open-source Chromium-based browser with English and Russian editions, media playback features, and user-controlled settings."
 
 # Package maintainer information.
 MAINTNAME="DK Softworks"

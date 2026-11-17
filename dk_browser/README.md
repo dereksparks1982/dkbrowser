@@ -1,10 +1,10 @@
-# DK Browser customizations
+# DK NetNav customizations
 
-This directory contains DK Browser-specific configuration and development notes within the full Chromium fork.
+This directory contains DK NetNav-specific configuration and development notes within the full Chromium fork.
 
 `args.linux.gn` is a development GN configuration, not proof of codec support. It enables the Chromium paths for H.264/AAC/MKV/HEVC where implemented. The actual FFmpeg decoder selection and Linux platform decoding still require inspection, implementation and playback tests.
 
-Before building, follow Chromium's normal Linux instructions and fetch the dependencies defined by `DEPS`. DK Browser is a source fork, not a browser binary or a web app wrapper.
+Before building, follow Chromium's normal Linux instructions and fetch the dependencies defined by `DEPS`. DK NetNav is a source fork, not a browser binary or a web app wrapper.
 
 The parent README and `DK_BROWSER.md` track implemented vs planned features.
 
@@ -86,7 +86,7 @@ To check the source invariants without compiling Chromium:
 Non-Google Linux packages are named `dk-browser`, install under
 `/opt/dksoftworks/dk-browser`, and register a `dk-browser` desktop/icon
 identity. The internal Chromium executable remains named `chrome`.
-`Name[ru]=ДК Браузер` selects Russian application-menu labeling.
+`Name[ru]=DK NetNav` selects Russian application-menu labeling.
 
 No DK repository or signing infrastructure has been deployed. The DK .deb
 and .rpm maintenance scripts must not register Google's apt/yum repositories
