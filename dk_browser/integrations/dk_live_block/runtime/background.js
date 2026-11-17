@@ -185,17 +185,25 @@ function updateThreatDatabase(){
 function refreshTabs(){browser.tabs.query({}).then(t=>Promise.all(t.map(tab=>browser.tabs.sendMessage(tab.id,{action:"refresh"}).catch(()=>{})))).catch(()=>{});}
 function rebuild(){
  const next=assemble();
+ let chromiumResult=Promise.resolve(null);
  if(globalThis.DKChromiumDNR){
   // Firefox's blocking webRequest is replaced by Chrome's dynamic rules.
   // Keep original compiled engine for cosmetics and local diagnostics.
   const chromiumSettings={...data.settings,
    manualBlocks:data.manualBlocks,
    rememberedAllowances:data.requestControls.remember};
-  void globalThis.DKChromiumDNR.sync(next,chromiumSettings)
-   .then(()=>globalThis.DKChromiumDNR.syncTabPauses(
-     [...data.tempPaused],data.settings))
-   .catch(error=>console.warn("DK Live Block Chromium rules:",
-     String(error).slice(0,180)));
+  chromiumResult=globalThis.DKChromiumDNR.sync(next,chromiumSettings)
+   .then(async result=>{
+     if(result?.error)return result;
+     // A failed session pause must remain visible through status(), but it
+     // cannot mean the global network switch itself failed.
+     const tabResult=await globalThis.DKChromiumDNR.syncTabPauses(
+       [...data.tempPaused],data.settings);
+     if(tabResult?.error)console.warn("DK Live Block Chromium tab pauses:",
+       tabResult.error);
+     return result;
+   })
+   .catch(error=>({error:String(error?.message||error).slice(0,180)}));
  }
  // Settings such as ad recognition, logs, video skipping and site pauses do
  // not change the filter text. Skip re-parsing huge subscriptions for them.
@@ -207,6 +215,9 @@ function rebuild(){
  }
  for(const id of new Set([...data.hosts.keys(),...data.counts.keys()]))badge(id);
  refreshTabs();
+ // Returning a result allows user-facing switches to wait for Chromium's
+ // actual DNR response. Other existing callers may safely remain asynchronous.
+ return chromiumResult;
 }
 const toolbarIcons=typeof DKIconState!=="undefined"?DKIconState.create(browser):null;
 function badge(id){
@@ -1899,9 +1910,21 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   const previous=data.settings.enabled;
   data.settings.enabled=!!msg.enabled;
   try{syncProxyListener();}catch(error){data.settings.enabled=previous;return {error:"Could not update proxy routing: "+String(error.message||error).slice(0,100)};}
+  // Do not save or claim a disabled/enabled state until the Chromium network
+  // and static rulesets have actually accepted the transition.
+  const applied=await rebuild();
+  if(applied?.error){
+   data.settings.enabled=previous;
+   let restoreError="";
+   try{syncProxyListener();}catch(error){restoreError="; proxy restore failed";}
+   const restored=await rebuild();
+   if(restored?.error)restoreError+="; network restore: "+restored.error;
+   return {error:("Chromium protection switch failed: "+applied.error+
+    restoreError).slice(0,240)};
+  }
   data.notificationControl=await DKNotificationProtection.sync(browser,
    data.settings.enabled&&data.settings.blockNotificationPrompts);
-  await persist();rebuild();return status(id,url);
+  await persist();return status(id,url);
  }
  const siteFeatureConfigs={
   cookieReject:"cookieRejectPaused",
