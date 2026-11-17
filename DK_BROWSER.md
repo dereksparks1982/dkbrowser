@@ -32,6 +32,18 @@ compiled browser was tested. Rollback itself can fail, in which case the
 error is explicitly surfaced and a browser runtime investigation is still
 required.
 
+### Site-wide pause precedence (source-only)
+
+Previously, a paused hostname received DNR priority 10, below explicit
+manual blocks at priority 30, so the site-wide pause could still block
+manually blocked requests. Pauses now have priority 50 and use two grouped
+allowances: a document/subframe `allowAllRequests` rule scoped by the
+requested hostname, plus a non-main-frame `allow` rule scoped by the
+initiating hostname to cover new requests in an existing tab. Two reserved
+rule slots prevent large subscriptions or explicit controls from crowding
+out these pause rules. Source regression cases are committed but not run.
+Native Chromium behavior, especially frame transitions, is not verified.
+
 ## DK Live Block in DK Browser: full source integration
 
 **Bundled source:** Original DK Live Block upstream snapshot

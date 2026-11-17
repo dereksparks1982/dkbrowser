@@ -66,6 +66,17 @@ specific compatibility boundaries.
   inspection HTML and JavaScript remain bundled. The `browser` API
   compatibility layer is injected in extension pages and content scripts.
 
+## Chromium site-wide pauses
+
+The Firefox site pause used to compile to a priority-10 document allowance,
+which could lose to a priority-30 manual block. The Chromium adapter now
+combines up to 300 deduplicated paused hostnames into two priority-50
+allowances: document/subframe navigation by request domain, and new
+non-main-frame requests by initiator domain. The latter applies to newly
+started requests when a tab is already open; it does not turn the pause
+into a global allow for other sites. Both rules reserve DNR quota slots.
+This is a source-level change, not proof of live Chromium behavior.
+
 ## Known Chromium limits
 
 Firefox Manifest V2 blocking `webRequest` callbacks cannot be reused

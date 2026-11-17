@@ -138,24 +138,37 @@ function compile(text,settings,max=MAX_DYNAMIC){
    if(converted){rules.push(converted);if(rules.length>=limit)break;}
    else rejected++;
  }
- // Reserve room for user-selected controls before spending the full DNR
- // quota on subscription filters. They must not disappear on large lists.
+ // Site-wide pauses must take precedence even over manual blocks (priority
+ // 30), not just subscription rules. Grouping hostnames into two DNR rules
+ // keeps hundreds of paused sites from consuming the dynamic rules quota.
+ const paused=[...new Set((Array.isArray(settings?.paused)?settings.paused:[])
+   .filter(validHost))].slice(0,300);
+ const pauseSlots=paused.length?2:0;
+ // Preserve enough slots for both pause rules and explicit user controls.
  const reserved=Math.min(limit,(
    (Array.isArray(settings?.manualBlocks)?settings.manualBlocks.length:0)+
    (Array.isArray(settings?.rememberedAllowances)?settings.rememberedAllowances.length:0)+
-   (Array.isArray(settings?.paused)?settings.paused.length:0)));
+   pauseSlots));
  rules.splice(Math.max(0,limit-reserved));
- const paused=(Array.isArray(settings?.paused)?settings.paused:[])
-   .filter(validHost).slice(0,300);
- if(settings?.enabled!==false)for(const site of paused){
-   if(rules.length>=limit)break;
-   rules.push({id:rules.length+1,priority:10,
-     action:{type:"allowAllRequests"},
-     condition:{requestDomains:[site],resourceTypes:["main_frame","sub_frame"]}});
- }
  if(settings?.enabled!==false){
-   const extras=extraRules(settings,rules.length+1,limit-rules.length);
+   // Manual blocks/remembered approvals retain their own exact destination
+   // and request-type scopes even when subscription lists fill the quota.
+   const extras=extraRules(settings,rules.length+1,
+     Math.max(0,limit-rules.length-pauseSlots));
    rules.push(...extras.rules);rejected+=extras.rejected;
+   if(paused.length&&rules.length+2<=limit){
+     // Covers new document navigations and child frames, including their
+     // subsequent requests. Higher priority defeats manual and DNR blocks.
+     rules.push({id:rules.length+1,priority:50,
+       action:{type:"allowAllRequests"},
+       condition:{requestDomains:paused,resourceTypes:["main_frame","sub_frame"]}});
+     // A site can be paused while its document is already loaded. This
+     // initiator-scoped allow covers new subresource requests immediately,
+     // without widening the exception to unrelated initiating websites.
+     rules.push({id:rules.length+1,priority:50,action:{type:"allow"},
+       condition:{initiatorDomains:paused,
+         excludedResourceTypes:["main_frame"]}});
+   }
  }
  return {rules:settings?.enabled===false?[]:rules,
    accepted:settings?.enabled===false?0:rules.length,rejected,

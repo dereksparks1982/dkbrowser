@@ -34,6 +34,13 @@ unconfirmed transitions. The existing CSS
 and page-side protection modules are bundled. The Linux companion is included only as
 reference source, never installed or started.
 
+Chromium site-wide pauses now reserve two high-priority DNR allowances: one
+for navigations and subframes, and another limited to requests initiated by
+the paused site. This prevents manual blocking rules from overriding an
+intentionally paused site and covers newly initiated requests on pages that
+are already open. Paused hostnames are grouped to conserve Chromium rule
+capacity. This is committed source logic, **not yet browser-tested**.
+
 **Source integration is not a compiled or verified browser release.**
 Firefox-specific synchronous webRequest blocking, response-body rewrites,
 DNS/proxy APIs and some other controls have no direct Chromium MV3

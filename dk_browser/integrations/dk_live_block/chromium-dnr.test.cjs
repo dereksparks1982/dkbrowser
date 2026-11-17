@@ -14,7 +14,7 @@ test("native and subscribed ABP rules become scoped DNR, no global widening",()=
   "site.example##.advert"
  ].join("\n");
  const x=compile(text,{enabled:true,paused:["pause.example"]});
- assert.equal(x.rules.length,4);
+ assert.equal(x.rules.length,5);
  assert.equal(x.rules.filter(r=>r.action.type==="block").length,2);
  const allow=x.rules.find(r=>r.action.type==="allow");
  assert.deepEqual(allow.condition.initiatorDomains,["videos.example"]);
@@ -44,7 +44,7 @@ test("badfilter prevents installing disabled original rules",()=>{
 test("domain-allowlisted exceptions and limits never erase unrelated sites",()=>{
  const x=compile("||a.example^\n@@||b.example^$script,domain=site.example",
  {enabled:true,paused:["site.example","wrong-site/evil"]},100);
- assert.equal(x.rules.length,3);
+ assert.equal(x.rules.length,4);
  assert.ok(x.rules.every(r=>r.id>=1));
  assert.deepEqual(x.rules.find(r=>r.action.type==="allowAllRequests").condition.requestDomains,
  ["site.example"]);
@@ -271,4 +271,24 @@ test("Chromium session refresh installs both tab pauses and scoped request appro
  assert.equal(disabled.paused,0);
  assert.equal(disabled.allowances,0);
  assert.deepEqual(installed,[]);
+});
+
+test("site-wide pause wins over manual blocks and covers already-open pages",()=>{
+ const opts={enabled:true,paused:["news.example","video.example","news.example","invalid/site"],
+  manualBlocks:[{site:"news.example",host:"ads.example",type:"script"}]};
+ const result=compile("||ads.example^",opts,10);
+ const docAllow=result.rules.find(r=>r.action.type==="allowAllRequests");
+ const liveAllow=result.rules.find(r=>r.action.type==="allow"&&
+  r.condition.initiatorDomains?.includes("news.example"));
+ const manual=result.rules.find(r=>r.priority===30);
+ assert.ok(docAllow&&liveAllow&&manual);
+ assert.deepEqual(docAllow.condition.requestDomains,["news.example","video.example"]);
+ assert.deepEqual(docAllow.condition.resourceTypes,["main_frame","sub_frame"]);
+ assert.deepEqual(liveAllow.condition.initiatorDomains,["news.example","video.example"]);
+ assert.deepEqual(liveAllow.condition.excludedResourceTypes,["main_frame"]);
+ assert.ok(docAllow.priority>manual.priority);
+ assert.ok(liveAllow.priority>manual.priority);
+ assert.ok(result.rules.some(r=>r.action.type==="block"));
+ assert.equal(new Set(result.rules.map(r=>r.id)).size,result.rules.length);
+ assert.equal(compile("||ads.example^",{...opts,enabled:false}).rules.length,0);
 });
