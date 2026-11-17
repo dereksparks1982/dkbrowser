@@ -167,6 +167,28 @@ class DKLiveBlockIntegrationTests(unittest.TestCase):
         self.assertIn("current.chromiumDNR?.error", popup)
         self.assertIn("reply?.error", popup)
 
+    def test_chromium_controls_report_backend_errors_instead_of_false_success(self):
+        background = (RUNTIME / "background.js").read_text(encoding="utf-8")
+        self.assertIn("async function acceptRuleChange(rollback,save,label)", background)
+        self.assertIn("Selective request block was not applied", background)
+        self.assertIn("Remembered request allowance was not applied", background)
+        self.assertIn("Website allowlist switch was not applied", background)
+        self.assertIn("Settings network filters were not applied", background)
+        self.assertIn("Built-in subscription switch was not applied", background)
+        self.assertIn("initialRules=await rebuild()", background)
+        self.assertIn("temporary/session request allowances are not yet supported", background)
+        self.assertIn("Chromium cannot block this request type precisely", background)
+        self.assertIn("Chromium cannot allow this request type precisely", background)
+        self.assertIn("Protection was not saved; previous setting restored", background)
+
+    def test_chromium_compat_listener_bridge_has_identity_and_multi_listener_safety(self):
+        compat_tests = DIRECTORY / "chromium-compat.test.cjs"
+        self.assertTrue(compat_tests.is_file())
+        self.assertIn("if(result===undefined)return false", self.compat)
+        self.assertIn("const bridges=new WeakMap()", self.compat)
+        self.assertIn("removeListener(handler)", self.compat)
+        self.assertIn("hasListener(handler)", self.compat)
+
     def test_no_automated_installer_or_action(self):
         self.assertFalse((DIRECTORY / ".github/workflows").exists())
         self.assertFalse((DIRECTORY / "install.sh").exists())
