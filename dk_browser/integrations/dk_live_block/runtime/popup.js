@@ -103,6 +103,13 @@ async function load(){
  $("mediaRecovery").textContent=current.mediaRecoveryEnabled?"Disable media rescue":"Enable media rescue";
  $("mediaRecovery").disabled=!current.siteActive;
  $("enabled").checked=current.enabled;
+ const chromiumWarning=$("chromiumProtectionStatus");
+ const netError=current.chromiumDNR?.error;
+ const tabError=current.chromiumDNR?.tabPauses?.error;
+ chromiumWarning.hidden=!netError&&!tabError;
+ chromiumWarning.textContent=netError?
+  "Chromium network protection error: "+netError:
+  tabError?"Chromium tab pause error: "+tabError:"";
  $("metaGraphqlQuick").checked=current.settings?.metaGraphqlFilter===true;
  $("siteCookieReject").textContent=current.cookieRejectPaused?"Enable cookie rejection here":"Disable cookie rejection here";
  $("siteDistraction").textContent=current.distractionPaused?"Enable distraction cleanup here":"Disable distraction cleanup here";
@@ -139,7 +146,23 @@ $("metaGraphqlQuick").addEventListener("change",async()=>{
   $("metaGraphqlNotice").textContent=String(error.message||error).slice(0,140);
  }finally{control.disabled=false;}
 });
-$("enabled").addEventListener("change",async()=>{await browser.runtime.sendMessage({action:"setGlobal",enabled:$("enabled").checked,tabId:tab.id,url:tab.url});await load();});
+$("enabled").addEventListener("change",async()=>{
+ const enabled=$("enabled"),target=enabled.checked;
+ enabled.disabled=true;
+ try{
+  const reply=await browser.runtime.sendMessage({action:"setGlobal",
+   enabled:target,tabId:tab.id,url:tab.url});
+  if(reply?.error)throw Error(reply.error);
+  await load();
+  if(current?.chromiumDNR?.error)throw Error(current.chromiumDNR.error);
+ }catch(error){
+  await load().catch(()=>{});
+  const warning=$("chromiumProtectionStatus");
+  warning.hidden=false;
+  warning.textContent="Protection change could not be confirmed: "+
+   String(error?.message||error).slice(0,220);
+ }finally{enabled.disabled=false;}
+});
 $("toggle").addEventListener("click",async()=>{
  $("toggle").disabled=true;
  try{
@@ -151,8 +174,19 @@ $("toggle").addEventListener("click",async()=>{
  finally{$("toggle").disabled=false;}
 });
 $("temporary").addEventListener("click",async()=>{
- await browser.runtime.sendMessage({action:"toggleTabPause",tabId:tab.id,url:tab.url,paused:!current.temporarilyPaused});
- await browser.tabs.reload(tab.id);await load();
+ const button=$("temporary");button.disabled=true;
+ try{
+  const reply=await browser.runtime.sendMessage({action:"toggleTabPause",
+   tabId:tab.id,url:tab.url,paused:!current.temporarilyPaused});
+  if(reply?.error)throw Error(reply.error);
+  await browser.tabs.reload(tab.id);await load();
+ }catch(error){
+  await load().catch(()=>{});
+  const warning=$("chromiumProtectionStatus");
+  warning.hidden=false;
+  warning.textContent="Could not change this tab's protection: "+
+   String(error?.message||error).slice(0,220);
+ }finally{button.disabled=false;}
 });
 $("permitNextPopup").addEventListener("click",async()=>{
  if(!current?.strictPopupEnabled)return;
