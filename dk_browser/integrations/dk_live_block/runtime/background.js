@@ -1972,7 +1972,17 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   }
   data.notificationControl=await DKNotificationProtection.sync(browser,
    data.settings.enabled&&data.settings.blockNotificationPrompts);
-  await persist();return status(id,url);
+  try{await persist();}
+  catch(_){
+   data.settings.enabled=previous;
+   try{syncProxyListener();}catch(_){}
+   const restored=await rebuild();
+   data.notificationControl=await DKNotificationProtection.sync(browser,
+    data.settings.enabled&&data.settings.blockNotificationPrompts);
+   return {error:("Protection was not saved; previous setting restored"+
+    (restored?.error?"; network restore: "+restored.error:"")).slice(0,250)};
+  }
+  return status(id,url);
  }
  const siteFeatureConfigs={
   cookieReject:"cookieRejectPaused",
@@ -2154,20 +2164,19 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
      (s.paused.length>DKSiteAllowlist.LIMIT||
       s.paused.some(x=>!DKManualRules.validHost(x))))
    return {error:"Allowed websites require valid hostnames (maximum 500)."};
+  // Keep the original configuration available until both the DNR
+  // backend and local persistence have acknowledged the whole edit.
+  const previousSettings=JSON.parse(JSON.stringify(data.settings));
+  const previousCustomLists={...data.customLists};
+  const previousListErrors={...data.listErrors};
   if(validatedSubscriptions!==null){
    data.settings.customSubscriptions=validatedSubscriptions;
    for(const u of Object.keys(data.customLists))if(!validatedSubscriptions.includes(u)){delete data.customLists[u];delete data.listErrors[u];}
   }
   if(typeof s.blockNotificationPrompts==="boolean")data.settings.blockNotificationPrompts=s.blockNotificationPrompts;
   if(typeof s.showDevtoolsPanel==="boolean")data.settings.showDevtoolsPanel=s.showDevtoolsPanel;
-  if(typeof s.showBadge==="boolean"){
-   data.settings.showBadge=s.showBadge;
-   for(const tabId of data.counts.keys())badge(tabId);
-  }
-  if(typeof s.showContextMenu==="boolean"){
-   data.settings.showContextMenu=s.showContextMenu;
-   await DKContextMenu.sync(browser,data.settings.showContextMenu);
-  }
+  if(typeof s.showBadge==="boolean")data.settings.showBadge=s.showBadge;
+  if(typeof s.showContextMenu==="boolean")data.settings.showContextMenu=s.showContextMenu;
   if(typeof s.autoUpdate==="boolean")data.settings.autoUpdate=s.autoUpdate;
   if(typeof s.threatProtection==="boolean")data.settings.threatProtection=s.threatProtection;
   if(Array.isArray(s.threatOverrides))data.settings.threatOverrides=
@@ -2176,10 +2185,7 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   if(typeof s.youtubeResponseFilter==="boolean")data.settings.youtubeResponseFilter=s.youtubeResponseFilter;
   if(typeof s.youtubeSkip==="boolean")data.settings.youtubeSkip=s.youtubeSkip;
   if(typeof s.rememberVideos==="boolean")data.settings.rememberVideos=s.rememberVideos;
-  if(typeof s.strictPopupSites==="boolean"){
-   data.settings.strictPopupSites=s.strictPopupSites;
-   if(!s.strictPopupSites)data.popupTrapPermits.clear();
-  }
+  if(typeof s.strictPopupSites==="boolean")data.settings.strictPopupSites=s.strictPopupSites;
   if(typeof s.adRecognition==="boolean")data.settings.adRecognition=s.adRecognition;
   if(typeof s.compactVideoGrids==="boolean")data.settings.compactVideoGrids=s.compactVideoGrids;
   if(typeof s.metaGraphqlFilter==="boolean")data.settings.metaGraphqlFilter=s.metaGraphqlFilter;
@@ -2197,17 +2203,33 @@ browser.runtime.onMessage.addListener(async(msg,sender={})=>{
   if(Array.isArray(s.popupProtectionPaused))
    data.settings.popupProtectionPaused=[...new Set(s.popupProtectionPaused.filter(x=>DKManualRules.validHost(x)))].slice(0,500);
   if(typeof s.stripTracking==="boolean")data.settings.stripTracking=s.stripTracking;
-  if(typeof s.requestLog==="boolean"){data.settings.requestLog=s.requestLog;if(!s.requestLog){metaProviderEvidence.clear();
-    for(const name of ["facebook.com","instagram.com","threads.net","whatsapp.com","youtube.com","reddit.com"])
-     nestyIntelligence.clear(name);
-    cookieEvidence.clearObservations();data.allowedActivity.clear();pendingAllowedDecisions.clear();data.logs.clear();data.networkIssues.clear();data.streamingIssues.clear();data.playbackHealth.clear();data.streamingAllowances.clear();data.popupHistory.clear();}}
+  if(typeof s.requestLog==="boolean")data.settings.requestLog=s.requestLog;
   if(typeof s.customRules==="string"&&s.customRules.length<=1000000)data.settings.customRules=s.customRules;
   if(Array.isArray(s.paused))
    data.settings.paused=DKSiteAllowlist.normalize(s.paused);
   for(const k of Object.keys(SOURCES))if(typeof s.listEnabled?.[k]==="boolean")data.settings.listEnabled[k]=s.listEnabled[k];
+  const failure=await acceptRuleChange(()=>{
+   data.settings=previousSettings;
+   data.customLists=previousCustomLists;
+   data.listErrors=previousListErrors;
+  },persist,"Settings network filters were not applied");
+  if(failure)return failure;
+  // Apply non-network effects only after the settings are confirmed.
+  if(!data.settings.strictPopupSites)data.popupTrapPermits.clear();
+  if(!data.settings.requestLog){
+   metaProviderEvidence.clear();
+   for(const name of ["facebook.com","instagram.com","threads.net","whatsapp.com","youtube.com","reddit.com"])
+    nestyIntelligence.clear(name);
+   cookieEvidence.clearObservations();data.allowedActivity.clear();
+   pendingAllowedDecisions.clear();data.logs.clear();data.networkIssues.clear();
+   data.streamingIssues.clear();data.playbackHealth.clear();
+   data.streamingAllowances.clear();data.popupHistory.clear();
+  }
+  if(typeof s.showBadge==="boolean")
+   for(const tabId of data.counts.keys())badge(tabId);
+  await DKContextMenu.sync(browser,data.settings.showContextMenu);
   data.notificationControl=await DKNotificationProtection.sync(browser,
    data.settings.enabled&&data.settings.blockNotificationPrompts);
-  await persist();rebuild();
   // Newly enabled subscriptions work immediately without waiting for tomorrow's alarm.
   const needsDownload=(data.settings.autoYouTubeRules&&!data.youtubeRules?.text)||Object.keys(SOURCES).some(k=>data.settings.listEnabled[k]&&!data.lists[k]?.text)||(data.settings.customSubscriptions||[]).some(u=>!data.customLists[u]?.text);
   if(needsDownload)updateLists().catch(console.warn);
