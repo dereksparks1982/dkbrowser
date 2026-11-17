@@ -18,18 +18,35 @@ runtime.getURL=(path="")=>{
 };
 if(ext.runtime.onMessage){
  const listeners=ext.runtime.onMessage;
+ const bridges=new WeakMap();
+ const failure=error=>({error:String(error?.message||error).slice(0,120)});
  runtime.onMessage={
   addListener(handler){
-   // Firefox allows returning Promise<response> from onMessage. Chromium's
-   // callback bridge keeps the extension response channel alive until done.
-   listeners.addListener((msg,sender,reply)=>{
+   if(typeof handler!=="function"||bridges.has(handler))return;
+   // Firefox treats an undefined listener result as "not handled".
+   // Replying with {} here can steal another listener's real response.
+   const bridged=(msg,sender,reply)=>{
      let result;
      try{result=handler(msg,sender);}
-     catch(error){reply({error:String(error?.message||error).slice(0,120)});return false;}
+     catch(error){reply(failure(error));return false;}
+     if(result===undefined)return false;
+     if(!result||typeof result.then!=="function"){
+       reply(result);return false;
+     }
      Promise.resolve(result).then(value=>reply(value===undefined?{}:value),
-       error=>reply({error:String(error?.message||error).slice(0,120)}));
-     return true;
-   });
+       error=>reply(failure(error)));
+     return true; // Keep the channel alive for an actual async response.
+   };
+   bridges.set(handler,bridged);
+   listeners.addListener(bridged);
+  },
+  removeListener(handler){
+   const bridged=bridges.get(handler);
+   if(bridged){listeners.removeListener(bridged);bridges.delete(handler);}
+  },
+  hasListener(handler){
+   const bridged=bridges.get(handler);
+   return !!bridged&&listeners.hasListener(bridged);
   }
  };
 }
