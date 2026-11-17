@@ -14,10 +14,16 @@ appears above a browseable list of folders and media titles. The **Back /
 identified but do not expose media folders. The native browser never grants
 this functionality to visited websites.
 
-The first ContentDirectory page returns up to 100 items; the panel displays
-up to 30 entries and notes if more exist. Folder navigation works but
-pagination, artwork, searching, media playback, remote control and protocol
-extensions remain separate development tasks.
+ContentDirectory now requests **20 items per page**. Both **Next / Следующая
+страница** and **Previous / Предыдущая страница** move through a shared folder
+using the device's reported `NumberReturned` and `TotalMatches`, with a
+bounded fallback for servers that omit those counters. The panel shows a page
+number and item range. Returning from a subfolder restores the parent's
+previously visited page. Response counts, offsets, list sizes and folder
+navigation depth are bounded.
+
+Artwork, search, media playback, remote control and wider protocol
+interoperability remain separate development milestones.
 
 ## Network boundaries
 
@@ -36,4 +42,4 @@ extensions remain separate development tasks.
 This stage does not perform background discovery, start a listening service,
 fetch media resources, or open ports for inbound traffic. No release has yet
 been produced. Some devices require additional ContentDirectory protocol
-versions, pagination or HTTP behaviors beyond this initial implementation.
+versions or HTTP behaviors beyond this initial implementation.

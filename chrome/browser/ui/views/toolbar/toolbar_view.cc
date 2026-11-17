@@ -270,6 +270,7 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
     devices_ = std::move(devices);
     chosen_.reset();
     path_.clear();
+    page_history_.clear();
     choices_->RemoveAllChildViews();
     if (devices_.empty()) {
       status_->SetText(russian_
@@ -311,6 +312,7 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
                   const ui::Event&) {
     chosen_ = std::move(device);
     path_ = {"0"};
+    page_history_ = {{0}};
     BrowseCurrent();
   }
 
@@ -318,6 +320,7 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
     if (!chosen_ || path_.size() >= 16)
       return;
     path_.push_back(std::move(folder_id));
+    page_history_.push_back({0});
     BrowseCurrent();
   }
 
@@ -327,11 +330,30 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
       return;
     }
     path_.pop_back();
+    page_history_.pop_back();
+    BrowseCurrent();
+  }
+
+  void NextPage(uint32_t next_index, const ui::Event&) {
+    if (!chosen_ || page_history_.empty() ||
+        next_index <= page_history_.back().back() ||
+        next_index > dk_browser::network::kMaxMediaLibraryIndex)
+      return;
+    page_history_.back().push_back(next_index);
+    BrowseCurrent();
+  }
+
+  void PreviousPage(const ui::Event&) {
+    if (!chosen_ || page_history_.empty() ||
+        page_history_.back().size() <= 1)
+      return;
+    page_history_.back().pop_back();
     BrowseCurrent();
   }
 
   void BrowseCurrent() {
-    if (!chosen_ || path_.empty())
+    if (!chosen_ || path_.empty() || page_history_.empty() ||
+        page_history_.back().empty())
       return;
     ++generation_;
     choices_->RemoveAllChildViews();
@@ -344,7 +366,7 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
     base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
         base::BindOnce(&dk_browser::network::BrowseMediaFolder,
-                       *chosen_, path_.back()),
+                       *chosen_, path_.back(), page_history_.back().back()),
         base::BindOnce(&DKNetworkDevicesBubble::ShowFolder,
                        GetWeakPtr(), generation));
   }
@@ -362,8 +384,10 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
           russian_ ? u"Это устройство воспроизведения. Папки доступны на медиасерверах."
                    : u"This is a playback device. Browse folders on a media server.");
     } else {
+      const std::u16string number = base::UTF8ToUTF16(
+          std::to_string(page_history_.back().size()));
       status_->SetText(base::UTF8ToUTF16(page.device_name) +
-          (russian_ ? u" • общие файлы:" : u" • shared files:"));
+          (russian_ ? u" • Страница " : u" • Page ") + number);
     }
     choices_->AddChildView(std::make_unique<views::LabelButton>(
         base::BindRepeating(&DKNetworkDevicesBubble::Back,
@@ -375,8 +399,9 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
     }
     if (page.entries.empty())
       status_->SetText(base::UTF8ToUTF16(page.device_name) +
-          (russian_ ? u" • папка пуста" : u" • empty folder"));
-    const size_t shown = std::min<size_t>(page.entries.size(), 30);
+          (russian_ ? u" • нет файлов на этой странице"
+                    : u" • no items on this page"));
+    const size_t shown = page.entries.size();
     for (size_t n = 0; n < shown; ++n) {
       const auto& entry = page.entries[n];
       std::u16string label = entry.is_folder ? u"📁 " : u"♪ ";
@@ -392,11 +417,33 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
         text->SetHorizontalAlignment(gfx::ALIGN_LEFT);
       }
     }
-    if (page.more_entries || page.entries.size() > shown) {
-      auto* more = choices_->AddChildView(std::make_unique<views::Label>(
-          russian_ ? u"Есть другие файлы. Поддержка следующих страниц будет добавлена."
-                   : u"More files exist. Additional pages are coming."));
-      more->SetMultiLine(true);
+    if (!page.entries.empty()) {
+      const uint32_t first = page.first_index + 1;
+      const uint32_t last = page.next_index > page.first_index
+                                ? page.next_index
+                                : page.first_index +
+                                      static_cast<uint32_t>(page.entries.size());
+      std::u16string label =
+          (russian_ ? u"Элементы " : u"Items ") +
+          base::UTF8ToUTF16(std::to_string(first)) + u"–" +
+          base::UTF8ToUTF16(std::to_string(last));
+      if (page.total_matches_known) {
+        label += (russian_ ? u" из " : u" of ") +
+                 base::UTF8ToUTF16(std::to_string(page.total_matches));
+      }
+      choices_->AddChildView(std::make_unique<views::Label>(label));
+    }
+    if (!page_history_.empty() && page_history_.back().size() > 1) {
+      choices_->AddChildView(std::make_unique<views::LabelButton>(
+          base::BindRepeating(&DKNetworkDevicesBubble::PreviousPage,
+                              base::Unretained(this)),
+          russian_ ? u"← Предыдущая страница" : u"← Previous page"));
+    }
+    if (page.more_entries && page.next_index > page.first_index) {
+      choices_->AddChildView(std::make_unique<views::LabelButton>(
+          base::BindRepeating(&DKNetworkDevicesBubble::NextPage,
+                              base::Unretained(this), page.next_index),
+          russian_ ? u"Следующая страница →" : u"Next page →"));
     }
     Refresh();
   }
@@ -407,6 +454,8 @@ class DKNetworkDevicesBubble : public views::BubbleDialogDelegateView {
   std::vector<dk_browser::network::MediaDevice> devices_;
   std::optional<dk_browser::network::MediaDevice> chosen_;
   std::vector<std::string> path_;
+  // Track visited page offsets per folder so Back restores its parent page.
+  std::vector<std::vector<uint32_t>> page_history_;
   int generation_ = 0;
   base::WeakPtrFactory<DKNetworkDevicesBubble> weak_factory_{this};
 };

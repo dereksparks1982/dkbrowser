@@ -25,7 +25,7 @@ namespace {
 
 constexpr size_t kMaxResponse = 384 * 1024;
 constexpr size_t kMaxXml = 256 * 1024;
-constexpr size_t kMaxEntries = 100;
+constexpr size_t kMaxEntries = kMediaLibraryPageSize;
 constexpr int kRequestTimeoutMs = 1800;
 constexpr size_t kMaxHeader = 8192;
 
@@ -394,6 +394,21 @@ std::string Field(std::string_view xml, std::string_view name) {
   return found ? Trim(Unescape(found->inner)) : "";
 }
 
+std::optional<uint32_t> ParseCount(std::string_view input) {
+  // Reject negative, malformed, excessively long and overflowing counters.
+  if (input.empty() || input.size() > 10)
+    return std::nullopt;
+  uint64_t value = 0;
+  for (char digit : input) {
+    if (digit < '0' || digit > '9')
+      return std::nullopt;
+    value = value * 10 + static_cast<unsigned>(digit - '0');
+    if (value > std::numeric_limits<uint32_t>::max())
+      return std::nullopt;
+  }
+  return static_cast<uint32_t>(value);
+}
+
 std::string Attr(std::string_view tag, std::string_view name) {
   // Match exact attribute boundary, never 'parentid' for 'id'.
   for (size_t at = 0; at < tag.size();) {
@@ -430,11 +445,14 @@ std::string Attr(std::string_view tag, std::string_view name) {
 }  // namespace
 
 LibraryPage BrowseMediaFolder(const MediaDevice& device,
-                              const std::string& object_id) {
+                              const std::string& object_id,
+                              uint32_t starting_index) {
   LibraryPage page;
   page.address = device.address;
   page.device_name = device.address;
-  if (object_id.size() > 256 || device.address.empty()) {
+  page.first_index = starting_index;
+  if (object_id.size() > 256 || device.address.empty() ||
+      starting_index > kMaxMediaLibraryIndex) {
     page.error = "Invalid folder identifier.";
     return page;
   }
@@ -492,8 +510,10 @@ LibraryPage BrowseMediaFolder(const MediaDevice& device,
       "<s:Body><u:Browse xmlns:u=\"" + service_type + "\">"
       "<ObjectID>" + Escape(object_id) + "</ObjectID>"
       "<BrowseFlag>BrowseDirectChildren</BrowseFlag>"
-      "<Filter>*</Filter><StartingIndex>0</StartingIndex>"
-      "<RequestedCount>100</RequestedCount><SortCriteria/>"
+      "<Filter>*</Filter><StartingIndex>" +
+      std::to_string(starting_index) + "</StartingIndex>"
+      "<RequestedCount>" + std::to_string(kMediaLibraryPageSize) +
+      "</RequestedCount><SortCriteria/>"
       "</u:Browse></s:Body></s:Envelope>";
   const std::string action = service_type + "#Browse";
   auto response = Fetch(endpoint, "POST", request, action);
@@ -501,13 +521,21 @@ LibraryPage BrowseMediaFolder(const MediaDevice& device,
     page.error = "Unable to browse this device's shared folders.";
     return page;
   }
-  const std::string result = Field(*response, "Result");
-  if (result.empty() || !AllowedXml(result)) {
-    page.error = "Device did not return readable ContentDirectory entries.";
+  const auto result_element = FindElement(*response, "Result");
+  if (!result_element) {
+    page.error = "Device did not return a ContentDirectory result.";
     return page;
   }
-  // DIDL-Lite is XML escaped inside SOAP's Result element.
-  for (size_t pos = 0; pos < result.size() && page.entries.size() < kMaxEntries;) {
+  // Empty Result is valid for an empty folder or terminal page.
+  const std::string result = Trim(Unescape(result_element->inner));
+  if (!result.empty() && !AllowedXml(result)) {
+    page.error = "Device returned invalid ContentDirectory XML.";
+    return page;
+  }
+  // Count parsed DIDL records even when a record has no usable title.
+  uint32_t records_seen = 0;
+  for (size_t pos = 0; pos < result.size() &&
+                       records_seen < kMaxEntries;) {
     size_t next_container = result.find("<container", pos);
     size_t next_item = result.find("<item", pos);
     size_t at = std::min(next_container, next_item);
@@ -520,16 +548,32 @@ LibraryPage BrowseMediaFolder(const MediaDevice& device,
       continue;
     }
     pos = entry->next;
+    ++records_seen;
     std::string id = Attr(entry->opening, "id");
     std::string title = Field(entry->inner, "title");
     if (id.empty() || id.size() > 256 || title.empty())
       continue;
     page.entries.push_back({std::move(id), title.substr(0, 180), folder});
   }
-  const std::string total = Field(*response, "TotalMatches");
-  if (!total.empty() && total.find_first_not_of("0123456789") == total.npos &&
-      total.size() < 8)
-    page.more_entries = std::strtoul(total.c_str(), nullptr, 10) > page.entries.size();
+  const auto reported = ParseCount(Field(*response, "NumberReturned"));
+  // Some devices omit NumberReturned; others report a larger count than
+  // the requested page. Never advance by more than the bounded page size.
+  uint32_t advanced = records_seen;
+  if (reported && *reported > 0 && *reported <= kMediaLibraryPageSize)
+    advanced = std::max(advanced, *reported);
+  const auto total = ParseCount(Field(*response, "TotalMatches"));
+  // Some servers incorrectly report zero even when they supplied results.
+  page.total_matches_known = total.has_value() &&
+                             (*total != 0 || advanced == 0);
+  if (page.total_matches_known)
+    page.total_matches = *total;
+  if (advanced > 0 &&
+      starting_index <= kMaxMediaLibraryIndex - advanced) {
+    page.next_index = starting_index + advanced;
+    page.more_entries =
+        (page.total_matches_known && page.next_index < page.total_matches) ||
+        (!page.total_matches_known && advanced == kMediaLibraryPageSize);
+  }
   return page;
 }
 
