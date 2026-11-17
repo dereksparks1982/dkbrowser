@@ -20,11 +20,11 @@
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #if BUILDFLAG(IS_LINUX)
 #include "base/task/thread_pool.h"
 #include "dk_browser/network/ssdp_discovery.h"
 #endif
-#include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
 #include "chrome/browser/command_updater.h"
