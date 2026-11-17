@@ -142,3 +142,32 @@ blocking responses, response-body rewriting, DNS/proxy controls, temporary
 per-request approvals and other unsupported privileged features require
 additional source work. Tab-only pauses and all original UI behavior also
 need runtime verification. No browser binary was compiled or tested.
+
+## Chromium control reliability pass (November 16, 2026)
+
+The Chromium-specific runtime message bridge now treats a synchronous
+`undefined` listener result as **unhandled**, rather than sending an empty
+response that could mask another listener. Listener removal and inspection
+retain their original handler identities; asynchronous replies still use the
+Chromium response callback.
+
+Core rule-editing interfaces now wait for the DNR adapter result before they
+claim success and persist a choice. This includes the global switch, site
+allowlisting, user-selected request blocks, remembered request exceptions,
+built-in subscription toggles and the general Settings form. If DNR rejects
+an edit, the handler restores its prior in-memory configuration and attempts
+to restore the network rules. Storage-save failures also trigger restoration.
+The service worker waits for its initial DNR refresh before marking its
+startup path ready.
+
+Unsupported Chromium request types are explicitly refused for user-selected
+blocks and remembered exceptions. The Network Monitor does **not** silently
+pretend that the original Firefox temporary/session request allowances are
+enforced by DNR: it returns an explanation until tab/session-specific native
+rules are implemented. The separate **Pause this tab** command continues to
+use its existing Chromium session-rule implementation.
+
+Regression source cases were added for the message bridge, with source
+assertions for the relevant rule-control paths. **None were executed in this
+source-only pass.** A compiled browser, live runtime checks and end-to-end
+behavior remain outstanding.
