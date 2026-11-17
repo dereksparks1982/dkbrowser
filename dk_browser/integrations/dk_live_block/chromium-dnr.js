@@ -176,70 +176,101 @@ function compileTabPauses(tabIds,enabled=true){
 function create(api=root.chrome?.declarativeNetRequest){
  let queue=Promise.resolve(),stats={accepted:0,rejected:0,limited:false,error:"",updated:0};
  let tabsStatus={paused:0,error:"",updated:0};
+ const seed="dk_live_block_seed";
  function sync(source,settings){
-   const compiled=compile(source,settings);
-   const operation=queue.catch(()=>{}).then(async()=>{
-     if(!api?.getDynamicRules||!api?.updateDynamicRules) {
-       stats={...compiled,error:"Chromium DNR API unavailable",updated:Date.now()};
-       return stats;
-     }
+  const compiled=compile(source,settings);
+  const operation=queue.catch(()=>{}).then(async()=>{
+   if(!api?.getDynamicRules||!api?.updateDynamicRules){
+    stats={...stats,error:"Chromium DNR API unavailable",updated:Date.now()};
+    return {...stats};
+   }
+   const wantSeed=settings?.enabled!==false;
+   // Never remove dynamic rules when the caller expects protection to turn
+   // fully off but Chromium cannot control our always-on static seed.
+   if(!wantSeed&&(!api.getEnabledRulesets||!api.updateEnabledRulesets)){
+    stats={...stats,error:"Static ruleset toggle unavailable",updated:Date.now()};
+    return {...stats};
+   }
+   let previous=[],previousCount=stats.accepted,hadSeed=null;
+   let changedDynamic=false,changedSeed=false,rollbackError="";
+   try{
+    previous=await api.getDynamicRules();
+    previousCount=previous.length;
+    if(api.getEnabledRulesets&&api.updateEnabledRulesets){
+     hadSeed=(await api.getEnabledRulesets()).includes(seed);
+    }
+    // When turning protection OFF, disable the static seed first. When
+    // turning it ON, add the dynamic filters first. On either path a later
+    // failure restores the previous state, rather than silently reporting
+    // that both backends are synchronized.
+    if(!wantSeed&&hadSeed===true){
+     await api.updateEnabledRulesets({disableRulesetIds:[seed]});
+     changedSeed=true;
+    }
+    await api.updateDynamicRules({
+     removeRuleIds:previous.map(rule=>rule.id),
+     addRules:compiled.rules
+    });
+    changedDynamic=true;
+    if(wantSeed&&hadSeed===false){
+     await api.updateEnabledRulesets({enableRulesetIds:[seed]});
+     changedSeed=true;
+    }
+    stats={accepted:compiled.accepted,rejected:compiled.rejected,
+     limited:compiled.limited,error:"",updated:Date.now()};
+   }catch(error){
+    // DNR updateDynamicRules is atomic within the dynamic ruleset, but
+    // toggling a static ruleset is a separate API operation. Roll back both
+    // sides when necessary. Never claim the intended state after failure.
+    if(changedDynamic){
      try{
-       const current=await api.getDynamicRules();
-       await api.updateDynamicRules({
-         removeRuleIds:current.map(item=>item.id),
-         addRules:compiled.rules
-       });
-       // The bundled static seed is separate from dynamic rules. Disabling
-       // protection must disable BOTH, or the switch still blocks requests.
-       // Re-enable the seed only when protection is enabled again.
-       if(api.getEnabledRulesets && api.updateEnabledRulesets){
-         const seed="dk_live_block_seed";
-         const enabled=await api.getEnabledRulesets();
-         const hasSeed=enabled.includes(seed);
-         const wantSeed=settings?.enabled!==false;
-         if(hasSeed!==wantSeed){
-           await api.updateEnabledRulesets(wantSeed?
-             {enableRulesetIds:[seed]}:{disableRulesetIds:[seed]});
-         }
-       }else if(settings?.enabled===false){
-         // A Chromium implementation without ruleset control cannot
-         // truthfully report protection as fully disabled.
-         throw new Error("Static ruleset toggle unavailable");
-       }
-       stats={accepted:compiled.accepted,rejected:compiled.rejected,
-         limited:compiled.limited,error:"",updated:Date.now()};
-     }catch(error){
-       // Leave existing valid rules intact if Chromium rejects the refresh.
-       stats={accepted:compiled.accepted,rejected:compiled.rejected,
-         limited:compiled.limited,error:String(error?.message||error).slice(0,180),
-         updated:Date.now()};
-       console.warn("DK Live Block: Chromium network filters",stats.error);
-     }
-     return stats;
-   });
-   queue=operation;return operation;
+      const current=await api.getDynamicRules();
+      await api.updateDynamicRules({
+       removeRuleIds:current.map(rule=>rule.id),addRules:previous
+      });
+     }catch(rollback){rollbackError="; dynamic rollback failed: "+
+      String(rollback?.message||rollback).slice(0,100);}
+    }
+    if(changedSeed){
+     try{
+      await api.updateEnabledRulesets(hadSeed?
+       {enableRulesetIds:[seed]}:{disableRulesetIds:[seed]});
+     }catch(rollback){rollbackError+="; static rollback failed: "+
+      String(rollback?.message||rollback).slice(0,100);}
+    }
+    stats={...stats,accepted:previousCount,
+     error:(String(error?.message||error)+rollbackError).slice(0,250),
+     updated:Date.now()};
+    console.warn("DK Live Block: Chromium network filters",stats.error);
+   }
+   return {...stats};
+  });
+  queue=operation;return operation;
  }
  function syncTabPauses(tabIds,settings){
   const rules=compileTabPauses(tabIds,settings?.enabled!==false);
   const operation=queue.catch(()=>{}).then(async()=>{
    if(!api?.getSessionRules||!api?.updateSessionRules){
-    tabsStatus={paused:0,error:"Chromium DNR session rules unavailable",updated:Date.now()};
-    return tabsStatus;
+    tabsStatus={...tabsStatus,
+     error:"Chromium DNR session rules unavailable",updated:Date.now()};
+    return {...tabsStatus};
    }
+   let previousCount=tabsStatus.paused;
    try{
     const current=await api.getSessionRules();
+    previousCount=current.length;
     await api.updateSessionRules({
      removeRuleIds:current.map(rule=>rule.id),addRules:rules
     });
     tabsStatus={paused:rules.length,error:"",updated:Date.now()};
    }catch(error){
-    tabsStatus={paused:0,error:String(error?.message||error).slice(0,180),
-     updated:Date.now()};
+    // A rejected batch does not erase the previously installed rules.
+    tabsStatus={paused:previousCount,
+     error:String(error?.message||error).slice(0,180),updated:Date.now()};
    }
-   return tabsStatus;
+   return {...tabsStatus};
   });
-  queue=operation;
-  return operation;
+  queue=operation;return operation;
  }
  return {sync,syncTabPauses,status:()=>({...stats,tabPauses:{...tabsStatus}})};
 }
