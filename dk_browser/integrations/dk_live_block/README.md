@@ -6,7 +6,8 @@ a claim that Firefox's every privileged API works unchanged in Chromium.
 ## Source identity and ownership
 
 - Source: `https://github.com/dereksparks1982/dkliveblock`
-- Upstream snapshot: `264e7f5ad2df24582247bd74fcd18c073e622b01`
+- Original upstream import: `264e7f5ad2df24582247bd74fcd18c073e622b01`.
+- Runtime source changes integrated through: `54c6fa727453740e56ba1e414143433e805c2d34` (November 17, 2026). Chromium adapters are preserved, rather than overwritten by Firefox-only code.
 - Original extension manifest: `MV2-MANIFEST.reference.json`
 - Upstream version: **0.3.371**.
 - Original runtime modules and interface resources: `runtime/`.
@@ -19,6 +20,10 @@ a claim that Firefox's every privileged API works unchanged in Chromium.
 The original implementation is brought over rather than replaced with a
 collection of example rules. Where Chromium differs from Firefox, a
 distinct Chromium adapter handles that boundary.
+
+## Synchronization and verification
+
+The DK NetNav bundled runtime incorporates compatible changes from DK Live Block through the newer source commit. The copied Firefox-only upstream archive and optional Linux companion are reference material, not browser-enabled Firefox APIs. The source DK Live Block repository's offline Linux verification at that commit failed with 179 Node test failures and package/version/audit problems. This synchronization is **not** evidence of a passing or live-tested Chromium build.
 
 ## Wiring
 

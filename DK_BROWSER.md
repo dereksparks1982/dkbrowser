@@ -56,7 +56,7 @@ Native Chromium behavior, especially frame transitions, is not verified.
 ## DK Live Block in DK NetNav: full source integration
 
 **Bundled source:** Original DK Live Block upstream snapshot
-`dereksparks1982/dkliveblock@264e7f5ad2df24582247bd74fcd18c073e622b01`
+`dereksparks1982/dkliveblock@264e7f5ad2df24582247bd74fcd18c073e622b01` (base import; runtime updates through `54c6fa727453740e56ba1e414143433e805c2d34`)
 (v0.3.371). The complete runtime source, original icon, original
 background and content scripts, Ghostery, Facebook, Nesty, YouTube, options,
 dashboards and source licenses are vendored. The optional Linux companion
@@ -80,6 +80,8 @@ and its licence are preserved **as source only**.
   `DIR_RESOURCES/dk_live_block/`; original license notices preserved.
 - Python component-source tests and Node DNR adapter regression source
   tests are in the fork. No GitHub Actions or downloadable product.
+
+**November 17 source refresh:** The Chromium-integrated runtime includes later Facebook, YouTube and Nesty updates from DK Live Block, without discarding Chromium-specific integrations. The independent source repository's last offline suite failed (179 Node tests plus packaging/release checks); this is not a passing GitHub release or proof of native runtime parity.
 
 **Not yet functionally equivalent to Firefox:** Chromium MV3 does not
 expose Firefox MV2's synchronous blocking webRequest callback or
