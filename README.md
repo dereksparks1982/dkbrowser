@@ -16,7 +16,7 @@ This repository **contains Chromium's actual browser source code**, not a launch
 
 ## Built-in DK Live Block (complete-source Chromium integration)
 
-DK NetNav now bundles the complete **DK Live Block v0.3.371** runtime
+DK NetNav now bundles the **DK Live Block v0.3.371** runtime
 source within Chromium as an internal, allowlisted component. The source
 includes DK Live Block's own engine and Ghostery matcher, full original
 Facebook and YouTube scripts, Nesty modules, EasyList/EasyPrivacy and other
@@ -151,3 +151,11 @@ The separate tab-wide pause remains implemented in source.
 
 These changes and their regression fixtures have **not been compiled, run
 or tested**. See the [DK Live Block component notes](dk_browser/integrations/dk_live_block/README.md).
+
+## DK Live Block repository consolidation (November 17, 2026)
+
+The DK Live Block runtime lives **inside this repository**, in `dk_browser/integrations/dk_live_block/` and is loaded as a built-in Chromium component. It does not fetch scripts, rules, or assets from the standalone `dkliveblock` GitHub repository at browser startup. The Chromium manifest homepage now points to DK NetNav. The bundled original component license and third-party acknowledgments remain in the source tree.
+
+A source comparison against standalone `dkliveblock/main` (`54c6fa727453740e56ba1e414143433e805c2d34`) found 155 `src/` files (including its Firefox manifest). The missing Nesty supervisor is now bundled and connected to the updated Meta module, the vetted legacy Facebook scanner and a guarded full-engine fallback; newer adaptive YouTube refusal handling is included. Existing Chromium-specific DNR and popup state/error recovery are retained rather than overwritten with Firefox-specific code. The original manifest is retained as a non-runtime reference.
+
+**Scope:** This consolidates working-source ownership and avoids a dependency on the separate repository; it does not establish that all Firefox privileges are available in Chromium. In particular, MV2 response interception, DNS/proxy and similar privileged APIs need native Chromium alternatives. No executable was built, and live filtering/YouTube/Facebook behavior has not been tested. Read [integration notes](dk_browser/integrations/dk_live_block/README.md) before deleting historical source or considering the browser production-ready.

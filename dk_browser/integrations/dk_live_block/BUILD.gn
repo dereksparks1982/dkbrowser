@@ -100,6 +100,7 @@ copy("runtime_root_assets") {
     "runtime/meta-graphql.js",
     "runtime/meta-intelligence-ui.js",
     "runtime/meta-intelligence.html",
+    "runtime/meta-strategy-nesty.js",
     "runtime/meta-module.js",
     "runtime/nesty-intelligence.js",
     "runtime/nesty-layout-scout.js",

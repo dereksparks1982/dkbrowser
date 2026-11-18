@@ -1074,6 +1074,9 @@ function tooBigToBeAPost(container) {
 function hidePost(container, reason, label, via) {
   if (!dkEnabled) return;
   if (isPostReason(reason)) container = wholePost(container);
+  // The Nesty legacy fallback owns its hides. Do not double-hide them.
+  if (container?.closest?.("[data-dklb-nesty-legacy-hidden]") ||
+      container?.querySelector?.("[data-dklb-nesty-legacy-hidden]")) return;
   if (dkExcluded(container) || dkExcluded(label)) return;
   // Too big is not the end of it: a post-sized card may sit inside, around the
   // label - a landmark that wraps a little wider than the post it marks. Hide
@@ -3403,10 +3406,27 @@ function dkDiagnostics() {
     exceptions:dkExceptions.length,
     inlineAdLabelEdits,shallowPostLabelsRecovered});
 }
+// The dormant legacy Nesty strategy must obey every user-facing keep/show
+// decision enforced here, even if it has evidence the full detector missed.
+// No preference contents, Page identity or DOM node are exported.
+function dkCanFallbackHide(card) {
+ if(!dkEnabled||!dkSettingsReady||!dkObserverActive||!card||
+    card.nodeType!==Node.ELEMENT_NODE||card.isConnected===false||
+    !document.body?.contains(card))return false;
+ try {
+  if(dkExcluded(card)||isPageContainer(card)||tooBigToBeAPost(card)||
+     wasOpenedOnPurpose(card)||wasShownByUser(card)||
+     isKeptAuthor(card)||isKeptPage(card))return false;
+  if(card.closest('[role="dialog"],nav,form,[role="navigation"]')||
+     card.querySelector('[role="dialog"]'))return false;
+  return true;
+ }catch(_){return false;}
+}
 const dkApi=Object.freeze({
  installed:true,create:()=>dkApi,setEnabled:dkSetEnabled,
  setExceptions:dkSetExceptions,restore:()=>dkSetEnabled(false),
  scan:dkScan,scanInserted:()=>0,scanVisible:()=>0,observeMutation:dkObserveMutation,
+ canFallbackHide:dkCanFallbackHide,
  diagnostics:dkDiagnostics,get hiddenCount(){return hiddenPosts.size;}
 });
 globalThis.DKFacebookFullCore=dkApi;

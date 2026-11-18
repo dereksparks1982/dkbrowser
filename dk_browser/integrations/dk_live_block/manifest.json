@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "DK Live Block",
   "version": "0.3.371",
-  "description": "DK Browser built-in DK Live Block filtering and privacy controls",
+  "description": "DK NetNav built-in DK Live Block filtering and privacy controls",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy/lOPY/NiP2cDrn84Beebn3yFJeqFN1X8EMU8JxszX310Qh6Pl9QwYfqROvK/++4ORrPqGPt+6E8K0EITGLPcZlY1CVXxWdSiYeL/3wHc4dsf/NUg82LVywirgpwMOvxfPOPOewCGY6kflIfTnB8vh3aq9FK8V+8aajM5ctB2SsudMRxBpFRhqm8B+2Dja0odeu/UjyLxNZmkORPP18CtguyC/6h7ciMH9EBPT5lr9GB8SfF5foKRkiAxbLI8KggnPG6ui7nNyuJY7uvalcx2Aie0Sv4eLSpBXgVYTnS1pcQm7ubRFPTD7DRwMmeZQjz65gq2Z0I2v1qefzGYUQzXwIDAQAB",
   "permissions": [
     "declarativeNetRequest",
@@ -76,6 +76,7 @@
         "runtime/nesty-intelligence.js",
         "runtime/ghostery-dom.js",
         "runtime/facebook-ads.js",
+        "runtime/meta-strategy-nesty.js",
         "runtime/meta-module.js",
         "runtime/ad-investigation.js",
         "runtime/cbs-autoplay.js",
@@ -131,7 +132,7 @@
       ]
     }
   ],
-  "homepage_url": "https://github.com/dereksparks1982/dkliveblock",
+  "homepage_url": "https://github.com/dereksparks1982/dknetnav",
   "declarative_net_request": {
     "rule_resources": [
       {

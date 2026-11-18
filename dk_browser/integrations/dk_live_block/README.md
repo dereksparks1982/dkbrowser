@@ -193,3 +193,9 @@ Regression source cases were added for the message bridge, with source
 assertions for the relevant rule-control paths. **None were executed in this
 source-only pass.** A compiled browser, live runtime checks and end-to-end
 behavior remain outstanding.
+
+## Standalone repository consolidation: November 17, 2026
+
+The standalone `dkliveblock/main` Git commit `54c6fa727453740e56ba1e414143433e805c2d34` (v0.3.371) was compared with the embedded browser runtime. This tree carries the filtering modules and their source locally; the browser does not pull the standalone repository at runtime. The upstream `meta-strategy-nesty.js` supervisor and `meta-module.js` are included, with the original fallback scanner and a guarded authorization API on the existing Chromium-patched Facebook full core. The upstream adaptive YouTube refusal-recovery module replaces the prior snapshot. The old source manifest is preserved as `MV2-MANIFEST.reference.json` but is not loaded in Chromium. `manifest.json`, `BUILD.gn`, Chromium service worker, and the component registration remain NetNav-specific.
+
+**Not the same as verified feature parity:** Chromium MV3 cannot directly reproduce Firefox-specific privileged operations such as `filterResponseData`, synchronous blocking `webRequest`, browser-level DNS and proxy. Those remain explicit outstanding native-port items, as do browser UI and runtime verification. Do not infer successful filtering solely from source presence. No compilation, runtime testing, CI or GitHub Actions were run in this consolidation.
