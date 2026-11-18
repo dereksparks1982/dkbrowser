@@ -34,7 +34,7 @@ class DefaultProtectionSourceContract(unittest.TestCase):
     def test_every_declared_page_and_script_is_in_the_repo(self):
         manifest = json.loads((COMPONENT / "manifest.json").read_text(encoding="utf-8"))
         worker = (COMPONENT / "chromium-background.js").read_text(encoding="utf-8")
-        imported = re.findall(r'"([^"]+\\.js)"', worker)
+        imported = re.findall(r'"([^"]+\.js)"', worker)
         self.assertIn("runtime/background.js", imported)
         self.assertIn("chromium-dnr.js", imported)
         for module in imported:
