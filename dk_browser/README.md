@@ -8,6 +8,10 @@ Before building, follow Chromium's normal Linux instructions and fetch the depen
 
 The parent README and `DK_BROWSER.md` track implemented vs planned features.
 
+## Current feature roadmap
+
+See [DK NetNav roadmap](ROADMAP.md) and [built-in protection audit](BUILT_IN_PROTECTION_AUDIT.md). These track the complete DK Live Block Chromium acceptance requirements, automatic default-on browser antivirus from DK Media Plus/Nougat Security Analysis, and a native local IDE inside the browser. Antivirus and IDE are **planned only**, not released features. The code and checked-in resources do not by themselves establish a passing or tested native Chromium build.
+
 ## DK Live Block built-in component: full source port
 
 The Chromium fork now includes the complete upstream DK Live Block

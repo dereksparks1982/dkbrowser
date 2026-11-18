@@ -14,6 +14,14 @@
 
 This repository **contains Chromium's actual browser source code**, not a launcher, an Electron wrapper, or a source submodule. DK-specific changes are committed directly to the fork and maintained here.
 
+## November 17 roadmap: default protection, antivirus and native IDE
+
+- **DK Live Block is built into non-Google Linux DK NetNav source with filtering enabled by default.** It does not require a separate extension download. Runtime browser acceptance is **not complete**; see the [integration audit](dk_browser/BUILT_IN_PROTECTION_AUDIT.md).
+- **Antivirus integration is planned, not shipped.** The actual donor is DK Media Plus / Nougat Security Analysis. Automatic local download scanning, no paid account or subscription, and the strict warn-before-any-file-action policy are requirements, not claimed features.
+- **A native built-in IDE is planned, not shipped.** Local browser-owned coding workspace, project files and explicit user-controlled run/build facilities. No remote IDE or automatic script execution.
+
+The [active DK NetNav development roadmap](dk_browser/ROADMAP.md) records the source locations, milestone order, acceptance gates and constraints for both features.
+
 ## Built-in DK Live Block (complete-source Chromium integration)
 
 DK NetNav now bundles the **DK Live Block v0.3.371** runtime

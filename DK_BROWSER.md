@@ -113,6 +113,10 @@ performance budgets and licenses. Do not claim live blocking or parity
 until a running browser is verified. DK Media Player remains web-only;
 the companion source does not make yt-dlp a Browser feature.
 
+## November 17 protection and native IDE roadmap
+
+DK Live Block is in the Chromium source tree and is enabled by default in its own settings and bundled rules. Native runtime verification and Firefox-only API replacements remain outstanding. The existing Nougat Security Analysis subsystem in DK Media Plus has an on-demand local scanner but is **not yet automatic antivirus inside DK NetNav**. A separate **native IDE built into the browser** is also planned, not implemented. The full security/IDE implementation sequence, licensing safeguards, free-by-default requirement and acceptance criteria are tracked in [dk_browser/ROADMAP.md](dk_browser/ROADMAP.md). The current [source audit](dk_browser/BUILT_IN_PROTECTION_AUDIT.md) distinguishes integrated source from verified protection.
+
 ## Russian-first AI assistant roadmap
 
 **Status: research and planning only.** No model weights, inference engine, toolbar AI button, or remote AI service are integrated or tested yet. The target is an Alice AI-class assistant for Russian and English users, **not** a claim of performance parity.
